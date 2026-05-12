@@ -1,0 +1,125 @@
+.mobile-avatar-layer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10050;
+  pointer-events: none;
+  transition: transform 0.35s ease;
+}
+
+.mobile-avatar-layer--refusal .mobile-avatar-figure {
+  animation: mobile-avatar-shake 0.4s ease-in-out 1;
+}
+
+@keyframes mobile-avatar-shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.mobile-avatar-figure {
+  width: 72px;
+  height: 88px;
+  border-radius: 40% 40% 45% 45%;
+  background: linear-gradient(160deg, #60a5fa 0%, #2563eb 100%);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
+  position: relative;
+  pointer-events: auto;
+}
+
+.mobile-avatar-figure--alert {
+  background: linear-gradient(160deg, #f87171 0%, #b91c1c 100%);
+}
+
+.mobile-avatar-figure--help {
+  background: linear-gradient(160deg, #a7f3d0 0%, #059669 100%);
+}
+
+.mobile-avatar-figure--confirm {
+  background: linear-gradient(160deg, #fde68a 0%, #d97706 100%);
+}
+
+.mobile-avatar-figure--explain {
+  background: linear-gradient(160deg, #cbd5e1 0%, #475569 100%);
+}
+
+.mobile-avatar-face {
+  position: absolute;
+  inset: 16px 12px 28px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.mobile-avatar-eye {
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.mobile-avatar-mouth {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 10px;
+  border-radius: 0 0 12px 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.mobile-avatar-pointer {
+  position: absolute;
+  right: -6px;
+  top: 40%;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 14px solid rgba(37, 99, 235, 0.9);
+}
+
+.mobile-avatar-bubble {
+  margin-top: 10px;
+  max-width: 260px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #0f172a;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  pointer-events: auto;
+}
+
+.mobile-avatar-bubble p {
+  margin: 6px 0 0;
+  line-height: 1.35;
+}
+
+.mobile-avatar-bubble strong {
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mobile-avatar-bubble--refusal {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.mobile-avatar-bubble--refusal strong {
+  color: #b91c1c;
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Le Locataire</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Admin Le Locataire</h1>
+      <p>Interface d'administration - gestion des utilisateurs, tickets et logements</p>
+    </header>
+
+    <section id="login-section">
+      <h2>Connexion Admin</h2>
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Mot de passe" />
+      <button id="login-button">Se connecter</button>
+      <div id="login-error" class="error"></div>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="toolbar">
+        <button id="logout-button">Se déconnecter</button>
+      </div>
+
+      <div class="cards">
+        <div class="card"><strong>Utilisateurs</strong><span id="user-count">0</span></div>
+        <div class="card"><strong>Tickets</strong><span id="ticket-count">0</span></div>
+        <div class="card"><strong>Logements</strong><span id="housing-count">0</span></div>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <h3>Utilisateurs</h3>
+          <table id="users-table">
+            <thead>
+              <tr><th>ID</th><th>Email</th><th>Rôle</th><th>Action</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h3>Tickets</h3>
+          <table id="tickets-table">
+            <thead>
+              <tr><th>ID</th><th>Titre</th><th>Locataire</th><th>Statut</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Logements</h3>
+        <table id="housing-table">
+          <thead>
+            <tr><th>ID</th><th>Titre</th><th>Adresse</th><th>Bailleur</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

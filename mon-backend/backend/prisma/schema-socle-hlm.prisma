@@ -1,0 +1,417 @@
+// =============================================================================
+// SOCLE HLM — Schéma domaine bailleur social (résidences, garanties, entretiens)
+// =============================================================================
+// Usage :
+// - Base Postgres (Supabase) — IDs UUID, dates DateTime, Json pour checklists.
+// - À fusionner dans schema.prisma principal OU à utiliser comme référence / projet dédié.
+// - Recalcule côté application (Nest) des dates garantie à partir de deliveryDate :
+//   gpaEndDate = deliveryDate + 1 an | biennale + 2 ans | decennale + 10 ans
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+
+/// Codes catalogue alignés front Next.js / équipements logement
+enum EntretienTypeCode {
+  VMC
+  CHAUFFE_EAU_SOLAIRE
+  SIPHONS
+  JOINTS
+  RADIATEURS
+  AERATIONS
+  CAPTEURS_SOLAIRES
+  EXTERIEUR_PRIVATIF
+  EXT_COUR
+  EXT_JARDIN
+  EXT_TERRASSE
+  EXT_PATIO
+  AUTRE
+}
+
+enum MaintenanceFrequency {
+  MENSUEL
+  TRIMESTRIEL
+  ANNUEL
+}
+
+enum EntretienPreuveStatut {
+  BROUILLON
+  SOUMISE
+  VALIDEE_IA
+  REFUSEE_IA
+  VALIDEE_BAILLEUR
+  REFUSEE_BAILLEUR
+}
+
+enum TicketCategory {
+  MOUSTIQUES
+  NUISIBLE
+  EVACUATION
+  INFILTRATION
+  ODEUR
+  PLOMBERIE
+  ELECTRICITE
+  STRUCTURE
+  AUTRE
+}
+
+enum TicketUrgency {
+  BASSE
+  NORMALE
+  HAUTE
+  CRITIQUE
+}
+
+/// Routage automatique cible (règles métier garanties + périmètre charge)
+enum TicketRoutingTarget {
+  NONE
+  GPA
+  BIENNALE
+  DECENNALE
+  BAILLEUR
+  ARTISAN
+  SERVICE_TECHNIQUE_INTERNE
+}
+
+enum TicketStatusSocle {
+  BROUILLON
+  OUVERT
+  EN_COURS
+  RESOLU
+  ANNULE
+  BLOQUE_ENTRETIEN
+}
+
+enum WarrantyPhase {
+  GPA_ACTIVE
+  BIENNALE_ACTIVE
+  DECENNALE_ACTIVE
+  HORS_GARANTIE
+}
+
+enum IAResultKind {
+  ANALYSE_IMAGE
+  VALIDATION_PREUVE
+  DIAGNOSTIC_ENTRETIEN
+  ROUTAGE_TICKET
+}
+
+// -----------------------------------------------------------------------------
+// BAILLEUR
+// -----------------------------------------------------------------------------
+
+model Bailleur {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  corporateName String
+  siren         String? @db.VarChar(14)
+
+  /// Disponibilité d’un pôle GPA interne (au niveau organisme)
+  hasInternalGPAService Boolean @default(false)
+
+  /// Coordonnées du service GPA interne (si activé)
+  gpaServiceEmail String?
+  gpaServicePhone String?
+
+  contactEmail String?
+  contactPhone String?
+
+  residences Residence[]
+  users      BailleurUser[]
+}
+
+/// Liaison utilisateurs Nest / Supabase Auth (profils métiers bailleur)
+model BailleurUser {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  bailleur   Bailleur @relation(fields: [bailleurId], references: [id], onDelete: Cascade)
+  bailleurId String
+
+  /// Référence optionnelle vers User legacy Int si migration progressive
+  legacyUserId Int?
+
+  role String @default("GESTIONNAIRE") /// ex. GESTIONNAIRE, TECHNIQUE, GPA
+
+  @@index([bailleurId])
+}
+
+// -----------------------------------------------------------------------------
+// LOCATAIRE (profil métier UUID — lien optionnel auth Supabase)
+// -----------------------------------------------------------------------------
+
+model Locataire {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firstName String
+  lastName  String
+  email     String?
+
+  /// Subject Supabase Auth (uuid) si SSO
+  authSubject String? @unique
+
+  /// Pont migration depuis TenantProfile legacy
+  legacyTenantProfileId Int? @unique
+
+  logements Logement[] @relation("LocataireOccupant")
+
+  entretienPreuves EntretienPreuve[]
+  tickets          Ticket[]
+}
+
+// -----------------------------------------------------------------------------
+// RÉSIDENCE + GARANTIES (dates stockées — recalculées à la création / MAJ livraison)
+// -----------------------------------------------------------------------------
+
+model Residence {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+
+  bailleur   Bailleur @relation(fields: [bailleurId], references: [id], onDelete: Restrict)
+  bailleurId String
+
+  /// Année de construction déclarative
+  constructionYear Int?
+
+  /// Date de réception / livraison (référence garanties)
+  deliveryDate DateTime @db.Date
+
+  residenceNeuve Boolean @default(false)
+
+  /// Service GPA interne sur cette résidence (per résidence, peut surcharger l’organisme)
+  hasInternalGPAServicePerResidence Boolean @default(false)
+
+  /// Dates garanties — à maintenir via service métier (Triggers Nest ou job batch)
+  gpaEndDate       DateTime @db.Date
+  biennaleEndDate  DateTime @db.Date
+  decennaleEndDate DateTime @db.Date
+
+  logements Logement[]
+
+  @@index([bailleurId])
+  @@index([deliveryDate])
+}
+
+// -----------------------------------------------------------------------------
+// LOGEMENT
+// -----------------------------------------------------------------------------
+
+model Logement {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  label       String /// ex. "A-042", référence patrimoine
+  externalRef String?
+
+  residence   Residence @relation(fields: [residenceId], references: [id], onDelete: Cascade)
+  residenceId String
+
+  /// Équipements impactant les entretiens obligatoires
+  hasVmc              Boolean @default(false)
+  hasSolarWaterHeater Boolean @default(false)
+
+  /// Espaces extérieurs privatifs (au moins un active les entretiens extérieurs module 3)
+  hasCour     Boolean @default(false)
+  hasJardin   Boolean @default(false)
+  hasTerrasse Boolean @default(false)
+  hasPatio    Boolean @default(false)
+
+  /// Locataire courant (optionnel)
+  locataire   Locataire? @relation("LocataireOccupant", fields: [locataireId], references: [id])
+  locataireId String?
+
+  entretiens LogementEntretien[]
+  tickets    Ticket[]
+
+  @@index([residenceId])
+  @@index([locataireId])
+}
+
+// -----------------------------------------------------------------------------
+// MODULE ENTRETIEN — catalogue & rattachements logement
+// -----------------------------------------------------------------------------
+
+model EntretienType {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  code        EntretienTypeCode @unique
+  labelFr     String
+  description String?
+  frequency   MaintenanceFrequency
+
+  /// Si true : nécessite module espaces extérieurs privatifs
+  requiresOutdoorContext Boolean @default(false)
+
+  checklistTemplates ChecklistTemplate[]
+  logementEntretiens LogementEntretien[]
+}
+
+/// Modèle de cases pour pré-remplir Json checklist côté client / validation
+model ChecklistTemplate {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  entretienType   EntretienType @relation(fields: [entretienTypeId], references: [id], onDelete: Cascade)
+  entretienTypeId String
+
+  /// Liste [{ "id": string, "label": string, "required": boolean }]
+  items Json
+
+  version Int @default(1)
+
+  @@index([entretienTypeId])
+}
+
+model LogementEntretien {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logement   Logement @relation(fields: [logementId], references: [id], onDelete: Cascade)
+  logementId String
+
+  entretienType   EntretienType @relation(fields: [entretienTypeId], references: [id], onDelete: Restrict)
+  entretienTypeId String
+
+  active Boolean @default(true)
+
+  nextDueAt       DateTime?
+  lastCompletedAt DateTime?
+
+  preuves EntretienPreuve[]
+
+  @@unique([logementId, entretienTypeId])
+  @@index([logementId])
+  @@index([nextDueAt])
+}
+
+// -----------------------------------------------------------------------------
+// PREUVES D’ENTRETIEN (2 photos obligatoires + checklist Json + validations)
+// -----------------------------------------------------------------------------
+
+model EntretienPreuve {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logementEntretien   LogementEntretien @relation(fields: [logementEntretienId], references: [id], onDelete: Cascade)
+  logementEntretienId String
+
+  locataire   Locataire? @relation(fields: [locataireId], references: [id])
+  locataireId String?
+
+  /// Cases cochées au moment de la soumission (snapshot)
+  checklist Json
+
+  photo1Url String
+  photo2Url String
+
+  validatedByAI       Boolean @default(false)
+  validatedByLandlord Boolean @default(false)
+
+  statut EntretienPreuveStatut @default(BROUILLON)
+
+  landlordValidatedAt DateTime?
+  aiValidatedAt       DateTime?
+
+  iaResults IAResult[]
+}
+
+// -----------------------------------------------------------------------------
+// TICKETS + ROUTAGE INTELLIGENT
+// -----------------------------------------------------------------------------
+
+model Ticket {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title       String
+  description String? @db.Text
+
+  category TicketCategory
+  urgency  TicketUrgency  @default(NORMALE)
+
+  status TicketStatusSocle @default(BROUILLON)
+
+  /// Phase garantie déterminée à l’ouverture (pour audit)
+  warrantyPhaseAtCreation WarrantyPhase?
+
+  /// Routage automatique calculé (règles garanties + entretien / IA)
+  routingTarget TicketRoutingTarget @default(NONE)
+
+  /// Détail libre (ex. orienté constructeur lot X)
+  routingNotes String? @db.VarChar(1024)
+
+  blockedByMaintenance Boolean           @default(false)
+  blockedReason        String?           @db.VarChar(512)
+
+  logement   Logement @relation(fields: [logementId], references: [id], onDelete: Restrict)
+  logementId String
+
+  locataire   Locataire? @relation(fields: [locataireId], references: [id], onDelete: SetNull)
+  locataireId String?
+
+  iaResults IAResult[]
+
+  @@index([logementId])
+  @@index([locataireId])
+  @@index([status])
+  @@index([routingTarget])
+  @@index([createdAt])
+}
+
+// -----------------------------------------------------------------------------
+// IA — résultats traçables (analyse, diagnostic, routage)
+// -----------------------------------------------------------------------------
+
+model IAResult {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  kind IAResultKind
+
+  /// Analyse image / pré-analyse texte (structure libre)
+  imageAnalysis Json?
+
+  /// Diagnostic métier (scores, libellés)
+  diagnostic Json?
+
+  /// Proposition de routage IA (cible + score + motifs)
+  routingIA Json?
+
+  confidence Float?
+
+  ticketId String?
+  ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  entretienPreuveId String?
+  entretienPreuve   EntretienPreuve? @relation(fields: [entretienPreuveId], references: [id], onDelete: SetNull)
+
+  modelVersion String? @default("v1")
+
+  @@index([ticketId])
+  @@index([entretienPreuveId])
+  @@index([kind])
+  @@index([createdAt])
+}

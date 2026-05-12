@@ -1,0 +1,207 @@
+.bailleur-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.bailleur-stat {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.bailleur-stat--accent {
+  border-color: #bbf7d0;
+  background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+}
+
+.bailleur-stat--warn {
+  border-color: #fde68a;
+  background: linear-gradient(135deg, #fffbeb 0%, #fff 100%);
+}
+
+.bailleur-stat__title {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bailleur-stat__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 6px;
+  line-height: 1.2;
+}
+
+.bailleur-stat__hint {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+.bailleur-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 140px;
+}
+
+.bailleur-card h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.bailleur-card__meta {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.bailleur-card__line {
+  margin: 0;
+  font-size: 14px;
+  color: #334155;
+}
+
+.bailleur-card__line.muted,
+.muted {
+  color: #94a3b8;
+}
+
+.bailleur-card__link {
+  margin-top: auto;
+  font-size: 14px;
+  font-weight: 600;
+  color: #047857;
+  text-decoration: none;
+}
+
+.bailleur-card__link:hover {
+  text-decoration: underline;
+}
+
+.bailleur-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.bailleur-table-wrap {
+  overflow-x: auto;
+}
+
+.bailleur-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.bailleur-table th,
+.bailleur-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.bailleur-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+}
+
+.bailleur-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bailleur-pill--paid,
+.bailleur-pill--payé {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.bailleur-pill--pending,
+.bailleur-pill--en_attente {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.bailleur-empty {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.bailleur-ticket-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bailleur-ticket-list__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bailleur-ticket-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.bailleur-ticket-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bailleur-ticket-badge--open {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.bailleur-ticket-badge--in-progress {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.bailleur-ticket-badge--resolved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.bailleur-ticket-badge--cancelled {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.bailleur-dash-section {
+  margin-top: 32px;
+}
+
+.bailleur-dash-section h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}

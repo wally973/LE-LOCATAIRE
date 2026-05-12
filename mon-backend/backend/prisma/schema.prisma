@@ -1,0 +1,636 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                 Int              @id @default(autoincrement())
+  email              String?
+  createdAt          DateTime         @default(now())
+  password           String
+  phone              String           @unique
+  updatedAt          DateTime         @updatedAt
+  role               Role               @default(LOCATAIRE)
+  isAvailable        Boolean          @default(true)
+  adminAuditLogs     AdminAuditLog[]
+  invoicesAsLandlord Invoice[]        @relation("InvoiceLandlord")
+  landlord           LandlordProfile?
+  notifications      Notification[]
+  planningSlots      PlanningSlot[]   @relation("PlanningSlotArtisan")
+  socialWorkers      SocialWorker[]
+  supportTickets     SupportTicket[]
+  tenant             TenantProfile?
+}
+
+model AdminAuditLog {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  actorId    Int
+  actorEmail String?
+  action     String
+  entityType String
+  entityId   Int?
+  metadata   Json?
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([entityType, entityId])
+}
+
+model LandlordProfile {
+  id                    Int            @id @default(autoincrement())
+  name                  String
+  logoUrl               String?
+  userId                Int            @unique
+  gpaServiceEmail       String?
+  gpaServicePhone       String?
+  /// Fusion HLM — service GPA interne (email / téléphone dédiés)
+  hasInternalGPAService Boolean        @default(false)
+  /// Fusion HLM — lien 1:1 optionnel vers entité patrimoine étendue (résidences / garanties)
+  hlmBailleurId         String?        @unique
+  housings              Housing[]
+  hlmBailleur           HlmBailleur?   @relation(fields: [hlmBailleurId], references: [id])
+  user                  User           @relation(fields: [userId], references: [id])
+  socialCases           SocialCase[]
+  socialWorkers         SocialWorker[]
+}
+
+model Housing {
+  id                Int                    @id @default(autoincrement())
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  address           String
+  city              City
+  postalCode        String
+  country           String                 @default("FRANCE")
+  isInGuyane        Boolean                @default(true)
+  externalRef       String?
+  isValidated       Boolean                @default(false)
+  validationComment String?
+  landlordId        Int
+  /// Fusion HLM — lien optionnel vers logement patrimoine (résidence / entretiens)
+  hlmLogementId     String?                @unique
+  documents         Document[]
+  hlmLogement       HlmLogement?           @relation(fields: [hlmLogementId], references: [id])
+  landlord          LandlordProfile        @relation(fields: [landlordId], references: [id])
+  tenantsHistory    TenantHousingHistory[]
+  currentTenant     TenantProfile?         @relation("CurrentTenantHousing")
+  tickets           Ticket[]
+}
+
+model TenantProfile {
+  id               Int                    @id @default(autoincrement())
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  firstName        String
+  lastName         String
+  userId           Int                    @unique
+  housingId        Int?                   @unique
+  isOfficialTenant Boolean                @default(false)
+  /// Fusion HLM — sujet Supabase Auth (sub JWT)
+  authSubject      String?                @unique
+  /// Fusion HLM — lien optionnel vers profil locataire métier UUID (socle)
+  hlmLocataireId   String?                @unique
+  documents        Document[]
+  socialCases      SocialCase[]
+  history          TenantHousingHistory[]
+  hlmLocataire     HlmLocataire?          @relation(fields: [hlmLocataireId], references: [id])
+  housing          Housing?               @relation("CurrentTenantHousing", fields: [housingId], references: [id])
+  user             User                   @relation(fields: [userId], references: [id])
+  tickets          Ticket[]
+}
+
+model TenantHousingHistory {
+  id        Int           @id @default(autoincrement())
+  tenantId  Int
+  housingId Int
+  from      DateTime
+  to        DateTime?
+  housing   Housing       @relation(fields: [housingId], references: [id])
+  tenant    TenantProfile @relation(fields: [tenantId], references: [id])
+}
+
+model Ticket {
+  id                     Int            @id @default(autoincrement())
+  title                  String
+  description            String
+  status                 TicketStatus   @default(OPEN)
+  tenantId               Int
+  housingId              Int
+  aiCategory             String?
+  aiSeverity             String?
+  aiConfidence           Float?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  aiSuggestedArtisanType String?
+  resolutionNote         String?
+  documents              Document[]
+  planningSlots          PlanningSlot[]
+  housing                Housing        @relation(fields: [housingId], references: [id])
+  tenant                 TenantProfile  @relation(fields: [tenantId], references: [id])
+}
+
+model PlanningSlot {
+  id                       Int       @id @default(autoincrement())
+  artisanId                Int
+  ticketId                 Int?
+  startDate                DateTime
+  endDate                  DateTime
+  status                   String    @default("AVAILABLE")
+  tenantConfirmationStatus String    @default("PENDING")
+  reminderSent48h          Boolean   @default(false)
+  reminderSentSameDay      Boolean   @default(false)
+  signatureUrl             String?
+  signedAt                 DateTime?
+  createdAt                DateTime  @default(now())
+  invoice                  Invoice?
+  artisan                  User      @relation("PlanningSlotArtisan", fields: [artisanId], references: [id])
+  ticket                   Ticket?   @relation(fields: [ticketId], references: [id])
+}
+
+model Invoice {
+  id         Int          @id @default(autoincrement())
+  slotId     Int          @unique
+  landlordId Int
+  amount     Float
+  status     String       @default("PENDING")
+  createdAt  DateTime     @default(now())
+  landlord   User         @relation("InvoiceLandlord", fields: [landlordId], references: [id])
+  slot       PlanningSlot @relation(fields: [slotId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String
+  type      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Document {
+  id        Int            @id @default(autoincrement())
+  type      DocumentType
+  url       String?
+  content   String?
+  ticketId  Int?
+  housingId Int?
+  tenantId  Int?
+  createdAt DateTime       @default(now())
+  housing   Housing?       @relation(fields: [housingId], references: [id])
+  tenant    TenantProfile? @relation(fields: [tenantId], references: [id])
+  ticket    Ticket?        @relation(fields: [ticketId], references: [id])
+}
+
+model SupportTicket {
+  id        Int             @id @default(autoincrement())
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  userId    Int
+  subject   String
+  message   String
+  category  SupportCategory @default(GENERAL)
+  priority  SupportPriority @default(LOW)
+  status    String          @default("OPEN")
+  autoReply String?
+  user      User            @relation(fields: [userId], references: [id])
+}
+
+model SocialCase {
+  id         Int                @id @default(autoincrement())
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  tenantId   Int
+  bailleurId Int
+  status     SocialCaseStatus   @default(OPEN)
+  category   SocialCaseCategory @default(AUTRE)
+  notes      String?
+  bailleur   LandlordProfile    @relation(fields: [bailleurId], references: [id])
+  tenant     TenantProfile      @relation(fields: [tenantId], references: [id])
+}
+
+model SocialWorker {
+  id         Int             @id @default(autoincrement())
+  userId     Int
+  bailleurId Int
+  role       String
+  bailleur   LandlordProfile @relation(fields: [bailleurId], references: [id])
+  user       User            @relation(fields: [userId], references: [id])
+}
+
+model AiDiagnostic {
+  id                String   @id @default(uuid())
+  createdAt         DateTime @default(now())
+  /// SHA256(userId + salt) - jamais identifiant clair
+  userHash          String
+  locale            String   @db.VarChar(16)
+  category          String   @db.VarChar(64)
+  severity          String   @db.VarChar(16)
+  target            String   @db.VarChar(24)
+  refused           Boolean
+  refusalReason     String?  @db.VarChar(512)
+  diagnosticSummary String
+  pipelineSteps     Json?
+  avatarVariant     String?  @db.VarChar(32)
+  artisanType       String?  @db.VarChar(64)
+  bailleurFlag      Boolean  @default(false)
+  adminFlag         Boolean  @default(false)
+
+  @@index([createdAt])
+  @@index([userHash])
+  @@index([locale])
+  @@index([refused])
+  @@map("ai_diagnostics")
+}
+
+/// Fusion HLM — organisme patrimoine (UUID). Complète LandlordProfile via liaison optionnelle.
+model HlmBailleur {
+  id                    String            @id @default(uuid())
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  corporateName         String
+  siren                 String?           @db.VarChar(14)
+  hasInternalGPAService Boolean           @default(false)
+  gpaServiceEmail       String?
+  gpaServicePhone       String?
+  contactEmail          String?
+  contactPhone          String?
+  users                 HlmBailleurUser[]
+  residences            HlmResidence[]
+  landlordProfile       LandlordProfile?
+
+  @@index([siren])
+}
+
+/// Fusion HLM — profils métiers bailleur / SSO
+model HlmBailleurUser {
+  id           String      @id @default(uuid())
+  createdAt    DateTime    @default(now())
+  bailleurId   String
+  legacyUserId Int?
+  role         String      @default("GESTIONNAIRE")
+  bailleur     HlmBailleur @relation(fields: [bailleurId], references: [id], onDelete: Cascade)
+
+  @@index([bailleurId])
+  @@index([legacyUserId])
+}
+
+/// Fusion HLM — locataire métier UUID (distinct de TenantProfile legacy Int)
+model HlmLocataire {
+  id                    String               @id @default(uuid())
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  firstName             String
+  lastName              String
+  email                 String?
+  authSubject           String?              @unique
+  legacyTenantProfileId Int?                 @unique
+  entretienPreuves      HlmEntretienPreuve[]
+  logements             HlmLogement[]        @relation("HlmLocataireOccupant")
+  hlmTickets            HlmTicket[]
+  tenantProfile         TenantProfile?
+
+  @@index([legacyTenantProfileId])
+}
+
+/// Fusion HLM — résidence + garanties GPA / biennale / décennale (dates stockées)
+model HlmResidence {
+  id                                String        @id @default(uuid())
+  createdAt                         DateTime      @default(now())
+  updatedAt                         DateTime      @updatedAt
+  name                              String
+  bailleurId                        String
+  constructionYear                  Int?
+  deliveryDate                      DateTime      @db.Date
+  residenceNeuve                    Boolean       @default(false)
+  hasInternalGPAServicePerResidence Boolean       @default(false)
+  gpaEndDate                        DateTime      @db.Date
+  biennaleEndDate                   DateTime      @db.Date
+  decennaleEndDate                  DateTime      @db.Date
+  logements                         HlmLogement[]
+  bailleur                          HlmBailleur   @relation(fields: [bailleurId], references: [id])
+
+  @@index([bailleurId])
+  @@index([deliveryDate])
+  @@index([gpaEndDate])
+  @@index([biennaleEndDate])
+  @@index([decennaleEndDate])
+}
+
+/// Fusion HLM — unité de logement patrimoine (équipements / extérieurs). Pont optionnel vers Housing.
+model HlmLogement {
+  id                  String                 @id @default(uuid())
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  label               String
+  externalRef         String?
+  residenceId         String
+  hasVmc              Boolean                @default(false)
+  hasSolarWaterHeater Boolean                @default(false)
+  hasCour             Boolean                @default(false)
+  hasJardin           Boolean                @default(false)
+  hasTerrasse         Boolean                @default(false)
+  hasPatio            Boolean                @default(false)
+  locataireId         String?
+  locataire           HlmLocataire?          @relation("HlmLocataireOccupant", fields: [locataireId], references: [id])
+  residence           HlmResidence           @relation(fields: [residenceId], references: [id], onDelete: Cascade)
+  entretiens          HlmLogementEntretien[]
+  hlmTickets          HlmTicket[]
+  housing             Housing?
+
+  @@index([residenceId])
+  @@index([locataireId])
+}
+
+/// Fusion HLM — catalogue types d’entretien
+model HlmEntretienType {
+  id                     String                 @id @default(uuid())
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  code                   EntretienTypeCode      @unique
+  labelFr                String
+  description            String?
+  frequency              MaintenanceFrequency
+  requiresOutdoorContext Boolean                @default(false)
+  checklistTemplates     HlmChecklistTemplate[]
+  logementEntretiens     HlmLogementEntretien[]
+}
+
+/// Fusion HLM — modèle de checklist JSON par type
+model HlmChecklistTemplate {
+  id              String           @id @default(uuid())
+  createdAt       DateTime         @default(now())
+  entretienTypeId String
+  items           Json
+  version         Int              @default(1)
+  entretienType   HlmEntretienType @relation(fields: [entretienTypeId], references: [id], onDelete: Cascade)
+
+  @@index([entretienTypeId])
+}
+
+/// Fusion HLM — plan d’entretien par logement
+model HlmLogementEntretien {
+  id              String               @id @default(uuid())
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  logementId      String
+  entretienTypeId String
+  active          Boolean              @default(true)
+  nextDueAt       DateTime?
+  lastCompletedAt DateTime?
+  preuves         HlmEntretienPreuve[]
+  entretienType   HlmEntretienType     @relation(fields: [entretienTypeId], references: [id])
+  logement        HlmLogement          @relation(fields: [logementId], references: [id], onDelete: Cascade)
+
+  @@unique([logementId, entretienTypeId])
+  @@index([logementId])
+  @@index([nextDueAt])
+}
+
+/// Fusion HLM — preuves (2 photos obligatoires + checklist JSON + validations)
+model HlmEntretienPreuve {
+  id                  String                @id @default(uuid())
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  logementEntretienId String
+  locataireId         String?
+  checklist           Json
+  photo1Url           String
+  photo2Url           String
+  validatedByAI       Boolean               @default(false)
+  validatedByLandlord Boolean               @default(false)
+  statut              EntretienPreuveStatut @default(BROUILLON)
+  landlordValidatedAt DateTime?
+  aiValidatedAt       DateTime?
+  locataire           HlmLocataire?         @relation(fields: [locataireId], references: [id])
+  logementEntretien   HlmLogementEntretien  @relation(fields: [logementEntretienId], references: [id], onDelete: Cascade)
+  iaResults           HlmIAResult[]
+
+  @@index([locataireId])
+  @@index([logementEntretienId])
+}
+
+/// Modèle HLM fusionné — ticket socle (routage garanties / entretien). Ne remplace pas Ticket legacy.
+model HlmTicket {
+  id                      String                 @id @default(uuid())
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  title                   String
+  description             String?
+  category                HlmTicketCategory
+  urgency                 HlmTicketUrgency       @default(NORMALE)
+  status                  HlmTicketStatus        @default(BROUILLON)
+  warrantyPhaseAtCreation WarrantyPhase?
+  routingTarget           HlmTicketRoutingTarget @default(NONE)
+  routingNotes            String?                @db.VarChar(1024)
+  /// Alias métier demandé : blocage lié aux preuves d’entretien (synonyme historique blockedByMaintenance)
+  entretienBlocked        Boolean                @default(false)
+  blockedReason           String?                @db.VarChar(512)
+  logementId              String
+  locataireId             String?
+  iaResults               HlmIAResult[]
+  locataire               HlmLocataire?          @relation(fields: [locataireId], references: [id])
+  logement                HlmLogement            @relation(fields: [logementId], references: [id])
+
+  @@index([logementId])
+  @@index([locataireId])
+  @@index([status])
+  @@index([routingTarget])
+  @@index([createdAt])
+  @@index([entretienBlocked])
+}
+
+/// Fusion HLM — résultats IA (analyse image, diagnostic, routage)
+model HlmIAResult {
+  id                String              @id @default(uuid())
+  createdAt         DateTime            @default(now())
+  kind              HlmIAResultKind
+  imageAnalysis     Json?
+  diagnostic        Json?
+  routingIA         Json?
+  confidence        Float?
+  ticketId          String?
+  entretienPreuveId String?
+  modelVersion      String?             @default("v1")
+  entretienPreuve   HlmEntretienPreuve? @relation(fields: [entretienPreuveId], references: [id])
+  ticket            HlmTicket?          @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@index([entretienPreuveId])
+  @@index([kind])
+  @@index([createdAt])
+}
+
+enum Role {
+  ADMIN
+  BAILLEUR
+  LOCATAIRE
+  /// Intervenants terrain (ex‑rôle ARTISAN — planning / facturation).
+  PRESTATAIRE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CANCELLED
+}
+
+enum DisorderType {
+  PLUMBING
+  ELECTRICITY
+  STRUCTURE
+  HUMIDITY
+  LOCK
+  OTHER
+}
+
+enum City {
+  CAYENNE
+  MATOURY
+  KOUROU
+  SAINT_LAURENT
+  AUTRE_GUYANE
+}
+
+enum DocumentType {
+  CONTRAT_LOCATION
+  QUITTANCE_LOYER
+  RAPPORT_INTERVENTION
+  ASSURANCE_HABITATION
+  AUTRE
+}
+
+enum SupportPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SupportCategory {
+  GENERAL
+  FACTURATION
+  TECHNIQUE
+  URGENCE
+}
+
+enum SocialCaseStatus {
+  OPEN
+  FOLLOW_UP
+  CLOSED
+}
+
+enum SocialCaseCategory {
+  APL
+  IMPAYE
+  SOCIAL
+  AUTRE
+}
+
+/// Fusion HLM — codes catalogue équipements / entretiens
+enum EntretienTypeCode {
+  VMC
+  CHAUFFE_EAU_SOLAIRE
+  SIPHONS
+  JOINTS
+  RADIATEURS
+  AERATIONS
+  CAPTEURS_SOLAIRES
+  EXTERIEUR_PRIVATIF
+  EXT_COUR
+  EXT_JARDIN
+  EXT_TERRASSE
+  EXT_PATIO
+  AUTRE
+  /// Catalogue granulaire — VMC
+  VMC_FILTRE
+  VMC_BOITIER
+  /// Catalogue granulaire — chauffe-eau solaire
+  SOL_CAPTEUR
+  SOL_PRESSION
+  /// Catalogue granulaire — siphons
+  SIPHON_NETTOYAGE
+  /// Catalogue granulaire — espaces extérieurs privatifs
+  EXT_TONTE
+  EXT_DEBROUSSAILLAGE
+  EXT_GOUTTIERE
+  EXT_EAU_STAGNANTE
+}
+
+enum MaintenanceFrequency {
+  MENSUEL
+  TRIMESTRIEL
+  ANNUEL
+  /// Ex. contrôle eaux stagnantes (cadence plus courte)
+  HEBDOMADAIRE
+}
+
+enum EntretienPreuveStatut {
+  BROUILLON
+  SOUMISE
+  VALIDEE_IA
+  REFUSEE_IA
+  VALIDEE_BAILLEUR
+  REFUSEE_BAILLEUR
+}
+
+/// Fusion HLM — catégories incidents (socle)
+enum HlmTicketCategory {
+  MOUSTIQUES
+  NUISIBLE
+  EVACUATION
+  INFILTRATION
+  ODEUR
+  PLOMBERIE
+  ELECTRICITE
+  STRUCTURE
+  AUTRE
+}
+
+enum HlmTicketUrgency {
+  BASSE
+  NORMALE
+  HAUTE
+  CRITIQUE
+}
+
+/// Fusion HLM — routage automatique (GPA / garanties / charge)
+enum HlmTicketRoutingTarget {
+  NONE
+  GPA
+  BIENNALE
+  DECENNALE
+  BAILLEUR
+  ARTISAN
+  SERVICE_TECHNIQUE_INTERNE
+}
+
+enum HlmTicketStatus {
+  BROUILLON
+  OUVERT
+  EN_COURS
+  RESOLU
+  ANNULE
+  BLOQUE_ENTRETIEN
+}
+
+enum WarrantyPhase {
+  GPA_ACTIVE
+  BIENNALE_ACTIVE
+  DECENNALE_ACTIVE
+  HORS_GARANTIE
+}
+
+enum HlmIAResultKind {
+  ANALYSE_IMAGE
+  VALIDATION_PREUVE
+  DIAGNOSTIC_ENTRETIEN
+  ROUTAGE_TICKET
+}

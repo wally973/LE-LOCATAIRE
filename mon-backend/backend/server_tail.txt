@@ -1,0 +1,80 @@
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLandlordsModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mNotificationsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDashboardModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAiModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mArtisansModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTicketsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPlanningModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDocumentsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mInvoiceModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUsersController {/users}:[39m[38;5;3m +60ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/users, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/users/:id/role, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/refresh, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHousingController {/housing}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/housing, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/housing, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/housing/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/housing/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/housing/:id, DELETE} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/housing/assign, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLandlordsController {/landlords}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/landlords/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/landlords/me, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/landlords/me/housings, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/landlords/housing/:id/validate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/landlords/me/tickets, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/landlords/me/artisans, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTicketsController {/tickets}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/tickets, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/tickets/me, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/tickets/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/tickets/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPlanningController {/planning}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/planning/slot/:id/sign, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/planning/slot/:id/report, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDocumentsController {/documents}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/documents/upload, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/documents/generate/contract, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/documents/generate/rent-receipt, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/documents/housing/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/documents/tenant/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/documents/housing/:id/compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/documents/tenant/:id/insurance, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mNotificationsController {/notifications}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/notifications/email, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/notifications/push, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/notifications/internal, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/notifications/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDashboardController {/dashboard}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/dashboard, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mInvoiceController {/invoice}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/invoice/:id, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/invoice/:id/validate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/invoice/pay, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/invoice/pdf, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/invoice/dashboard/landlord, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/invoice/dashboard/artisan, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAiController {/ai}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ai/ticket-flow, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ai/analyze-photo, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mArtisansController {/artisans}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans/:id, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans/:id/availability, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans/assign-ticket, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans/:id/tickets, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans/available, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans/tickets/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/artisans/tickets/:id/assign-auto, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUploadController {/upload}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:29 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/upload, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 27608  - [39m09/05/2026 09:09:42 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +12624ms[39m
+Server listening on http://0.0.0.0:3000
+Local network addresses: 192.168.1.16

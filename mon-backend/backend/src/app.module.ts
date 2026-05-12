@@ -1,0 +1,47 @@
+import { Module } from '@nestjs/common';
+import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+import { AdminModule } from './admin/admin.module';
+import { HousingModule } from './housing/housing.module';
+import { LandlordsModule } from './landlords/landlords.module';
+import { TenantModule } from './tenant/tenant.module';
+import { TicketsModule } from './tickets/tickets.module';
+import { PlanningModule } from './planning/planning.module';
+import { DocumentsModule } from './documents/documents.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+// import { SocialModule } from './social/social.module';
+// import { SupportModule } from './support/support.module';
+import { InvoiceModule } from './invoice/invoice.module';
+import { AiModule } from './ai/ai.module';
+import { ArtisansModule } from './artisans/artisans.module';
+import { UploadModule } from './upload/upload.module';
+import { AiDiagnosticsModule } from './ai-diagnostics/ai-diagnostics.module';
+import { HlmModule } from './hlm/hlm.module';
+
+@Module({
+  imports: [
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    AdminModule,
+    HousingModule,
+    LandlordsModule,
+    TenantModule,
+    TicketsModule,
+    PlanningModule,
+    DocumentsModule,
+    NotificationsModule,
+    DashboardModule,
+    // SocialModule,
+    // SupportModule,
+    InvoiceModule,
+    AiModule,
+    ArtisansModule,
+    UploadModule,
+    AiDiagnosticsModule,
+    HlmModule,
+  ],
+})
+export class AppModule {}

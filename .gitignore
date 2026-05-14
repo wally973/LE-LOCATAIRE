@@ -1,0 +1,7 @@
+# Artefacts locaux à ne jamais committer (dumps temporaires, fichiers Office verrouillés)
+projet.txt
+~$*
+
+# OS
+.DS_Store
+Thumbs.db

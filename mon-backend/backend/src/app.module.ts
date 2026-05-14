@@ -19,6 +19,8 @@ import { ArtisansModule } from './artisans/artisans.module';
 import { UploadModule } from './upload/upload.module';
 import { AiDiagnosticsModule } from './ai-diagnostics/ai-diagnostics.module';
 import { HlmModule } from './hlm/hlm.module';
+import { ContratsModule } from './contrats/contrats.module';
+import { PaiementsModule } from './paiements/paiements.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { HlmModule } from './hlm/hlm.module';
     UploadModule,
     AiDiagnosticsModule,
     HlmModule,
+    ContratsModule,
+    PaiementsModule,
   ],
 })
 export class AppModule {}

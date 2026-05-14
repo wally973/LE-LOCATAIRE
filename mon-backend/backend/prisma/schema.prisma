@@ -15,11 +15,13 @@ model User {
   password           String
   phone              String           @unique
   updatedAt          DateTime         @updatedAt
-  role               Role               @default(LOCATAIRE)
+  role               Role             @default(LOCATAIRE)
   isAvailable        Boolean          @default(true)
   adminAuditLogs     AdminAuditLog[]
   invoicesAsLandlord Invoice[]        @relation("InvoiceLandlord")
   landlord           LandlordProfile?
+  /// Profil agent — non null si role = AGENT (rattaché à un bailleur, optionnellement à une agence)
+  agent              AgentProfile?
   notifications      Notification[]
   planningSlots      PlanningSlot[]   @relation("PlanningSlotArtisan")
   socialWorkers      SocialWorker[]
@@ -43,22 +45,114 @@ model AdminAuditLog {
   @@index([entityType, entityId])
 }
 
+/// Contrat de location reliant LandlordProfile (bailleur), TenantProfile (locataire) et Housing (logement).
+/// Source de vérité pour la relation contractuelle : dates, loyer, dépôt de garantie, statut.
+model ContratLocation {
+  id                Int       @id @default(autoincrement())
+  landlordProfileId Int
+  tenantProfileId   Int
+  housingId         Int
+  dateDebut         DateTime
+  dateFin           DateTime?
+  loyerMensuel      Float
+  depotGarantie     Float?
+  /// ACTIF, RESILIE, EN_ATTENTE, etc.
+  statut            String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  landlord LandlordProfile @relation(fields: [landlordProfileId], references: [id], onDelete: Restrict)
+  tenant   TenantProfile   @relation(fields: [tenantProfileId], references: [id], onDelete: Restrict)
+  housing  Housing         @relation(fields: [housingId], references: [id], onDelete: Restrict)
+
+  paiements Paiement[]
+
+  @@index([landlordProfileId])
+  @@index([tenantProfileId])
+  @@index([housingId])
+}
+
+model Paiement {
+  id            Int      @id @default(autoincrement())
+  contratId     Int
+  datePaiement  DateTime
+  montant       Float
+  /// CB, VIREMENT, ESPECES, CHEQUE
+  moyenPaiement String
+  /// PAYE, EN_RETARD, PARTIEL, ANNULE
+  statut        String
+  reference     String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contrat ContratLocation @relation(fields: [contratId], references: [id], onDelete: Restrict)
+
+  @@index([contratId])
+}
+
 model LandlordProfile {
-  id                    Int            @id @default(autoincrement())
+  id                    Int               @id @default(autoincrement())
   name                  String
   logoUrl               String?
-  userId                Int            @unique
+  userId                Int               @unique
   gpaServiceEmail       String?
   gpaServicePhone       String?
   /// Fusion HLM — service GPA interne (email / téléphone dédiés)
-  hasInternalGPAService Boolean        @default(false)
+  hasInternalGPAService Boolean           @default(false)
   /// Fusion HLM — lien 1:1 optionnel vers entité patrimoine étendue (résidences / garanties)
-  hlmBailleurId         String?        @unique
+  hlmBailleurId         String?           @unique
   housings              Housing[]
-  hlmBailleur           HlmBailleur?   @relation(fields: [hlmBailleurId], references: [id])
-  user                  User           @relation(fields: [userId], references: [id])
+  hlmBailleur           HlmBailleur?      @relation(fields: [hlmBailleurId], references: [id])
+  user                  User              @relation(fields: [userId], references: [id])
   socialCases           SocialCase[]
   socialWorkers         SocialWorker[]
+  /// Multi-tenant : agences/gérances rattachées à ce bailleur (hiérarchie souple)
+  agences               Agence[]
+  /// Multi-tenant : agents (rôle AGENT) sous autorisation de ce bailleur
+  agents                AgentProfile[]
+  /// Contrats de location dont ce bailleur est partie
+  contratsLocation      ContratLocation[]
+}
+
+/// Agence / gérance d'un bailleur — entité optionnelle de regroupement (secteur géographique, équipe).
+/// Un bailleur peut n'avoir aucune agence (structure simple) ou plusieurs (maison maîtresse + filiales).
+model Agence {
+  id                Int      @id @default(autoincrement())
+  name              String
+  address           String?
+  city              City?
+  postalCode        String?
+  phone             String?
+  email             String?
+  landlordProfileId Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  landlord LandlordProfile @relation(fields: [landlordProfileId], references: [id], onDelete: Cascade)
+  agents   AgentProfile[]
+  housings Housing[]
+
+  @@index([landlordProfileId])
+}
+
+/// Profil agent (rôle AGENT) — un agent travaille pour un bailleur et optionnellement dans une agence.
+/// La granularité des permissions sera ajoutée plus tard ; pour l'instant un agent a accès à toutes les
+/// réclamations du périmètre de son bailleur (ou de son agence si rattaché à une).
+model AgentProfile {
+  id                Int      @id @default(autoincrement())
+  userId            Int      @unique
+  landlordProfileId Int
+  agenceId          Int?
+  fonction          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  landlord LandlordProfile @relation(fields: [landlordProfileId], references: [id], onDelete: Cascade)
+  agence   Agence?         @relation(fields: [agenceId], references: [id], onDelete: SetNull)
+
+  @@index([landlordProfileId])
+  @@index([agenceId])
 }
 
 model Housing {
@@ -74,14 +168,21 @@ model Housing {
   isValidated       Boolean                @default(false)
   validationComment String?
   landlordId        Int
+  /// Rattachement optionnel à une agence/secteur (routage des tickets vers l'équipe responsable)
+  agenceId          Int?
   /// Fusion HLM — lien optionnel vers logement patrimoine (résidence / entretiens)
   hlmLogementId     String?                @unique
   documents         Document[]
   hlmLogement       HlmLogement?           @relation(fields: [hlmLogementId], references: [id])
   landlord          LandlordProfile        @relation(fields: [landlordId], references: [id])
+  agence            Agence?                @relation(fields: [agenceId], references: [id], onDelete: SetNull)
   tenantsHistory    TenantHousingHistory[]
   currentTenant     TenantProfile?         @relation("CurrentTenantHousing")
   tickets           Ticket[]
+  contratsLocation  ContratLocation[]
+
+  @@index([landlordId])
+  @@index([agenceId])
 }
 
 model TenantProfile {
@@ -104,6 +205,7 @@ model TenantProfile {
   housing          Housing?               @relation("CurrentTenantHousing", fields: [housingId], references: [id])
   user             User                   @relation(fields: [userId], references: [id])
   tickets          Ticket[]
+  contratsLocation ContratLocation[]
 }
 
 model TenantHousingHistory {
@@ -471,6 +573,8 @@ model HlmIAResult {
 enum Role {
   ADMIN
   BAILLEUR
+  /// Agent rattaché à un bailleur (et optionnellement à une agence) — hérite du périmètre de son bailleur.
+  AGENT
   LOCATAIRE
   /// Intervenants terrain (ex‑rôle ARTISAN — planning / facturation).
   PRESTATAIRE

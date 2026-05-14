@@ -54,3 +54,9 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Artefacts locaux (dumps de debug, listing temporaires)
+_ls.txt
+server.err
+server_tail.txt
+

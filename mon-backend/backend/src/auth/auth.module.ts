@@ -8,6 +8,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import { RolesGuard } from './guard/roles.guard';
+import { BailleurScopeService } from './scope/bailleur-scope.service';
+import { BailleurScopeGuard } from './scope/bailleur-scope.guard';
 
 @Module({
   imports: [
@@ -25,7 +27,17 @@ import { RolesGuard } from './guard/roles.guard';
     JwtRefreshStrategy,
     JwtAuthGuard,
     RolesGuard,
+    BailleurScopeService,
+    BailleurScopeGuard,
   ],
-  exports: [AuthService, JwtAuthGuard, RolesGuard, JwtModule, PassportModule],
+  exports: [
+    AuthService,
+    JwtAuthGuard,
+    RolesGuard,
+    BailleurScopeService,
+    BailleurScopeGuard,
+    JwtModule,
+    PassportModule,
+  ],
 })
 export class AuthModule {}

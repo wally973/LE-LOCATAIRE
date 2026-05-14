@@ -227,23 +227,47 @@ model TenantHousingHistory {
 }
 
 model Ticket {
-  id                     Int            @id @default(autoincrement())
+  id                     Int                   @id @default(autoincrement())
   title                  String
   description            String
-  status                 TicketStatus   @default(OPEN)
+  status                 TicketStatus          @default(NEW)
   tenantId               Int
   housingId              Int
+  /// Multi-tenant : recopié depuis Housing.landlordId à la création pour scope rapide
+  landlordProfileId      Int?
+  /// Classification IA produite par le pipeline (catégorie technique, sévérité, score)
   aiCategory             String?
   aiSeverity             String?
   aiConfidence           Float?
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
   aiSuggestedArtisanType String?
+  /// Décision de routage du pipeline IA (PENDING tant que l'IA n'a pas tranché)
+  responsibility         TicketResponsibility  @default(PENDING)
+  /// Sous-catégorie en cas de NON_RECEVABLE (juridique voisin, assurance, etc.)
+  nonRecevableReason     NonRecevableReason?
+  /// Compteur des analyses IA déjà tentées (incrémenté à chaque re-photo)
+  aiAttempts             Int                   @default(0)
+  /// Seuil au-delà duquel le ticket est escaladé physiquement au bailleur (Q4=2)
+  aiMaxAttempts          Int                   @default(2)
+  /// Horodatage de l'escalade physique au bailleur (IA n'a pas pu trancher)
+  escalatedAt            DateTime?
+  /// Motif court de l'escalade (ex : "Photo floue x2")
+  escalationReason       String?
+  /// Trace JSON de la dernière décision IA (catégorie, confidence, pipelineSteps, etc.)
+  aiLastDecision         Json?
   resolutionNote         String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
   documents              Document[]
   planningSlots          PlanningSlot[]
-  housing                Housing        @relation(fields: [housingId], references: [id])
-  tenant                 TenantProfile  @relation(fields: [tenantId], references: [id])
+  housing                Housing               @relation(fields: [housingId], references: [id])
+  tenant                 TenantProfile         @relation(fields: [tenantId], references: [id])
+  /// Cas social déclenché automatiquement par le routage IA (Sprint 5)
+  socialCase             SocialCase?           @relation("TicketSocialCase")
+
+  @@index([landlordProfileId, status])
+  @@index([responsibility])
+  @@index([escalatedAt])
+  @@index([tenantId])
 }
 
 model PlanningSlot {
@@ -314,16 +338,19 @@ model SupportTicket {
 }
 
 model SocialCase {
-  id         Int                @id @default(autoincrement())
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-  tenantId   Int
-  bailleurId Int
-  status     SocialCaseStatus   @default(OPEN)
-  category   SocialCaseCategory @default(AUTRE)
-  notes      String?
-  bailleur   LandlordProfile    @relation(fields: [bailleurId], references: [id])
-  tenant     TenantProfile      @relation(fields: [tenantId], references: [id])
+  id              Int                @id @default(autoincrement())
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  tenantId        Int
+  bailleurId      Int
+  status          SocialCaseStatus   @default(OPEN)
+  category        SocialCaseCategory @default(AUTRE)
+  notes           String?
+  /// Ticket d'origine si le cas a été créé suite à un routage IA SOCIAL
+  triggerTicketId Int?               @unique
+  bailleur        LandlordProfile    @relation(fields: [bailleurId], references: [id])
+  tenant          TenantProfile      @relation(fields: [tenantId], references: [id])
+  triggerTicket   Ticket?            @relation("TicketSocialCase", fields: [triggerTicketId], references: [id])
 }
 
 model SocialWorker {
@@ -634,10 +661,44 @@ enum Role {
 }
 
 enum TicketStatus {
+  /// Vient d'être créé, pipeline IA pas encore lancé
+  NEW
+  /// IA a demandé une nouvelle photo au locataire, en attente de re-upload
+  AWAITING_TENANT_PHOTO
+  /// Ticket actif (routé vers BAILLEUR / LOCATAIRE / SOCIAL / ESCALADE)
   OPEN
   IN_PROGRESS
   RESOLVED
   CANCELLED
+  /// Fermé automatiquement par l'IA (NON_RECEVABLE). Réouvrable via revue humaine.
+  AUTO_CLOSED
+}
+
+/// Décision de routage produite par le pipeline IA (cœur du Sprint 3)
+enum TicketResponsibility {
+  /// IA pas encore passée (juste créé) ou en cours d'analyse
+  PENDING
+  /// Charge bailleur : structure, parties communes, vétusté, gros entretien
+  BAILLEUR
+  /// Charge locataire : entretien courant, dégradation locative
+  LOCATAIRE
+  /// Non recevable : litige voisin, sinistre assurance, hors-périmètre app
+  NON_RECEVABLE
+  /// Volet social : impayé de loyer, surendettement, médiation paiement
+  SOCIAL
+  /// IA n'a pas pu trancher après aiMaxAttempts → déplacement bailleur requis
+  ESCALADE_BAILLEUR
+}
+
+/// Sous-catégorie pour NON_RECEVABLE — alimente le compteur bailleur (Sprint 5)
+/// et oriente le message contextuel renvoyé au locataire.
+enum NonRecevableReason {
+  JURIDIQUE_VOISIN
+  ASSURANCE_DEGATS_EAUX
+  ASSURANCE_AUTRE
+  HORS_LOGEMENT
+  HORS_PERIMETRE_APP
+  AUTRE
 }
 
 enum DisorderType {

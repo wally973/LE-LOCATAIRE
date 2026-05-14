@@ -22,6 +22,7 @@ import { HlmModule } from './hlm/hlm.module';
 import { ContratsModule } from './contrats/contrats.module';
 import { PaiementsModule } from './paiements/paiements.module';
 import { TenantOnboardingModule } from './tenant-onboarding/tenant-onboarding.module';
+import { AiRoutingModule } from './ai-routing/ai-routing.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { TenantOnboardingModule } from './tenant-onboarding/tenant-onboarding.mo
     ContratsModule,
     PaiementsModule,
     TenantOnboardingModule,
+    AiRoutingModule,
   ],
 })
 export class AppModule {}

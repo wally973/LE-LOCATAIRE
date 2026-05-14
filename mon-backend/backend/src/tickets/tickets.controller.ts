@@ -38,7 +38,7 @@ export class TicketsController {
    * Récupérer mes tickets selon mon rôle
    */
   @Get('me')
-  @Roles('LOCATAIRE', 'BAILLEUR', 'ADMIN')
+  @Roles('LOCATAIRE', 'BAILLEUR', 'AGENT', 'ADMIN')
   getMyTickets(@Req() req) {
     const userId = req.user.id;
     const role = req.user.role;
@@ -46,10 +46,20 @@ export class TicketsController {
   }
 
   /**
+   * Récupérer mes tickets déjà routés par l'IA (locataire uniquement).
+   * Renvoie un payload allégé pensé pour l'écran "mes diagnostics".
+   */
+  @Get('me/routed')
+  @Roles('LOCATAIRE')
+  getMyRoutedTickets(@Req() req) {
+    return this.ticketsService.getMyRoutedTickets(req.user.id);
+  }
+
+  /**
    * Récupérer un ticket par ID
    */
   @Get(':id')
-  @Roles('LOCATAIRE', 'BAILLEUR', 'ADMIN')
+  @Roles('LOCATAIRE', 'BAILLEUR', 'AGENT', 'ADMIN')
   getTicketById(@Param('id', ParseIntPipe) id: number) {
     return this.ticketsService.getTicketById(id);
   }
@@ -61,7 +71,7 @@ export class TicketsController {
    * - Admin : peut tout modifier
    */
   @Patch(':id')
-  @Roles('LOCATAIRE', 'BAILLEUR', 'ADMIN')
+  @Roles('LOCATAIRE', 'BAILLEUR', 'AGENT', 'ADMIN')
   updateTicket(
     @Req() req,
     @Param('id', ParseIntPipe) id: number,

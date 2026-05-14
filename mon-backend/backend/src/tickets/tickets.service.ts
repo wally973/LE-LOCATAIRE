@@ -9,22 +9,24 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { TicketStatus } from '@prisma/client';
-import { AiTicketService } from '../ai/ai-ticket.service';
-import { AiDispatchService } from '../ai/ai-dispatch.service';
 import { AiPhotoService } from '../ai/ai-photo.service';
+import { AiRoutingService } from '../ai-routing/ai-routing.service';
 
 @Injectable()
 export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
-    private readonly aiTicket: AiTicketService,
-    private readonly aiDispatch: AiDispatchService,
     private readonly aiPhoto: AiPhotoService,
+    private readonly aiRouting: AiRoutingService,
   ) {}
 
   /**
-   * Création d’un ticket (locataire) — tenantId = id TenantProfile, pas User.
+   * Création d'un ticket (locataire) — tenantId = id TenantProfile, pas User.
+   *
+   * Sprint 3 : le ticket est créé en status=NEW + responsibility=PENDING puis
+   * le pipeline IA est lancé immédiatement. La décision (routage, message au
+   * locataire, notifications) est gérée par AiRoutingService.
    */
   async createTicket(tenantUserId: number, dto: CreateTicketDto) {
     const tenantProfile = await this.prisma.tenantProfile.findUnique({
@@ -55,31 +57,20 @@ export class TicketsService {
       );
     }
 
-    const diagnostic = await this.aiTicket.analyze(dto.description);
-
-    if (!diagnostic) {
-      throw new BadRequestException('Impossible d\'analyser la description');
-    }
-
     const ticket = await this.prisma.ticket.create({
       data: {
         title: dto.title,
         description: dto.description,
         tenantId: tenantProfile.id,
         housingId: dto.housingId,
-        status: 'OPEN',
-        aiCategory: diagnostic.category,
-        aiSeverity: diagnostic.severity,
-        aiConfidence: diagnostic.confidence,
+        landlordProfileId: housing.landlordId,
+        status: 'NEW',
+        responsibility: 'PENDING',
       },
     });
 
-    await this.notifications.createNotification({
-      userId: housing.landlord.userId,
-      title: 'Nouveau ticket créé',
-      message: `Un nouveau ticket a été créé pour le logement ${housing.address}.`,
-      type: 'INFO',
-    });
+    // Pipeline IA : routage automatique + side effects (notifications, etc.)
+    await this.aiRouting.analyzeTicket(ticket.id, { force: true });
 
     return this.getTicketById(ticket.id);
   }
@@ -183,5 +174,43 @@ export class TicketsService {
       success: true,
       analysis,
     };
+  }
+
+  /**
+   * GET /tickets/me/routed — vue ciblée pour le locataire : ne renvoie que
+   * les tickets dont l'IA a déjà rendu un verdict (utile pour l'UI mobile
+   * qui affiche la fiche "diagnostic IA terminé").
+   */
+  async getMyRoutedTickets(tenantUserId: number) {
+    const tp = await this.prisma.tenantProfile.findUnique({
+      where: { userId: tenantUserId },
+    });
+    if (!tp) return [];
+
+    return this.prisma.ticket.findMany({
+      where: {
+        tenantId: tp.id,
+        responsibility: { not: 'PENDING' },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        responsibility: true,
+        nonRecevableReason: true,
+        aiCategory: true,
+        aiSeverity: true,
+        aiConfidence: true,
+        aiSuggestedArtisanType: true,
+        aiAttempts: true,
+        aiLastDecision: true,
+        escalatedAt: true,
+        escalationReason: true,
+        createdAt: true,
+        updatedAt: true,
+        housing: { select: { id: true, address: true } },
+      },
+    });
   }
 }

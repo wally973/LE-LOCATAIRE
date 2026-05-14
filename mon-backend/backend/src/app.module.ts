@@ -23,6 +23,8 @@ import { ContratsModule } from './contrats/contrats.module';
 import { PaiementsModule } from './paiements/paiements.module';
 import { TenantOnboardingModule } from './tenant-onboarding/tenant-onboarding.module';
 import { AiRoutingModule } from './ai-routing/ai-routing.module';
+import { VideoLibraryModule } from './video-library/video-library.module';
+import { ArtisanRequestsModule } from './artisan-requests/artisan-requests.module';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { AiRoutingModule } from './ai-routing/ai-routing.module';
     PaiementsModule,
     TenantOnboardingModule,
     AiRoutingModule,
+    VideoLibraryModule,
+    ArtisanRequestsModule,
   ],
 })
 export class AppModule {}

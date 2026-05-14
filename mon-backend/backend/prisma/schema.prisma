@@ -116,6 +116,8 @@ model LandlordProfile {
   contratsLocation      ContratLocation[]
   /// Demandes d'inscription locataire en attente / historisées pour ce bailleur
   tenantRequests        TenantRegistrationRequest[]
+  /// Sprint 4 : demandes d'artisan ouvertes par les locataires de ce bailleur (visibilité)
+  artisanRequests       ArtisanRequest[]
 }
 
 /// Agence / gérance d'un bailleur — entité optionnelle de regroupement (secteur géographique, équipe).
@@ -214,6 +216,8 @@ model TenantProfile {
   contratsLocation ContratLocation[]
   /// Si ce profil a été créé via une demande self-service, lien optionnel vers la demande d'origine
   originRegistrationRequest TenantRegistrationRequest? @relation("ApprovedTenantProfile")
+  /// Sprint 4 : demandes d'artisan ouvertes par ce locataire
+  artisanRequests           ArtisanRequest[]
 }
 
 model TenantHousingHistory {
@@ -263,10 +267,119 @@ model Ticket {
   tenant                 TenantProfile         @relation(fields: [tenantId], references: [id])
   /// Cas social déclenché automatiquement par le routage IA (Sprint 5)
   socialCase             SocialCase?           @relation("TicketSocialCase")
+  /// Sprint 4 : vidéos tutoriels proposées au locataire pour une décision LOCATAIRE
+  videoSuggestions       TicketVideoSuggestion[]
+  /// Sprint 4 : demande d'artisan envoyée à l'owner (toi) — 0 ou 1 par ticket
+  artisanRequest         ArtisanRequest?
 
   @@index([landlordProfileId, status])
   @@index([responsibility])
   @@index([escalatedAt])
+  @@index([tenantId])
+}
+
+/// ----------------------------------------------------------------------------
+/// Sprint 4 — Vidéothèque IA + demandes d'artisan
+/// ----------------------------------------------------------------------------
+
+/// Recherche normalisée mémorisée par l'IA pour ne pas refaire la même requête
+/// YouTube deux fois. Une query peut être réutilisée par plusieurs tickets.
+model VideoTutorialQuery {
+  id              Int              @id @default(autoincrement())
+  /// Requête nettoyée (lower-case, ponctuation et stop-words retirés)
+  queryNormalized String
+  /// Catégorie technique associée (PLUMBING, ELECTRICITY, HUMIDITY, …)
+  category        String
+  /// Locale ciblée par la recherche (fr-FR par défaut Sprint 4)
+  locale          String           @default("fr-FR")
+  /// Nombre de tickets ayant déjà bénéficié de cette recherche
+  hitCount        Int              @default(1)
+  lastUsedAt      DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  videos          VideoTutorial[]
+
+  @@unique([queryNormalized, locale])
+  @@index([category])
+}
+
+/// Vidéo archivée — retournée par le port VideoSearch, conservée pour
+/// les recherches futures et soumise à modération admin.
+model VideoTutorial {
+  id                Int                     @id @default(autoincrement())
+  queryId           Int
+  /// Identifiant YouTube (11 caractères) — clé de déduplication métier
+  youtubeVideoId    String
+  title             String
+  channel           String?
+  thumbnailUrl      String?
+  /// Durée en secondes (utile pour filtrer les très longues vidéos)
+  durationSec       Int?
+  language          String                  @default("fr")
+  /// Score de pertinence renvoyé par l'adapter (0 → 1)
+  score             Float                   @default(0.5)
+  /// Vidéo validée manuellement par l'admin → boostée dans le tri
+  validatedByAdmin  Boolean                 @default(false)
+  /// Vidéo blacklistée par l'admin → ne sera plus jamais proposée
+  disabledByAdmin   Boolean                 @default(false)
+  createdAt         DateTime                @default(now())
+  query             VideoTutorialQuery      @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  ticketSuggestions TicketVideoSuggestion[]
+
+  @@unique([queryId, youtubeVideoId])
+  @@index([disabledByAdmin])
+}
+
+/// Trace de la vidéo proposée à un ticket précis + retour locataire.
+/// Utilisé pour les statistiques d'efficacité et la traçabilité RGPD.
+model TicketVideoSuggestion {
+  id              Int            @id @default(autoincrement())
+  ticketId        Int
+  videoTutorialId Int
+  suggestedAt     DateTime       @default(now())
+  /// Locataire a-t-il marqué la vidéo comme regardée ?
+  tenantWatched   Boolean        @default(false)
+  /// Locataire a-t-il jugé la vidéo utile (true) / pas utile (false) / inconnu (null) ?
+  tenantHelpful   Boolean?
+  /// Retour libre du locataire (court, plafonné à 1000 caractères)
+  tenantFeedback  String?
+  ticket          Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  video           VideoTutorial  @relation(fields: [videoTutorialId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, videoTutorialId])
+  @@index([ticketId])
+}
+
+/// Demande d'artisan générée par le locataire et envoyée à l'owner de la
+/// plateforme (toi). N'est PAS gérée par le module artisans/ existant qui
+/// concerne les prestataires bailleur — c'est un flux séparé pour le MVP.
+model ArtisanRequest {
+  id                Int                  @id @default(autoincrement())
+  ticketId          Int                  @unique
+  tenantId          Int
+  /// Multi-tenant : on garde l'id du bailleur du logement pour scope et stats
+  landlordProfileId Int
+  category          String
+  severity          String
+  status            ArtisanRequestStatus @default(NEW)
+  requestedAt       DateTime             @default(now())
+  /// Notes internes saisies par l'admin (toi) lors du triage
+  adminNotes        String?
+  /// Créneau proposé par l'admin une fois le triage fait
+  slotProposedAt    DateTime?
+  /// Créneau confirmé par le locataire / l'admin
+  slotConfirmedAt   DateTime?
+  /// Date de fin de l'intervention artisan
+  completedAt       DateTime?
+  /// Raison saisie par le locataire au moment de la demande (optionnelle)
+  tenantReason      String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  ticket            Ticket               @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tenant            TenantProfile        @relation(fields: [tenantId], references: [id])
+  landlord          LandlordProfile      @relation(fields: [landlordProfileId], references: [id])
+
+  @@index([status])
+  @@index([landlordProfileId, status])
   @@index([tenantId])
 }
 
@@ -699,6 +812,20 @@ enum NonRecevableReason {
   HORS_LOGEMENT
   HORS_PERIMETRE_APP
   AUTRE
+}
+
+/// Sprint 4 — Cycle de vie d'une demande d'artisan envoyée à l'owner.
+enum ArtisanRequestStatus {
+  /// Vient d'être créée par le locataire
+  NEW
+  /// Triagée par l'admin (qualifiée, en attente de proposition d'artisan)
+  TRIAGED
+  /// Un artisan a été contacté et un créneau est proposé / planifié
+  IN_PROGRESS
+  /// Intervention terminée
+  DONE
+  /// Annulée (par le locataire ou par l'admin)
+  CANCELLED
 }
 
 enum DisorderType {

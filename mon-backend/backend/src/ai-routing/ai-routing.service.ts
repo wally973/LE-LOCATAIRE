@@ -3,11 +3,13 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma, TicketResponsibility } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiDiagnosticsService } from '../ai-diagnostics/ai-diagnostics.service';
+import { VideoLibraryService } from '../video-library/video-library.service';
 import { AI_PIPELINE } from './ai-pipeline.port';
 import type { AiPipelineDecision, AiPipelinePort } from './ai-pipeline.port';
 
@@ -39,6 +41,12 @@ export class AiRoutingService {
     private readonly notifications: NotificationsService,
     private readonly aiDiagnostics: AiDiagnosticsService,
     @Inject(AI_PIPELINE) private readonly pipeline: AiPipelinePort,
+    /**
+     * Sprint 4 : suggestion de tutoriels vidéos quand la décision est
+     * LOCATAIRE. Injection optionnelle pour rester déployable même sans
+     * le module video-library (tests, environnements minimaux).
+     */
+    @Optional() private readonly videoLibrary?: VideoLibraryService,
   ) {}
 
   /**
@@ -380,9 +388,18 @@ export class AiRoutingService {
         break;
       }
       case 'LOCATAIRE': {
-        // Aucune notif bailleur : c'est purement locataire + suggestion artisan.
-        // L'avenir : créer un ticket interne côté "moi/admin" pour planifier l'artisan
-        // si le locataire confirme dans /tickets/:id/tenant-feedback.
+        // Sprint 4 : on demande à la vidéothèque de proposer des tutoriels.
+        // Le service vidéo gère sa propre notification "Tutoriel disponible".
+        // La création d'une ArtisanRequest se fera ensuite à la demande du
+        // locataire via POST /tickets/:id/artisan-request (module artisan-requests).
+        if (this.videoLibrary) {
+          try {
+            await this.videoLibrary.suggestForTicket(ticket.id);
+          } catch (e) {
+            // On ne casse jamais le flow ticket si la vidéothèque échoue.
+            console.error('VideoLibrary.suggestForTicket failed', e);
+          }
+        }
         break;
       }
       case 'SOCIAL': {

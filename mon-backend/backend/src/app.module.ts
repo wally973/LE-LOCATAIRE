@@ -21,6 +21,7 @@ import { AiDiagnosticsModule } from './ai-diagnostics/ai-diagnostics.module';
 import { HlmModule } from './hlm/hlm.module';
 import { ContratsModule } from './contrats/contrats.module';
 import { PaiementsModule } from './paiements/paiements.module';
+import { TenantOnboardingModule } from './tenant-onboarding/tenant-onboarding.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { PaiementsModule } from './paiements/paiements.module';
     HlmModule,
     ContratsModule,
     PaiementsModule,
+    TenantOnboardingModule,
   ],
 })
 export class AppModule {}

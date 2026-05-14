@@ -9,24 +9,26 @@ datasource db {
 }
 
 model User {
-  id                 Int              @id @default(autoincrement())
-  email              String?
-  createdAt          DateTime         @default(now())
-  password           String
-  phone              String           @unique
-  updatedAt          DateTime         @updatedAt
-  role               Role             @default(LOCATAIRE)
-  isAvailable        Boolean          @default(true)
-  adminAuditLogs     AdminAuditLog[]
-  invoicesAsLandlord Invoice[]        @relation("InvoiceLandlord")
-  landlord           LandlordProfile?
+  id                          Int                         @id @default(autoincrement())
+  email                       String?
+  createdAt                   DateTime                    @default(now())
+  password                    String
+  phone                       String                      @unique
+  updatedAt                   DateTime                    @updatedAt
+  role                        Role                        @default(LOCATAIRE)
+  isAvailable                 Boolean                     @default(true)
+  adminAuditLogs              AdminAuditLog[]
+  invoicesAsLandlord          Invoice[]                   @relation("InvoiceLandlord")
+  landlord                    LandlordProfile?
   /// Profil agent — non null si role = AGENT (rattaché à un bailleur, optionnellement à une agence)
-  agent              AgentProfile?
-  notifications      Notification[]
-  planningSlots      PlanningSlot[]   @relation("PlanningSlotArtisan")
-  socialWorkers      SocialWorker[]
-  supportTickets     SupportTicket[]
-  tenant             TenantProfile?
+  agent                       AgentProfile?
+  notifications               Notification[]
+  planningSlots               PlanningSlot[]              @relation("PlanningSlotArtisan")
+  socialWorkers               SocialWorker[]
+  supportTickets              SupportTicket[]
+  tenant                      TenantProfile?
+  /// Demandes d'inscription locataire en attente / historisées de l'utilisateur
+  tenantRegistrationRequests  TenantRegistrationRequest[]
 }
 
 model AdminAuditLog {
@@ -112,6 +114,8 @@ model LandlordProfile {
   agents                AgentProfile[]
   /// Contrats de location dont ce bailleur est partie
   contratsLocation      ContratLocation[]
+  /// Demandes d'inscription locataire en attente / historisées pour ce bailleur
+  tenantRequests        TenantRegistrationRequest[]
 }
 
 /// Agence / gérance d'un bailleur — entité optionnelle de regroupement (secteur géographique, équipe).
@@ -180,6 +184,8 @@ model Housing {
   currentTenant     TenantProfile?         @relation("CurrentTenantHousing")
   tickets           Ticket[]
   contratsLocation  ContratLocation[]
+  /// Demandes d'inscription locataire ayant été validées sur ce logement (historique)
+  tenantRequestsApproved TenantRegistrationRequest[] @relation("ApprovedHousing")
 
   @@index([landlordId])
   @@index([agenceId])
@@ -206,6 +212,8 @@ model TenantProfile {
   user             User                   @relation(fields: [userId], references: [id])
   tickets          Ticket[]
   contratsLocation ContratLocation[]
+  /// Si ce profil a été créé via une demande self-service, lien optionnel vers la demande d'origine
+  originRegistrationRequest TenantRegistrationRequest? @relation("ApprovedTenantProfile")
 }
 
 model TenantHousingHistory {
@@ -568,6 +576,51 @@ model HlmIAResult {
   @@index([entretienPreuveId])
   @@index([kind])
   @@index([createdAt])
+}
+
+/// Demande d'inscription self-service d'un locataire vers un bailleur (onboarding).
+/// Le locataire saisit ses infos + l'adresse de son logement. Le bailleur valide
+/// (création du TenantProfile + liaison/création du Housing) ou rejette (motif).
+model TenantRegistrationRequest {
+  id                       Int                       @id @default(autoincrement())
+  userId                   Int
+  landlordProfileId        Int
+  /// Snapshot informations locataire au moment de la saisie
+  firstName                String
+  lastName                 String
+  /// Snapshot informations logement (servent à créer Housing si absent du parc bailleur)
+  address                  String
+  building                 String?
+  floor                    String?
+  apartmentNumber          String?
+  postalCode               String
+  city                     City
+  contractStartDate        DateTime?
+  status                   TenantRequestStatus       @default(PENDING)
+  /// Renseignés si APPROVED
+  approvedTenantProfileId  Int?                      @unique
+  approvedHousingId        Int?
+  approvedAt               DateTime?
+  /// Renseignés si REJECTED
+  rejectedAt               DateTime?
+  rejectionReason          String?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  user                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  landlord                 LandlordProfile           @relation(fields: [landlordProfileId], references: [id], onDelete: Cascade)
+  approvedTenantProfile    TenantProfile?            @relation("ApprovedTenantProfile", fields: [approvedTenantProfileId], references: [id], onDelete: SetNull)
+  approvedHousing          Housing?                  @relation("ApprovedHousing", fields: [approvedHousingId], references: [id], onDelete: SetNull)
+
+  @@index([landlordProfileId, status])
+  @@index([userId])
+  @@index([status])
+}
+
+enum TenantRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum Role {

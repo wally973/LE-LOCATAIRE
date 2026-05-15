@@ -54,6 +54,7 @@ Swagger : `http://localhost:3000/api`
 | `9551f5da` | **3** | feat(backend): routage automatique IA des tickets locataire (sprint 3) |
 | `924b5406` | **4** | feat(backend): vidéothèque IA + demandes d'artisan (sprint 4) |
 | `0a2f14ea` | **5** | feat(backend): backoffice volet social — cas, référents, journal (sprint 5) |
+| `79a6bc62` | **6** | feat(backend): notifications réelles SMTP/FCM + feature flags bailleur (sprint 6) |
 
 Migrations Prisma associées (dossier `mon-backend/backend/prisma/migrations/`) :
 
@@ -182,7 +183,7 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 
 ### Sprint 6 — Notifications réelles + feature flags bailleur
 
-**Commit** : *(à committer — code prêt, build OK)*  
+**Commit** : `79a6bc62`  
 **Migration** : `20260515120000_notifications_and_feature_flags`
 
 **6B — Notifications** :

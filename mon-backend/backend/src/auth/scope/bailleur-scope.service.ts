@@ -47,7 +47,10 @@ export class BailleurScopeService {
           'Aucun profil bailleur rattaché à ce compte',
         );
       }
-      return { ...base, landlordProfileId: landlord.id };
+      return this.mergeSocialWorker({
+        ...base,
+        landlordProfileId: landlord.id,
+      });
     }
 
     if (role === 'AGENT') {
@@ -60,11 +63,11 @@ export class BailleurScopeService {
           'Aucun profil agent rattaché à ce compte',
         );
       }
-      return {
+      return this.mergeSocialWorker({
         ...base,
         landlordProfileId: agent.landlordProfileId,
         agenceId: agent.agenceId,
-      };
+      });
     }
 
     if (role === 'LOCATAIRE') {
@@ -72,13 +75,50 @@ export class BailleurScopeService {
         where: { userId },
         select: { id: true },
       });
-      return {
+      return this.mergeSocialWorker({
         ...base,
         tenantProfileId: tenant?.id,
-      };
+      });
     }
 
-    // PRESTATAIRE ou autre rôle : aucune portée bailleur, à enrichir au besoin.
-    return base;
+    // PRESTATAIRE ou autre rôle : portée bailleur uniquement si référent social.
+    return this.mergeSocialWorker({ ...base });
+  }
+
+  /**
+   * Sprint 5 : enrichit la portée si l'utilisateur est référent social.
+   * - Pour un LOCATAIRE : on n'ajoute que `socialWorkerId` (pas de landlordProfileId
+   *   pour éviter de mélanger les périmètres locataire / bailleur sur les autres modules).
+   * - Pour les autres : si pas de bailleur dans le scope, on recopie celui du worker ;
+   *   sinon on attache `socialWorkerId` seulement si c'est le même organisme.
+   */
+  private async mergeSocialWorker(scope: BailleurScope): Promise<BailleurScope> {
+    if (scope.isAdmin) return scope;
+
+    const socialWorker = await this.prisma.socialWorker.findFirst({
+      where: { userId: scope.userId },
+      orderBy: { id: 'asc' },
+      select: { id: true, bailleurId: true },
+    });
+    if (!socialWorker) return scope;
+
+    const out: BailleurScope = { ...scope };
+
+    if (scope.role === 'LOCATAIRE') {
+      out.socialWorkerId = socialWorker.id;
+      return out;
+    }
+
+    if (!out.landlordProfileId) {
+      out.landlordProfileId = socialWorker.bailleurId;
+      out.socialWorkerId = socialWorker.id;
+      return out;
+    }
+
+    if (out.landlordProfileId === socialWorker.bailleurId) {
+      out.socialWorkerId = socialWorker.id;
+    }
+
+    return out;
   }
 }

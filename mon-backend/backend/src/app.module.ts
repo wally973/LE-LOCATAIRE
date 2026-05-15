@@ -11,7 +11,7 @@ import { PlanningModule } from './planning/planning.module';
 import { DocumentsModule } from './documents/documents.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { DashboardModule } from './dashboard/dashboard.module';
-// import { SocialModule } from './social/social.module';
+import { SocialModule } from './social/social.module';
 // import { SupportModule } from './support/support.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { AiModule } from './ai/ai.module';
@@ -40,7 +40,7 @@ import { ArtisanRequestsModule } from './artisan-requests/artisan-requests.modul
     DocumentsModule,
     NotificationsModule,
     DashboardModule,
-    // SocialModule,
+    SocialModule,
     // SupportModule,
     InvoiceModule,
     AiModule,

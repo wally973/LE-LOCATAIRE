@@ -25,6 +25,8 @@ model User {
   notifications               Notification[]
   planningSlots               PlanningSlot[]              @relation("PlanningSlotArtisan")
   socialWorkers               SocialWorker[]
+  /// Actions enregistrées sur les dossiers sociaux (journal Sprint 5)
+  socialCaseEventsAuthored    SocialCaseEvent[]
   supportTickets              SupportTicket[]
   tenant                      TenantProfile?
   /// Demandes d'inscription locataire en attente / historisées de l'utilisateur
@@ -451,28 +453,59 @@ model SupportTicket {
 }
 
 model SocialCase {
-  id              Int                @id @default(autoincrement())
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  tenantId        Int
-  bailleurId      Int
-  status          SocialCaseStatus   @default(OPEN)
-  category        SocialCaseCategory @default(AUTRE)
-  notes           String?
+  id                     Int                  @id @default(autoincrement())
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  tenantId               Int
+  bailleurId             Int
+  status                 SocialCaseStatus     @default(OPEN)
+  category               SocialCaseCategory   @default(AUTRE)
+  /// Notes internes (concaténation horodatée côté service — Sprint 5 P5)
+  notes                  String?
   /// Ticket d'origine si le cas a été créé suite à un routage IA SOCIAL
-  triggerTicketId Int?               @unique
-  bailleur        LandlordProfile    @relation(fields: [bailleurId], references: [id])
-  tenant          TenantProfile      @relation(fields: [tenantId], references: [id])
-  triggerTicket   Ticket?            @relation("TicketSocialCase", fields: [triggerTicketId], references: [id])
+  triggerTicketId        Int?                 @unique
+  /// Référent social désigné (nullable tant que non pris en charge)
+  assignedSocialWorkerId Int?
+  priority               SocialCasePriority   @default(NORMAL)
+  closedAt               DateTime?
+  /// Obligatoire si status = CLOSED (Sprint 5)
+  closedReason           String?
+  lastContactAt          DateTime?
+  bailleur               LandlordProfile      @relation(fields: [bailleurId], references: [id])
+  tenant                   TenantProfile      @relation(fields: [tenantId], references: [id])
+  triggerTicket            Ticket?            @relation("TicketSocialCase", fields: [triggerTicketId], references: [id])
+  assignedWorker           SocialWorker?      @relation("SocialCaseAssignee", fields: [assignedSocialWorkerId], references: [id])
+  events                   SocialCaseEvent[]
+
+  @@index([bailleurId, status])
+  @@index([tenantId])
+  @@index([assignedSocialWorkerId])
+}
+
+model SocialCaseEvent {
+  id           Int                 @id @default(autoincrement())
+  createdAt    DateTime            @default(now())
+  socialCaseId Int
+  actorUserId  Int
+  type         SocialCaseEventType
+  payload      Json?
+  socialCase   SocialCase          @relation(fields: [socialCaseId], references: [id], onDelete: Cascade)
+  actor        User                @relation(fields: [actorUserId], references: [id])
+
+  @@index([socialCaseId, createdAt])
 }
 
 model SocialWorker {
-  id         Int             @id @default(autoincrement())
-  userId     Int
-  bailleurId Int
-  role       String
-  bailleur   LandlordProfile @relation(fields: [bailleurId], references: [id])
-  user       User            @relation(fields: [userId], references: [id])
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  bailleurId    Int
+  /// COORDINATOR | FIELD | EXTERNAL (valeurs validées en DTO — Sprint 5 P6)
+  role          String
+  bailleur      LandlordProfile @relation(fields: [bailleurId], references: [id])
+  user          User            @relation(fields: [userId], references: [id])
+  assignedCases SocialCase[]    @relation("SocialCaseAssignee")
+
+  @@unique([userId, bailleurId])
 }
 
 model AiDiagnostic {
@@ -864,6 +897,21 @@ enum SupportCategory {
   FACTURATION
   TECHNIQUE
   URGENCE
+}
+
+enum SocialCasePriority {
+  NORMAL
+  HIGH
+}
+
+/// Journal append-only des actions sur un dossier social (Sprint 5).
+enum SocialCaseEventType {
+  STATUS_CHANGE
+  CATEGORY_CHANGE
+  NOTE_ADDED
+  ASSIGNMENT
+  CONTACT_LOGGED
+  SYSTEM
 }
 
 enum SocialCaseStatus {

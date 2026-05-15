@@ -14,12 +14,18 @@
  *
  * - `tenantProfileId` (LOCATAIRE) : profil locataire courant. Permet de filtrer les
  *   ressources visibles par le locataire (ses contrats, ses paiements, ses tickets).
+ *
+ * - `socialWorkerId` (Sprint 5) : si l'utilisateur est enregistré comme référent social
+ *   (`SocialWorker`) pour un bailleur, on expose son id et on recopie `landlordProfileId`
+ *   depuis ce rattachement lorsque le JWT n'est pas déjà bailleur/agent.
  */
 export interface BailleurScope {
   isAdmin: boolean;
   landlordProfileId?: number;
   agenceId?: number | null;
   tenantProfileId?: number;
+  /** Référent social (table SocialWorker) — Sprint 5, volet social. */
+  socialWorkerId?: number;
   /** Rôle brut du JWT (pour diagnostics / logs). */
   role: string;
   /** Identifiant utilisateur du JWT. */

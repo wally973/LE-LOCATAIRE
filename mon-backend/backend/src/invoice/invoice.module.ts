@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { InvoiceService } from './invoice.service';
 import { InvoiceController } from './invoice.controller';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { PrismaModule } from '../prisma/prisma.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [InvoiceController],
-  providers: [InvoiceService, PrismaService, NotificationsService],
+  providers: [InvoiceService],
   exports: [InvoiceService],
 })
 export class InvoiceModule {}

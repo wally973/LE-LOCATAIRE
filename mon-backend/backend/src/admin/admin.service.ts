@@ -370,6 +370,7 @@ export class AdminService {
           create: {
             name: dto.name,
             logoUrl: dto.logoUrl || null,
+            featureFlags: { create: {} },
           },
         },
       },

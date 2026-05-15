@@ -17,6 +17,10 @@ import { BailleurScope } from '../auth/decorators/bailleur-scope.decorator';
 import type { BailleurScope as BailleurScopeType } from '../auth/scope/bailleur-scope.types';
 import { SocialCasesService } from './social-cases.service';
 import { UpdateSocialCaseDto } from './dto/update-social-case.dto';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 /**
  * Bailleur / agent — gestion des dossiers sociaux de leur organisme (P2).
@@ -24,7 +28,8 @@ import { UpdateSocialCaseDto } from './dto/update-social-case.dto';
 @ApiTags('landlord-social-cases')
 @ApiBearerAuth('bearer')
 @Controller('landlords/me/social-cases')
-@UseGuards(JwtAuthGuard, RolesGuard, BailleurScopeGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, BailleurScopeGuard, LandlordModuleGuard)
+@RequiresLandlordModule('socialModule')
 export class LandlordSocialCasesController {
   constructor(private readonly socialCases: SocialCasesService) {}
 

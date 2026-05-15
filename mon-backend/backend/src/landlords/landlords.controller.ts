@@ -15,13 +15,17 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/user.decorator';
 import { UpdateLandlordDto } from './dto/update-landlord.dto';
 import { ValidateHousingDto } from './dto/validate-housing.dto';
+import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 
 @ApiTags('landlords')
 @ApiBearerAuth('bearer')
 @Controller('landlords')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class LandlordsController {
-  constructor(private readonly landlordsService: LandlordsService) {}
+  constructor(
+    private readonly landlordsService: LandlordsService,
+    private readonly featureFlags: FeatureFlagsService,
+  ) {}
 
   @Get('me')
   @Roles('BAILLEUR')
@@ -61,5 +65,12 @@ export class LandlordsController {
   @Roles('BAILLEUR')
   getMyArtisans(@CurrentUser() user) {
     return this.landlordsService.getMyArtisans(user.userId);
+  }
+
+  @Get('me/feature-flags')
+  @Roles('BAILLEUR')
+  @ApiOperation({ summary: 'Modules activés pour mon compte bailleur (lecture seule)' })
+  getMyFeatureFlags(@CurrentUser() user: { userId: number }) {
+    return this.featureFlags.getByLandlordUserId(user.userId);
   }
 }

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { PrismaModule } from '../prisma/prisma.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { AiDiagnosticsModule } from '../ai-diagnostics/ai-diagnostics.module';
 import { VideoLibraryModule } from '../video-library/video-library.module';
@@ -18,11 +18,15 @@ import { AiRoutingController } from './ai-routing.controller';
  *            (ou un compose multi-adapter) sans toucher au reste du code.
  */
 @Module({
-  imports: [AuthModule, AiDiagnosticsModule, VideoLibraryModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    NotificationsModule,
+    AiDiagnosticsModule,
+    VideoLibraryModule,
+  ],
   controllers: [AiRoutingController],
   providers: [
-    PrismaService,
-    NotificationsService,
     AiRoutingService,
     AiPipelineStubAdapter,
     {

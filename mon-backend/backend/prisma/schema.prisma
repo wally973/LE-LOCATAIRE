@@ -23,6 +23,9 @@ model User {
   /// Profil agent — non null si role = AGENT (rattaché à un bailleur, optionnellement à une agence)
   agent                       AgentProfile?
   notifications               Notification[]
+  /// Sprint 6B — préférences canaux (email / push)
+  notificationSettings        UserNotificationSettings?
+  devicePushTokens            DevicePushToken[]
   planningSlots               PlanningSlot[]              @relation("PlanningSlotArtisan")
   socialWorkers               SocialWorker[]
   /// Actions enregistrées sur les dossiers sociaux (journal Sprint 5)
@@ -120,6 +123,8 @@ model LandlordProfile {
   tenantRequests        TenantRegistrationRequest[]
   /// Sprint 4 : demandes d'artisan ouvertes par les locataires de ce bailleur (visibilité)
   artisanRequests       ArtisanRequest[]
+  /// Sprint 6A — modules activés pour ce bailleur (admin plateforme)
+  featureFlags          LandlordFeatureFlags?
 }
 
 /// Agence / gérance d'un bailleur — entité optionnelle de regroupement (secteur géographique, équipe).
@@ -415,13 +420,55 @@ model Invoice {
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   userId    Int
   title     String
   message   String
   type      String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+/// Sprint 6B — préférences utilisateur pour les canaux de notification.
+model UserNotificationSettings {
+  userId       Int     @id
+  emailEnabled Boolean @default(true)
+  pushEnabled  Boolean @default(true)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Sprint 6B — jetons FCM (ou autre) enregistrés par l'app mobile / web.
+model DevicePushToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String
+  /// android | ios | web
+  platform  String   @default("android")
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId])
+}
+
+/// Sprint 6A — activation des modules par bailleur (même codebase, périmètre variable).
+model LandlordFeatureFlags {
+  landlordProfileId      Int      @id
+  ticketsModule          Boolean  @default(true)
+  tenantOnboardingModule Boolean  @default(true)
+  aiRoutingModule        Boolean  @default(true)
+  videoLibraryModule     Boolean  @default(true)
+  artisanRequestsModule  Boolean  @default(true)
+  socialModule           Boolean  @default(true)
+  hlmModule              Boolean  @default(false)
+  contratsModule         Boolean  @default(true)
+  paiementsModule        Boolean  @default(true)
+  updatedAt              DateTime @updatedAt
+  landlord               LandlordProfile @relation(fields: [landlordProfileId], references: [id], onDelete: Cascade)
 }
 
 model Document {

@@ -4,9 +4,10 @@ import { LandlordsController } from './landlords.controller';
 import { LandlordsPublicController } from './landlords-public.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthModule } from '../auth/auth.module';
+import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, FeatureFlagsModule],
   controllers: [LandlordsController, LandlordsPublicController],
   providers: [LandlordsService, PrismaService],
 })

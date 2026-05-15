@@ -62,6 +62,7 @@ Migrations Prisma associées (dossier `mon-backend/backend/prisma/migrations/`) 
 - `20260514150000_ai_ticket_routing`
 - `20260514190000_video_library_and_artisan_requests`
 - `20260515100000_social_case_backoffice`
+- `20260515120000_notifications_and_feature_flags`
 
 ---
 
@@ -179,12 +180,49 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 
 ---
 
+### Sprint 6 — Notifications réelles + feature flags bailleur
+
+**Commit** : *(à committer — code prêt, build OK)*  
+**Migration** : `20260515120000_notifications_and_feature_flags`
+
+**6B — Notifications** :
+
+- Ports hexagonaux **email** (SMTP si `SMTP_HOST`, sinon log console) et **push** (FCM si credentials Firebase, sinon log console).
+- `notifyUser()` : in-app + email + push selon `UserNotificationSettings`.
+- `createNotification()` délègue à `notifyUser()` (rétrocompatibilité modules existants).
+- Modèles : `UserNotificationSettings`, `DevicePushToken`, `Notification.readAt`.
+- Endpoints : `GET/PATCH /notifications/me/settings`, `POST/DELETE /notifications/me/device-tokens`, `PATCH /notifications/:id/read`.
+
+**6A — Feature flags** :
+
+- Modèle `LandlordFeatureFlags` (9 booléens par module).
+- Admin : `GET/PATCH /admin/landlords/:id/feature-flags`.
+- Bailleur : `GET /landlords/me/feature-flags` (lecture seule).
+- Garde `LandlordModuleGuard` + `@RequiresLandlordModule('socialModule')` sur les routes sociales bailleur.
+- Création auto des flags à la création d’un bailleur (admin).
+
+**Variables d’environnement** (optionnelles) :
+
+| Variable | Rôle |
+|----------|------|
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Email réel |
+| `NOTIFICATIONS_EMAIL_ENABLED=false` | Désactive l’email (garde in-app + push) |
+| `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | FCM |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Chemin JSON service account (alternative) |
+| `NOTIFICATIONS_PUSH_ENABLED=false` | Désactive le push |
+
+**Dépendances** : `nodemailer`, `firebase-admin`.
+
+**Tests** : `npx prisma migrate deploy` OK · `npm run build` OK.
+
+---
+
 ## 5. Prochaines étapes suggérées (non encore codées)
 
 | Priorité | Thème | Description |
 |----------|--------|-------------|
-| A | **Feature flags par bailleur** | Même app ; admin active/désactive modules (social, IA, HLM, etc.) |
-| B | **Notifications réelles** | FCM + provider email (aujourd’hui log console) |
+| ~~A~~ | ~~Feature flags par bailleur~~ | **Fait (Sprint 6A)** — étendre le garde aux autres modules |
+| ~~B~~ | ~~Notifications réelles~~ | **Fait (Sprint 6B)** — brancher SMTP/FCM en prod |
 | C | **Multilingue + avatar 2D** | Locales + guide UX |
 | D | **Dashboard bailleur** | Tickets par responsabilité, escalades, stats IA |
 | E | **YouTube Data API** | Remplacer stub vidéo (Sprint 8) |
@@ -257,3 +295,4 @@ Ne pas committer `projet.txt` ni les fichiers Office temporaires (`~$*`).
 | Date | Auteur | Changement |
 |------|--------|------------|
 | 15 mai 2026 | Session assistant | Création initiale : synthèse sessions 0–5 + roadmap |
+| 15 mai 2026 | Session assistant | Sprint 6 : notifications (SMTP/FCM) + feature flags bailleur |

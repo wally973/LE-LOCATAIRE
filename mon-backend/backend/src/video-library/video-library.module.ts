@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { PrismaModule } from '../prisma/prisma.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { VIDEO_SEARCH } from './video-search.port';
 import { VideoSearchStubAdapter } from './video-search-stub.adapter';
@@ -16,11 +16,9 @@ import { VideoLibraryAdminController } from './video-library-admin.controller';
  * YouTube Data API v3 sans toucher au reste du code.
  */
 @Module({
-  imports: [AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [VideoLibraryTenantController, VideoLibraryAdminController],
   providers: [
-    PrismaService,
-    NotificationsService,
     VideoLibraryService,
     VideoSearchStubAdapter,
     {

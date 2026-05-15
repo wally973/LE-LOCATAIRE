@@ -25,6 +25,7 @@ import { TenantOnboardingModule } from './tenant-onboarding/tenant-onboarding.mo
 import { AiRoutingModule } from './ai-routing/ai-routing.module';
 import { VideoLibraryModule } from './video-library/video-library.module';
 import { ArtisanRequestsModule } from './artisan-requests/artisan-requests.module';
+import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { ArtisanRequestsModule } from './artisan-requests/artisan-requests.modul
     AiRoutingModule,
     VideoLibraryModule,
     ArtisanRequestsModule,
+    FeatureFlagsModule,
   ],
 })
 export class AppModule {}

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
+import { LandlordModuleGuard } from '../feature-flags/landlord-module.guard';
 import { SocialCasesService } from './social-cases.service';
 import { SocialWorkerGuard } from './social-worker.guard';
 import { AdminSocialCasesController } from './admin-social-cases.controller';
@@ -15,7 +17,7 @@ import { TenantSocialCaseController } from './tenant-social-case.controller';
  * journal SocialCaseEvent, endpoints admin / bailleur / référent / locataire.
  */
 @Module({
-  imports: [PrismaModule, AuthModule, NotificationsModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule, FeatureFlagsModule],
   controllers: [
     AdminSocialCasesController,
     LandlordSocialCasesController,
@@ -23,7 +25,7 @@ import { TenantSocialCaseController } from './tenant-social-case.controller';
     SocialWorkerCasesController,
     TenantSocialCaseController,
   ],
-  providers: [SocialCasesService, SocialWorkerGuard],
+  providers: [SocialCasesService, SocialWorkerGuard, LandlordModuleGuard],
   exports: [SocialCasesService],
 })
 export class SocialModule {}

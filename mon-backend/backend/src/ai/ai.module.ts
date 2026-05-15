@@ -7,16 +7,14 @@ import { AiInsuranceService } from './ai-insurance.service';
 import { AiSupportService } from './ai-support.service';
 import { AiService } from './ai.service';
 import { AiController } from './ai.controller';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { PrismaModule } from '../prisma/prisma.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [AiController],
   providers: [
-    PrismaService,
-    NotificationsService,
     AiService,
     AiTicketService,
     AiDispatchService,

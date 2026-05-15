@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { BailleurTicket } from '@/types/bailleur';
 import { TicketStatusBadge } from './TicketStatusBadge';
+import { ResponsibilityBadge } from './ResponsibilityBadge';
 import './bailleur.css';
 
 interface Props {
@@ -27,6 +28,9 @@ export const TicketList: React.FC<Props> = ({
             <strong>{t.title}</strong>
             <div className="bailleur-ticket-list__meta">
               <TicketStatusBadge status={t.status} />
+              {t.responsibility ? (
+                <ResponsibilityBadge responsibility={t.responsibility} />
+              ) : null}
               <span>{new Date(t.createdAt).toLocaleDateString('fr-FR')}</span>
               {t.housing?.address ? (
                 <span className="muted">{t.housing.address}</span>

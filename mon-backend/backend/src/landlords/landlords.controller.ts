@@ -4,8 +4,10 @@ import {
   Patch,
   Param,
   Body,
+  Query,
   UseGuards,
   ParseIntPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { LandlordsService } from './landlords.service';
@@ -16,6 +18,9 @@ import { CurrentUser } from '../auth/decorators/user.decorator';
 import { LandlordUpdateProfileDto } from './dto/landlord-update-profile.dto';
 import { ValidateHousingDto } from './dto/validate-housing.dto';
 import { BailleurScopeGuard } from '../auth/scope/bailleur-scope.guard';
+import { BailleurScope } from '../auth/decorators/bailleur-scope.decorator';
+import type { BailleurScope as BailleurScopeType } from '../auth/scope/bailleur-scope.types';
+import { TicketResponsibility } from '@prisma/client';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 import {
   LandlordModuleGuard,
@@ -63,12 +68,36 @@ export class LandlordsController {
     return this.landlordsService.validateHousing(id, dto, user.userId);
   }
 
-  @Get('me/tickets')
-  @Roles('BAILLEUR')
+  @Get('me/dashboard')
+  @Roles('BAILLEUR', 'AGENT')
   @UseGuards(BailleurScopeGuard, LandlordModuleGuard)
   @RequiresLandlordModule('ticketsModule')
-  getMyTickets(@CurrentUser() user) {
-    return this.landlordsService.getMyTickets(user.userId);
+  @ApiOperation({
+    summary:
+      'Tableau de bord bailleur — KPI, tickets par responsabilité, escalades IA',
+  })
+  getDashboard(@BailleurScope() scope: BailleurScopeType) {
+    if (!scope.landlordProfileId) {
+      throw new ForbiddenException('Profil bailleur requis');
+    }
+    return this.landlordsService.getDashboard(scope.landlordProfileId);
+  }
+
+  @Get('me/tickets')
+  @Roles('BAILLEUR', 'AGENT')
+  @UseGuards(BailleurScopeGuard, LandlordModuleGuard)
+  @RequiresLandlordModule('ticketsModule')
+  getMyTickets(
+    @BailleurScope() scope: BailleurScopeType,
+    @Query('responsibility') responsibility?: TicketResponsibility,
+  ) {
+    if (!scope.landlordProfileId) {
+      throw new ForbiddenException('Profil bailleur requis');
+    }
+    return this.landlordsService.getMyTicketsByLandlordProfile(
+      scope.landlordProfileId,
+      { responsibility },
+    );
   }
 
   @Get('me/artisans')

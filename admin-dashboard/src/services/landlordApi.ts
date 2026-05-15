@@ -6,8 +6,12 @@ export const landlordApi = {
     apiClient.patch('/landlords/me', body).then((r) => r.data),
   getMyHousings: () =>
     apiClient.get('/landlords/me/housings').then((r) => r.data),
-  getMyTickets: () =>
-    apiClient.get('/landlords/me/tickets').then((r) => r.data),
+  getMyTickets: (params?: { responsibility?: string }) =>
+    apiClient
+      .get('/landlords/me/tickets', { params })
+      .then((r) => r.data),
+  getDashboard: () =>
+    apiClient.get('/landlords/me/dashboard').then((r) => r.data),
   validateHousing: (
     id: number,
     body: { isValidated: boolean; comment?: string },

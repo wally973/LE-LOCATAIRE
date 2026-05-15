@@ -218,14 +218,26 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 
 ---
 
+### Sprint D — Dashboard bailleur (stats IA + escalades)
+
+**Commit** : *(à committer)*
+
+**Livré** :
+
+- **`GET /landlords/me/dashboard`** (BAILLEUR, AGENT) : KPI parc, factures, compteurs par `responsibility` et `status`, escalades actives, stats IA (confiance moyenne, catégories), derniers tickets.
+- **`GET /landlords/me/tickets?responsibility=`** — filtre optionnel (agents supportés via `BailleurScope`).
+- **admin-dashboard** : tableau de bord enrichi, filtres sur la liste tickets, badges responsabilité.
+
+---
+
 ## 5. Prochaines étapes suggérées (non encore codées)
 
 | Priorité | Thème | Description |
 |----------|--------|-------------|
 | ~~A~~ | ~~Feature flags par bailleur~~ | **Fait** — garde sur tickets, IA, vidéos, artisan, social, onboarding, HLM, contrats, paiements |
 | ~~B~~ | ~~Notifications réelles~~ | **Fait** — brancher SMTP/FCM en prod (voir `.env.example`) ; apps : jeton dev + écran préférences |
+| ~~D~~ | ~~Dashboard bailleur~~ | **Fait** — `GET /landlords/me/dashboard` + UI admin-dashboard |
 | C | **Multilingue + avatar 2D** | Locales + guide UX |
-| D | **Dashboard bailleur** | Tickets par responsabilité, escalades, stats IA |
 | E | **YouTube Data API** | Remplacer stub vidéo (Sprint 8) |
 | F | **LLM réel** | Remplacer stub pipeline IA (Sprint 7) |
 | G | **Compliance OPS / SLS** | Tables liées `SocialCase` / obligations (extension 5.x) |

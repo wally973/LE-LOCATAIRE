@@ -11,6 +11,8 @@ import type {
   BailleurStats,
   BailleurTenantWithHousing,
   BailleurTicket,
+  LandlordDashboard,
+  TicketResponsibilityUi,
 } from '../types/bailleur';
 
 function normalizeHousings(raw: unknown): BailleurHousing[] {
@@ -52,9 +54,17 @@ export async function getMyPayments(): Promise<BailleurInvoice[]> {
 }
 
 /** Tickets du parc (route enrichie côté landlords) */
-export async function getMyTickets(): Promise<BailleurTicket[]> {
-  const raw = await landlordApi.getMyTickets();
+export async function getMyTickets(
+  responsibility?: TicketResponsibilityUi,
+): Promise<BailleurTicket[]> {
+  const raw = await landlordApi.getMyTickets(
+    responsibility ? { responsibility } : undefined,
+  );
   return normalizeTickets(raw);
+}
+
+export async function getLandlordDashboard(): Promise<LandlordDashboard> {
+  return landlordApi.getDashboard() as Promise<LandlordDashboard>;
 }
 
 export async function updateTicketStatus(
@@ -71,29 +81,14 @@ export async function updateBailleurProfile(
 }
 
 export async function getBailleurStats(): Promise<BailleurStats> {
-  const [housings, invoices, tickets, dash] = await Promise.all([
-    getMyHousings(),
-    getMyPayments(),
-    getMyTickets(),
-    invoiceApi.landlordDashboard(),
-  ]);
-
-  const tenantIds = new Set<number>();
-  for (const h of housings) {
-    if (h.currentTenant?.id != null) tenantIds.add(h.currentTenant.id);
-  }
-
-  const openTickets = tickets.filter((t) =>
-    ['OPEN', 'IN_PROGRESS'].includes(String(t.status)),
-  ).length;
-
+  const d = await getLandlordDashboard();
   return {
-    housingCount: housings.length,
-    tenantCount: tenantIds.size,
-    openTickets,
-    invoiceTotal: dash.total ?? 0,
-    invoicePaid: dash.paid ?? 0,
-    invoicePending: dash.pending ?? 0,
+    housingCount: d.stats.housingCount,
+    tenantCount: d.stats.tenantCount,
+    openTickets: d.stats.openTickets,
+    invoiceTotal: d.stats.invoices.total,
+    invoicePaid: d.stats.invoices.paid,
+    invoicePending: d.stats.invoices.pending,
   };
 }
 
@@ -116,6 +111,7 @@ export const bailleurApi = {
   getMyTenants,
   getMyPayments,
   getMyTickets,
+  getLandlordDashboard,
   updateTicketStatus,
   updateBailleurProfile,
   getBailleurStats,

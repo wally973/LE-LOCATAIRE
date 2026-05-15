@@ -21,6 +21,10 @@ import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AiRoutingService } from './ai-routing.service';
 import { TenantFeedbackDto } from './dto/tenant-feedback.dto';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 /**
  * Endpoints autour du routage IA d'un ticket.
@@ -31,7 +35,8 @@ import { TenantFeedbackDto } from './dto/tenant-feedback.dto';
 @ApiTags('ai-routing')
 @ApiBearerAuth('bearer')
 @Controller('tickets')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('aiRoutingModule')
 export class AiRoutingController {
   constructor(
     private readonly aiRouting: AiRoutingService,

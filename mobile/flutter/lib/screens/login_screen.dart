@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 /// Écran de connexion utilisateur
 class LoginScreen extends StatefulWidget {
@@ -34,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // Appel au service d'authentification
       await AuthService.instance.login(email, password);
+      await NotificationService.instance.syncDeviceTokenAfterLogin();
 
       // Connexion réussie : redirection vers /home
       if (mounted) {

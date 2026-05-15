@@ -19,6 +19,10 @@ import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { VideoLibraryService } from './video-library.service';
 import { VideoFeedbackDto } from './dto/video-feedback.dto';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 /**
  * Endpoints locataire autour de la vidéothèque tutoriels.
@@ -27,7 +31,8 @@ import { VideoFeedbackDto } from './dto/video-feedback.dto';
 @ApiTags('video-library')
 @ApiBearerAuth('bearer')
 @Controller('tickets')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('videoLibraryModule')
 export class VideoLibraryTenantController {
   constructor(private readonly videoLibrary: VideoLibraryService) {}
 

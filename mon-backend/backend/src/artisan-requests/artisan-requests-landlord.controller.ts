@@ -7,6 +7,10 @@ import { BailleurScopeGuard } from '../auth/scope/bailleur-scope.guard';
 import { BailleurScope } from '../auth/decorators/bailleur-scope.decorator';
 import type { BailleurScope as BailleurScopeType } from '../auth/scope/bailleur-scope.types';
 import { ArtisanRequestsService } from './artisan-requests.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 /**
  * Vue bailleur (lecture seule) — un bailleur voit les demandes d'artisan
@@ -16,7 +20,8 @@ import { ArtisanRequestsService } from './artisan-requests.service';
 @ApiTags('landlord-artisan-requests')
 @ApiBearerAuth('bearer')
 @Controller('landlords/me/artisan-requests')
-@UseGuards(JwtAuthGuard, RolesGuard, BailleurScopeGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, BailleurScopeGuard, LandlordModuleGuard)
+@RequiresLandlordModule('artisanRequestsModule')
 export class ArtisanRequestsLandlordController {
   constructor(
     private readonly artisanRequests: ArtisanRequestsService,

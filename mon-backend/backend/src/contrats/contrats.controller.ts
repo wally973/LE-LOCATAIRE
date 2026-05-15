@@ -25,11 +25,16 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { BailleurScopeGuard } from '../auth/scope/bailleur-scope.guard';
 import { BailleurScope } from '../auth/decorators/bailleur-scope.decorator';
 import type { BailleurScope as BailleurScopeType } from '../auth/scope/bailleur-scope.types';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 @ApiTags('contrats')
 @ApiBearerAuth('bearer')
 @Controller('contrats')
-@UseGuards(JwtAuthGuard, RolesGuard, BailleurScopeGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, BailleurScopeGuard, LandlordModuleGuard)
+@RequiresLandlordModule('contratsModule')
 export class ContratsController {
   constructor(private readonly contratsService: ContratsService) {}
 

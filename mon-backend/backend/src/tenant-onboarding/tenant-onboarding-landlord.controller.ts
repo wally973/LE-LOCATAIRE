@@ -26,6 +26,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { BailleurScopeGuard } from '../auth/scope/bailleur-scope.guard';
 import { BailleurScope } from '../auth/decorators/bailleur-scope.decorator';
 import type { BailleurScope as BailleurScopeType } from '../auth/scope/bailleur-scope.types';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 /**
  * Endpoints réservés au bailleur (et à ses agents) pour traiter les demandes
@@ -39,7 +43,8 @@ import type { BailleurScope as BailleurScopeType } from '../auth/scope/bailleur-
 @ApiTags('tenant-onboarding')
 @ApiBearerAuth('bearer')
 @Controller('landlords/me/tenant-requests')
-@UseGuards(JwtAuthGuard, RolesGuard, BailleurScopeGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, BailleurScopeGuard, LandlordModuleGuard)
+@RequiresLandlordModule('tenantOnboardingModule')
 @Roles('BAILLEUR', 'AGENT')
 export class TenantOnboardingLandlordController {
   constructor(private readonly service: TenantOnboardingService) {}

@@ -1,6 +1,7 @@
 import { parseJwtPayload } from '@auth/jwt';
 import type { UserRole } from '@auth/roles';
 import { apiClient } from './apiClient';
+import { syncWebPushTokenAfterLogin } from './notificationsApi';
 
 export interface LoginRequest {
   email?: string;
@@ -29,6 +30,11 @@ class AuthService {
     );
     const { access_token, refresh_token } = response.data;
     this.persistTokens(access_token, refresh_token);
+    try {
+      await syncWebPushTokenAfterLogin();
+    } catch {
+      /* push non bloquant si l’API est indisponible */
+    }
     return response.data;
   }
 

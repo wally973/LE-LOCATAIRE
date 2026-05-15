@@ -6,9 +6,16 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { AiPhotoService } from '../ai/ai-photo.service';
 import { AuthModule } from '../auth/auth.module';
 import { AiRoutingModule } from '../ai-routing/ai-routing.module';
+import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, NotificationsModule, AiRoutingModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    NotificationsModule,
+    FeatureFlagsModule,
+    AiRoutingModule,
+  ],
   controllers: [TicketsController],
   providers: [TicketsService, AiPhotoService],
   exports: [TicketsService],

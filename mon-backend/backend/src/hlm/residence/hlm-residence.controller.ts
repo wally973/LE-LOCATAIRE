@@ -23,6 +23,10 @@ import {
 } from '../dto/hlm-api.request.dto';
 import type { CreateResidenceInput, UpdateResidenceInput } from '../dto/hlm-input.dto';
 import { HlmResidenceService } from './hlm-residence.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../../feature-flags/landlord-module.guard';
 
 /**
  * API REST socle HLM — résidences & dates garanties (GPA / biennale / décennale).
@@ -31,7 +35,8 @@ import { HlmResidenceService } from './hlm-residence.service';
 @ApiTags('hlm-residences')
 @ApiBearerAuth('bearer')
 @Controller('hlm/residences')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('hlmModule')
 export class HlmResidenceController {
   constructor(private readonly residenceService: HlmResidenceService) {}
 

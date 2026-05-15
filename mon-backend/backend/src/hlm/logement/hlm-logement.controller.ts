@@ -26,6 +26,10 @@ import type {
   UpdateLogementInput,
 } from '../dto/hlm-input.dto';
 import { HlmLogementService } from './hlm-logement.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../../feature-flags/landlord-module.guard';
 
 /**
  * API REST socle HLM — logements patrimoine (unités / équipements).
@@ -34,7 +38,8 @@ import { HlmLogementService } from './hlm-logement.service';
 @ApiTags('hlm-logements')
 @ApiBearerAuth('bearer')
 @Controller('hlm/logements')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('hlmModule')
 export class HlmLogementController {
   constructor(private readonly logementService: HlmLogementService) {}
 

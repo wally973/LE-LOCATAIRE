@@ -4,6 +4,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { AiDiagnosticsModule } from '../ai-diagnostics/ai-diagnostics.module';
 import { VideoLibraryModule } from '../video-library/video-library.module';
+import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { AI_PIPELINE } from './ai-pipeline.port';
 import { AiPipelineStubAdapter } from './ai-pipeline-stub.adapter';
 import { AiRoutingService } from './ai-routing.service';
@@ -24,6 +25,7 @@ import { AiRoutingController } from './ai-routing.controller';
     NotificationsModule,
     AiDiagnosticsModule,
     VideoLibraryModule,
+    FeatureFlagsModule,
   ],
   controllers: [AiRoutingController],
   providers: [

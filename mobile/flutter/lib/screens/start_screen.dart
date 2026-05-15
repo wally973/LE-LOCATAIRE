@@ -45,6 +45,14 @@ class _StartScreenState extends State<StartScreen> {
       appBar: AppBar(
         title: const Text("Assistant Technique"),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Préférences notifications',
+            onPressed: () =>
+                Navigator.pushNamed(context, '/notifications/settings'),
+          ),
+        ],
       ),
       body: Center(
         child: Padding(

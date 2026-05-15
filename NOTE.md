@@ -222,8 +222,8 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 
 | Priorité | Thème | Description |
 |----------|--------|-------------|
-| ~~A~~ | ~~Feature flags par bailleur~~ | **Fait (Sprint 6A)** — étendre le garde aux autres modules |
-| ~~B~~ | ~~Notifications réelles~~ | **Fait (Sprint 6B)** — brancher SMTP/FCM en prod |
+| ~~A~~ | ~~Feature flags par bailleur~~ | **Fait** — garde sur tickets, IA, vidéos, artisan, social, onboarding, HLM, contrats, paiements |
+| ~~B~~ | ~~Notifications réelles~~ | **Fait** — brancher SMTP/FCM en prod (voir `.env.example`) ; apps : jeton dev + écran préférences |
 | C | **Multilingue + avatar 2D** | Locales + guide UX |
 | D | **Dashboard bailleur** | Tickets par responsabilité, escalades, stats IA |
 | E | **YouTube Data API** | Remplacer stub vidéo (Sprint 8) |
@@ -236,7 +236,9 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 ## 6. Points d’attention techniques
 
 - **Répertoire Prisma** : `mon-backend/backend` (pas `mon-backend` seul).
-- **Warning Swagger** : `UpdateLandlordDto` dupliqué (dette admin, non bloquant).
+- **DTO bailleur (Swagger)** : `AdminUpdateLandlordDto` (admin) et `LandlordUpdateProfileDto` (bailleur `PATCH /me`) — plus de doublon `UpdateLandlordDto`.
+- **Prod notifications** : modèle dans `mon-backend/backend/.env.example` (SMTP + Firebase).
+- **Feature flags** : `@RequiresLandlordModule` sur les contrôleurs métier ; ADMIN plateforme non bloqué.
 - **Module `artisans/`** : reste pour prestataires bailleur / planning ; distinct de **`ArtisanRequest`** (owner).
 - **Transcript sessions** (historique chat) :  
   `C:\Users\ewald\.cursor\projects\c-Users-ewald-Desktop-LE-LOCATAIRE-mon-backend-backend\agent-transcripts\`
@@ -297,3 +299,4 @@ Ne pas committer `projet.txt` ni les fichiers Office temporaires (`~$*`).
 |------|--------|------------|
 | 15 mai 2026 | Session assistant | Création initiale : synthèse sessions 0–5 + roadmap |
 | 15 mai 2026 | Session assistant | Sprint 6 : notifications (SMTP/FCM) + feature flags bailleur |
+| 15 mai 2026 | Session assistant | Renommage DTO Swagger : `AdminUpdateLandlordDto` / `LandlordUpdateProfileDto` |

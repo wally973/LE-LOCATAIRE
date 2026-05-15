@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
+import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { HlmEntretienController } from './entretien/hlm-entretien.controller';
 import { HlmEntretienService } from './entretien/hlm-entretien.service';
 import { HlmIAController } from './ia/hlm-ia.controller';
@@ -14,7 +16,7 @@ import { HlmTicketController } from './tickets/hlm-ticket.controller';
 import { HlmTicketService } from './tickets/hlm-ticket.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule, FeatureFlagsModule],
   controllers: [
     HlmResidenceController,
     HlmLogementController,

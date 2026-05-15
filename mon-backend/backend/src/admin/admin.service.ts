@@ -9,7 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AUDIT_ACTION, AUDIT_ENTITY } from './admin.constants';
 import { CreateAdminDto, UpdateAdminDto } from './dto/admin.dto';
-import { CreateLandlordDto, UpdateLandlordDto } from './dto/landlord.dto';
+import { AdminUpdateLandlordDto, CreateLandlordDto } from './dto/landlord.dto';
 import { StatsResponseDto } from './dto/stats.dto';
 import {
   AdminUserListQueryDto,
@@ -487,7 +487,11 @@ export class AdminService {
     return landlord;
   }
 
-  async updateLandlord(id: number, dto: UpdateLandlordDto, actor: AdminActor) {
+  async updateLandlord(
+    id: number,
+    dto: AdminUpdateLandlordDto,
+    actor: AdminActor,
+  ) {
     const landlord = await this.prisma.user.findFirst({
       where: { id, role: 'BAILLEUR' },
     });

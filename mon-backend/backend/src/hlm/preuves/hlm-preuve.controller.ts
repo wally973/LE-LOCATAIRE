@@ -26,6 +26,10 @@ import type {
   ValidateProofAiInput,
 } from '../dto/hlm-input.dto';
 import { HlmPreuveService } from './hlm-preuve.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../../feature-flags/landlord-module.guard';
 
 /**
  * Preuves d’entretien (2 photos + checklist JSON).
@@ -34,7 +38,8 @@ import { HlmPreuveService } from './hlm-preuve.service';
 @ApiTags('hlm-preuves')
 @ApiBearerAuth('bearer')
 @Controller('hlm/preuves')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('hlmModule')
 export class HlmPreuveController {
   constructor(private readonly preuveService: HlmPreuveService) {}
 

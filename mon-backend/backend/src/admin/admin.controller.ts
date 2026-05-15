@@ -24,7 +24,7 @@ import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/user.decorator';
 import { CreateAdminDto, UpdateAdminDto } from './dto/admin.dto';
-import { CreateLandlordDto, UpdateLandlordDto } from './dto/landlord.dto';
+import { AdminUpdateLandlordDto, CreateLandlordDto } from './dto/landlord.dto';
 import {
   AdminUserListQueryDto,
   AuditLogQueryDto,
@@ -185,7 +185,7 @@ export class AdminController {
   @ApiResponse({ status: 409, description: 'Email ou téléphone déjà utilisé' })
   updateLandlord(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateLandlordDto,
+    @Body() dto: AdminUpdateLandlordDto,
     @CurrentUser() user: AdminActor,
   ) {
     return this.adminService.updateLandlord(id, dto, user);

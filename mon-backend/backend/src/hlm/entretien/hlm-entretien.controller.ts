@@ -19,6 +19,10 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 import { CreateEntretienTypeRequestDto } from '../dto/hlm-api.request.dto';
 import type { CreateEntretienTypeInput } from '../dto/hlm-input.dto';
 import { HlmEntretienService } from './hlm-entretien.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../../feature-flags/landlord-module.guard';
 
 /**
  * Catalogue et plans d’entretien HLM.
@@ -27,7 +31,8 @@ import { HlmEntretienService } from './hlm-entretien.service';
 @ApiTags('hlm-entretien')
 @ApiBearerAuth('bearer')
 @Controller('hlm/entretien')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('hlmModule')
 export class HlmEntretienController {
   constructor(private readonly entretienService: HlmEntretienService) {}
 

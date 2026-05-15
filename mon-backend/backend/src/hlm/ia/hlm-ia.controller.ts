@@ -14,6 +14,10 @@ import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guard/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { HlmIAService } from './hlm-ia.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../../feature-flags/landlord-module.guard';
 
 /**
  * IA — analyse preuves / diagnostic / routage (stubs branchables ML).
@@ -22,7 +26,8 @@ import { HlmIAService } from './hlm-ia.service';
 @ApiTags('hlm-ia')
 @ApiBearerAuth('bearer')
 @Controller('hlm/ia')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('hlmModule')
 export class HlmIAController {
   constructor(private readonly iaService: HlmIAService) {}
 

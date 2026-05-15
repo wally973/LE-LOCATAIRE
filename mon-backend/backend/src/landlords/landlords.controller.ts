@@ -13,9 +13,14 @@ import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/user.decorator';
-import { UpdateLandlordDto } from './dto/update-landlord.dto';
+import { LandlordUpdateProfileDto } from './dto/landlord-update-profile.dto';
 import { ValidateHousingDto } from './dto/validate-housing.dto';
+import { BailleurScopeGuard } from '../auth/scope/bailleur-scope.guard';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 @ApiTags('landlords')
 @ApiBearerAuth('bearer')
@@ -35,7 +40,10 @@ export class LandlordsController {
 
   @Patch('me')
   @Roles('BAILLEUR')
-  updateProfile(@CurrentUser() user, @Body() dto: UpdateLandlordDto) {
+  updateProfile(
+    @CurrentUser() user,
+    @Body() dto: LandlordUpdateProfileDto,
+  ) {
     return this.landlordsService.updateProfile(user.userId, dto);
   }
 
@@ -57,6 +65,8 @@ export class LandlordsController {
 
   @Get('me/tickets')
   @Roles('BAILLEUR')
+  @UseGuards(BailleurScopeGuard, LandlordModuleGuard)
+  @RequiresLandlordModule('ticketsModule')
   getMyTickets(@CurrentUser() user) {
     return this.landlordsService.getMyTickets(user.userId);
   }

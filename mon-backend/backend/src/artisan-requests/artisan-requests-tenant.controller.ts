@@ -18,6 +18,10 @@ import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ArtisanRequestsService } from './artisan-requests.service';
 import { CreateArtisanRequestDto } from './dto/create-artisan-request.dto';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 /**
  * Endpoint locataire — bascule un ticket LOCATAIRE en demande d'artisan.
@@ -25,7 +29,8 @@ import { CreateArtisanRequestDto } from './dto/create-artisan-request.dto';
 @ApiTags('artisan-requests')
 @ApiBearerAuth('bearer')
 @Controller('tickets')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('artisanRequestsModule')
 export class ArtisanRequestsTenantController {
   constructor(
     private readonly artisanRequests: ArtisanRequestsService,

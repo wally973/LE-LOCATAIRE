@@ -90,6 +90,26 @@ export class FeatureFlagsService {
     await this.assertModuleEnabled(profile.id, moduleKey);
   }
 
+  /** Vérifie le module pour le bailleur du logement du locataire connecté. */
+  async assertModuleEnabledForTenantUser(
+    tenantUserId: number,
+    moduleKey: LandlordModuleKey,
+  ) {
+    const tenant = await this.prisma.tenantProfile.findUnique({
+      where: { userId: tenantUserId },
+      select: {
+        housing: { select: { landlordId: true } },
+      },
+    });
+    const landlordProfileId = tenant?.housing?.landlordId;
+    if (!landlordProfileId) {
+      throw new ForbiddenException(
+        'Aucun logement rattaché — module indisponible',
+      );
+    }
+    await this.assertModuleEnabled(landlordProfileId, moduleKey);
+  }
+
   private async ensureLandlordProfileExists(landlordProfileId: number) {
     const exists = await this.prisma.landlordProfile.findUnique({
       where: { id: landlordProfileId },

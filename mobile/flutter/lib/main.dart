@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/start_screen.dart';
+import 'screens/notification_settings_screen.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -27,6 +29,8 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const StartScreen(),
+        '/notifications/settings': (context) =>
+            const NotificationSettingsScreen(),
       },
       initialRoute: '/', // Route initiale
     );
@@ -54,6 +58,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
   /// Vérifier si l'utilisateur a déjà un token valide
   Future<void> _checkAuthStatus() async {
     final isLoggedIn = await AuthService.instance.isLoggedIn();
+    if (isLoggedIn) {
+      try {
+        await NotificationService.instance.syncDeviceTokenAfterLogin();
+      } catch (_) {}
+    }
     setState(() {
       _isLoggedIn = isLoggedIn;
       _isLoading = false;

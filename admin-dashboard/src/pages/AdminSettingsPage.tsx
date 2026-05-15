@@ -9,6 +9,7 @@ import {
   getAdminUiRole,
   setAdminUiRole,
 } from '@auth/roles';
+import { NotificationSettingsCard } from '@components/NotificationSettingsCard';
 
 /**
  * Paramètres locaux du dashboard (taille de page par défaut, thème).
@@ -105,6 +106,10 @@ const AdminSettingsPage: React.FC = () => {
             Enregistré.
           </div>
         ) : null}
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <NotificationSettingsCard />
       </div>
     </div>
   );

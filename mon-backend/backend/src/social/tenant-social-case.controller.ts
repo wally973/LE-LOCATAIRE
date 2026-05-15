@@ -4,6 +4,10 @@ import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { SocialCasesService } from './social-cases.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../feature-flags/landlord-module.guard';
 
 /**
  * Locataire — vue limitée du dossier social actif (P3).
@@ -11,7 +15,8 @@ import { SocialCasesService } from './social-cases.service';
 @ApiTags('tenant-social-case')
 @ApiBearerAuth('bearer')
 @Controller('tenant')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('socialModule')
 export class TenantSocialCaseController {
   constructor(private readonly socialCases: SocialCasesService) {}
 

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
+import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { ArtisanRequestsService } from './artisan-requests.service';
 import { ArtisanRequestsTenantController } from './artisan-requests-tenant.controller';
 import { ArtisanRequestsAdminController } from './artisan-requests-admin.controller';
@@ -16,7 +17,7 @@ import { ArtisanRequestsLandlordController } from './artisan-requests-landlord.c
  * plus tard pour la gestion des prestataires des bailleurs eux-mêmes.
  */
 @Module({
-  imports: [PrismaModule, AuthModule, NotificationsModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule, FeatureFlagsModule],
   controllers: [
     ArtisanRequestsTenantController,
     ArtisanRequestsAdminController,

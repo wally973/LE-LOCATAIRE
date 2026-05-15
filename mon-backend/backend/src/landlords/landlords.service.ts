@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateLandlordDto } from './dto/update-landlord.dto';
+import { LandlordUpdateProfileDto } from './dto/landlord-update-profile.dto';
 import { ValidateHousingDto } from './dto/validate-housing.dto';
 
 @Injectable()
@@ -24,7 +24,7 @@ export class LandlordsService {
     return landlord;
   }
 
-  async updateProfile(userId: number, dto: UpdateLandlordDto) {
+  async updateProfile(userId: number, dto: LandlordUpdateProfileDto) {
     const landlord = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { landlord: true },

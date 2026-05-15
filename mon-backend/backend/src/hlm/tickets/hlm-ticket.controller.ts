@@ -21,6 +21,10 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 import { CreateHlmTicketRequestDto } from '../dto/hlm-api.request.dto';
 import type { CreateHlmTicketInput } from '../dto/hlm-input.dto';
 import { HlmTicketService } from './hlm-ticket.service';
+import {
+  LandlordModuleGuard,
+  RequiresLandlordModule,
+} from '../../feature-flags/landlord-module.guard';
 
 /**
  * Tickets métier HLM (routage garanties, blocage entretien).
@@ -29,7 +33,8 @@ import { HlmTicketService } from './hlm-ticket.service';
 @ApiTags('hlm-tickets')
 @ApiBearerAuth('bearer')
 @Controller('hlm/tickets')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
+@RequiresLandlordModule('hlmModule')
 export class HlmTicketController {
   constructor(private readonly ticketService: HlmTicketService) {}
 

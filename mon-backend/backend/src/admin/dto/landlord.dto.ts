@@ -28,7 +28,8 @@ export class CreateLandlordDto {
   logoUrl?: string;
 }
 
-export class UpdateLandlordDto {
+/** PATCH /admin/landlords/:id — modification par un administrateur. */
+export class AdminUpdateLandlordDto {
   @ApiProperty({ description: 'Adresse email', required: false })
   @IsOptional()
   @IsEmail()

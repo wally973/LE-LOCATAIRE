@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { bailleurApi } from '@services/bailleurApi';
 import { ticketsApi, type TicketStatusUi } from '@services/ticketsApi';
 import { getErrorMessage } from '@services/apiClient';
@@ -24,6 +24,10 @@ const STATUSES: TicketStatusUi[] = [
 const LandlordTicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const listPath = location.pathname.startsWith('/agent')
+    ? '/agent/reclamations'
+    : '/bailleur/tickets';
   const [ticket, setTicket] = useState<BailleurTicket | null>(null);
   const [status, setStatus] = useState<TicketStatusUi>('OPEN');
   const [reply, setReply] = useState('');
@@ -87,9 +91,9 @@ const LandlordTicketDetailPage: React.FC = () => {
       <button
         type="button"
         className="secondary"
-        onClick={() => navigate('/bailleur/tickets')}
+        onClick={() => navigate(listPath)}
       >
-        ← Liste des tickets
+        ← Retour aux réclamations
       </button>
       <h1>Ticket #{id}</h1>
       {err ? <div className="alert error">{err}</div> : null}

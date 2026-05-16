@@ -1,4 +1,5 @@
 import { parseJwtPayload } from '@auth/jwt';
+import { normalizeRole } from '@auth/normalizeRole';
 import type { UserRole } from '@auth/roles';
 import { apiClient } from './apiClient';
 import { syncWebPushTokenAfterLogin } from './notificationsApi';
@@ -19,7 +20,10 @@ class AuthService {
     localStorage.setItem('access_token', accessToken);
     localStorage.setItem('refresh_token', refreshToken);
     const p = parseJwtPayload(accessToken);
-    if (p?.role) localStorage.setItem('user_role', String(p.role));
+    if (p?.role) {
+      const normalized = normalizeRole(String(p.role));
+      if (normalized) localStorage.setItem('user_role', normalized);
+    }
     if (p?.sub != null) localStorage.setItem('user_id', String(p.sub));
   }
 
@@ -50,11 +54,7 @@ class AuthService {
   }
 
   getRole(): UserRole | null {
-    const r = localStorage.getItem('user_role');
-    if (r === 'ADMIN' || r === 'LANDLORD' || r === 'TENANT' || r === 'ARTISAN') {
-      return r;
-    }
-    return null;
+    return normalizeRole(localStorage.getItem('user_role'));
   }
 
   getUserId(): number | null {

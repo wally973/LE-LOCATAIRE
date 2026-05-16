@@ -153,6 +153,9 @@ flowchart TD
 | Q36 | Page **gestion interne** Patrimoine | Sous-route `/patrimoine/gestion` (ou `/patrimoine/interne`) : file des **rapports à traiter**, alertes IA validées, dossiers GPA / vieillissement, assignation chargé de mission, statuts internes (*reçu*, *en analyse*, *programmé*, *clôturé*), notes et pièces jointes — **réservé au service patrimoine** (rôle dédié ou permission bailleur) |
 | Q37 | Alimentation | Les réclamations remontées depuis les référents (Q30) et les **clusters IA** (Q25–Q31) apparaissent automatiquement dans le dashboard Patrimoine ; une affaire peut être vue à la fois côté référent (opérationnel) et côté patrimoine (structurant) |
 | Q38 | Module activable | Feature flag bailleur `patrimoineModule` (comme les autres modules Sprint 6) : masqué si l’organisme n’a pas de service patrimoine dans l’app |
+| Q39 | Plusieurs bailleurs en Guyane | Application **SaaS multi-bailleurs** : chaque organisme (2terHabitat, autres bailleurs sociaux, etc.) a son **tenant** isolé (`landlordProfileId`) ; le produit ne doit pas être présenté juridiquement comme « l’app 2terHabitat » mais comme **plateforme LE LOCATAIRE** utilisée par plusieurs bailleurs |
+| Q40 | Données personnelles | Chaque bailleur reste **responsable de traitement** pour ses locataires ; pas d’export croisé entre bailleurs ; imports et fichiers réels **hors dépôt Git** (environnement sécurisé par organisme) |
+| Q41 | 2terHabitat dans le code | **Référence pilote / démo** uniquement (seeds, prompts IA de test) — à terme libellés génériques « votre bailleur », « bailleur social en Guyane » dans l’app et les prompts prod |
 
 **Dashboard Patrimoine — arborescence (cadrage UI)**
 
@@ -449,6 +452,20 @@ npm run start:dev
 
 ---
 
+## 4bis. Périmètre V1 figé (référent secteur)
+
+**Livré / en cours pour clôture V1 :**
+
+- Page **`/agent/reclamations`** : liste secteur (agence du référent), colonnes dossier, affaire, métier, jours (`0` normal, `+N` rouge), ouverture détail ticket.
+- API **`GET /agents/me/reclamations`** (rôle `AGENT`, filtre `Housing.agenceId`).
+- Connexion dashboard : rôle JWT `AGENT` → espace référent.
+
+**Reporté V2 :** import numéros bailleur, pilotage direction, IA corrélation résidence, dashboard Patrimoine, actions référent avancées (RDV, paiement entreprise).
+
+**Compte test référent :** utilisateur `role=AGENT` + ligne `AgentProfile` (`landlordProfileId`, `agenceId` optionnel) ; logements du secteur avec le même `agenceId`.
+
+---
+
 ## 5. Prochaines étapes suggérées (non encore codées)
 
 | Priorité | Thème | Description |
@@ -462,6 +479,8 @@ npm run start:dev
 | E | **YouTube Data API** | Remplacer stub vidéo |
 | G | **Compliance OPS / SLS** | Extension social |
 | H | **Assurances / relances** | Modèles séparés |
+| **V1** | **Dashboard référent secteur** | **En cours** — cf. §4bis |
+| **V2** | Patrimoine, IA clusters, import CSV, pilotage bailleur | Après validation terrain V1 |
 
 ---
 

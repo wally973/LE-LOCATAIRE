@@ -26,6 +26,7 @@ import { AiRoutingModule } from './ai-routing/ai-routing.module';
 import { VideoLibraryModule } from './video-library/video-library.module';
 import { ArtisanRequestsModule } from './artisan-requests/artisan-requests.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
+import { AgentsModule } from './agents/agents.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
     VideoLibraryModule,
     ArtisanRequestsModule,
     FeatureFlagsModule,
+    AgentsModule,
   ],
 })
 export class AppModule {}

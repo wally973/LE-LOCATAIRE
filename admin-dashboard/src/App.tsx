@@ -36,6 +36,8 @@ import LandlordTicketsPage from '@pages/bailleur/LandlordTicketsPage';
 import LandlordTicketDetailPage from '@pages/bailleur/LandlordTicketDetailPage';
 import LandlordProfilePage from '@pages/bailleur/LandlordProfilePage';
 import LandlordCaseSearchPage from '@pages/bailleur/LandlordCaseSearchPage';
+import AgentLayout from '@layouts/AgentLayout';
+import AgentReclamationsPage from '@pages/agent/AgentReclamationsPage';
 import LocataireDashboardPage from '@pages/locataire/LocataireDashboardPage';
 import LocatairePaymentsPage from '@pages/locataire/LocatairePaymentsPage';
 import LocatairePaymentDetailPage from '@pages/locataire/LocatairePaymentDetailPage';
@@ -80,6 +82,17 @@ function App() {
             <Route path="payments" element={<AdminPaymentsPage />} />
             <Route path="avatars" element={<AdminAvatarsPage />} />
             <Route path="ia-stats" element={<AdminIaStatsPage />} />
+          </Route>
+        </Route>
+
+        <Route element={<ProtectedRoute roles={['AGENT']} />}>
+          <Route path="/agent" element={<AgentLayout />}>
+            <Route index element={<Navigate to="reclamations" replace />} />
+            <Route path="reclamations" element={<AgentReclamationsPage />} />
+            <Route
+              path="tickets/:id"
+              element={<LandlordTicketDetailPage />}
+            />
           </Route>
         </Route>
 

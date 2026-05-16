@@ -1,5 +1,5 @@
 /** Rôles alignés sur le backend Prisma */
-export type UserRole = 'ADMIN' | 'LANDLORD' | 'TENANT' | 'ARTISAN';
+export type UserRole = 'ADMIN' | 'LANDLORD' | 'TENANT' | 'ARTISAN' | 'AGENT';
 
 /** Sous-rôles admin (UI — étendre le JWT backend plus tard) */
 export type AdminUiRole = 'SUPER_ADMIN' | 'SUPPORT' | 'ADMIN_STANDARD';
@@ -39,6 +39,8 @@ export function defaultRouteForRole(role: UserRole | null): string {
       return '/admin';
     case 'LANDLORD':
       return '/bailleur/dashboard';
+    case 'AGENT':
+      return '/agent/reclamations';
     case 'TENANT':
       return '/locataire/dashboard';
     case 'ARTISAN':

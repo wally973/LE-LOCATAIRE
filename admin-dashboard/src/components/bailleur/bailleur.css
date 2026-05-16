@@ -369,3 +369,47 @@
   padding: 2px 6px;
   border-radius: 4px;
 }
+
+/* Référent secteur — jours sans traitement */
+.retard-jours--ok {
+  color: #334155;
+  font-weight: 600;
+}
+
+.retard-jours--alert {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.bailleur-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.bailleur-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.bailleur-table th,
+.bailleur-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.bailleur-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bailleur-table tbody tr:hover {
+  background: #f8fafc;
+}

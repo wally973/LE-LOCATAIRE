@@ -13,6 +13,7 @@ import { AiPhotoService } from '../ai/ai-photo.service';
 import { LiaOrchestratorService } from '../lia/lia-orchestrator.service';
 import { LiaConversationService } from '../lia/lia-conversation.service';
 import { CaseReferenceService } from './case-reference.service';
+import { TenantOccupancyService } from '../tenant-occupancy/tenant-occupancy.service';
 
 @Injectable()
 export class TicketsService {
@@ -23,6 +24,7 @@ export class TicketsService {
     private readonly liaOrchestrator: LiaOrchestratorService,
     private readonly liaConversation: LiaConversationService,
     private readonly caseRef: CaseReferenceService,
+    private readonly occupancy: TenantOccupancyService,
   ) {}
 
   /**
@@ -74,6 +76,7 @@ export class TicketsService {
 
     await this.caseRef.ensureTenantDossierNumber(tenantProfile.id);
     await this.caseRef.assignCaseNumber(ticket.id);
+    await this.occupancy.recordMoveIn(tenantProfile.id, dto.housingId);
 
     const messages = await this.liaOrchestrator.startTicketConversation(
       ticket.id,
@@ -215,11 +218,34 @@ export class TicketsService {
     });
     if (!tenant) throw new NotFoundException('Locataire introuvable');
 
-    const ticketHistory = await this.prisma.ticket.findMany({
+    const occupancyHistory = await this.occupancy.getOccupancyHistory(
+      tenantProfileId,
+    );
+    const currentHousingId = tenant.housingId;
+
+    const ticketRows = await this.prisma.ticket.findMany({
       where: { tenantId: tenantProfileId },
       orderBy: { createdAt: 'desc' },
-      include: { housing: { select: { id: true, address: true, city: true } } },
+      include: {
+        housing: {
+          select: {
+            id: true,
+            address: true,
+            city: true,
+            postalCode: true,
+            residenceUnitNumber: true,
+          },
+        },
+      },
     });
+
+    const ticketHistory = ticketRows.map((t) => ({
+      ...t,
+      housingLabel:
+        currentHousingId != null && t.housingId !== currentHousingId
+          ? `Ancien logement — ${t.housing?.address ?? ''}`
+          : null,
+    }));
 
     const focusTicket = focusTicketId
       ? ticketHistory.find((t) => t.id === focusTicketId)
@@ -240,9 +266,30 @@ export class TicketsService {
               address: tenant.housing.address,
               city: tenant.housing.city,
               postalCode: tenant.housing.postalCode,
+              residenceUnitNumber: tenant.housing.residenceUnitNumber,
             }
           : null,
       },
+      occupancyHistory: occupancyHistory.map((row) => ({
+        id: row.id,
+        housingId: row.housingId,
+        address: row.housing.address,
+        city: row.housing.city,
+        postalCode: row.housing.postalCode,
+        residenceUnitNumber: row.housing.residenceUnitNumber,
+        from: row.from,
+        to: row.to,
+        moveOutReason: row.moveOutReason,
+        isCurrent: row.to == null && row.housingId === currentHousingId,
+        endedLabel:
+          row.to != null
+            ? `Fin d'occupation : ${row.to.toLocaleDateString('fr-FR')}${
+                row.moveOutReason === 'ETAT_DES_LIEUX_SORTIE'
+                  ? ' (état des lieux de sortie)'
+                  : ''
+              }`
+            : null,
+      })),
       focusTicket,
       ticketHistory,
       totalTickets: ticketHistory.length,

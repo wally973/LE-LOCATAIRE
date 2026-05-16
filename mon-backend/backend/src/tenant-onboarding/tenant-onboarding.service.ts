@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { ApproveTenantRequestDto } from './dto/approve-tenant-request.dto';
 import { RejectTenantRequestDto } from './dto/reject-tenant-request.dto';
+import { TenantOccupancyService } from '../tenant-occupancy/tenant-occupancy.service';
 
 const requestInclude = {
   user: {
@@ -24,7 +25,10 @@ const requestInclude = {
 
 @Injectable()
 export class TenantOnboardingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly occupancy: TenantOccupancyService,
+  ) {}
 
   /**
    * Inscription self-service publique. Crée :
@@ -235,6 +239,16 @@ export class TenantOnboardingService {
         },
       });
 
+      return updated;
+    }).then(async (updated) => {
+      if (updated.approvedTenantProfileId && updated.approvedHousingId) {
+        await this.occupancy.ensureHousingUnitNumber(updated.approvedHousingId);
+        await this.occupancy.recordMoveIn(
+          updated.approvedTenantProfileId,
+          updated.approvedHousingId,
+          updated.approvedAt ?? new Date(),
+        );
+      }
       return updated;
     });
   }

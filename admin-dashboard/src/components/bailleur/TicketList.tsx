@@ -31,6 +31,12 @@ export const TicketList: React.FC<Props> = ({
                 <code>{t.caseNumber}</code>
               </div>
             ) : null}
+            {'housingLabel' in t &&
+            (t as { housingLabel?: string | null }).housingLabel ? (
+              <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                {(t as { housingLabel: string }).housingLabel}
+              </div>
+            ) : null}
             <div className="bailleur-ticket-list__meta">
               <TicketStatusBadge status={t.status} />
               {t.responsibility ? (

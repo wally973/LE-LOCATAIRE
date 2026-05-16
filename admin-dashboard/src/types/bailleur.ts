@@ -62,6 +62,20 @@ export type TicketResponsibilityUi =
   | 'SOCIAL'
   | 'ESCALADE_BAILLEUR';
 
+export interface OccupancyHistoryEntry {
+  id: number;
+  housingId: number;
+  address: string;
+  city: string;
+  postalCode: string;
+  residenceUnitNumber: string | null;
+  from: string;
+  to: string | null;
+  moveOutReason: string | null;
+  isCurrent: boolean;
+  endedLabel: string | null;
+}
+
 /** Réponse GET /tickets/lookup/case/:ref ou /lookup/dossier/:ref */
 export interface DossierLookupResult {
   dossierNumber: string | null;
@@ -77,10 +91,12 @@ export interface DossierLookupResult {
       address: string;
       city: string;
       postalCode: string;
+      residenceUnitNumber?: string | null;
     } | null;
   };
+  occupancyHistory?: OccupancyHistoryEntry[];
   focusTicket?: BailleurTicket | null;
-  ticketHistory: BailleurTicket[];
+  ticketHistory: (BailleurTicket & { housingLabel?: string | null })[];
   totalTickets: number;
 }
 

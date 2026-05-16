@@ -92,8 +92,14 @@ const LandlordCaseSearchPage: React.FC = () => {
             ) : null}
             {tenant.housing ? (
               <p className="bailleur-card__line muted">
-                Logement : {tenant.housing.address}, {tenant.housing.postalCode}{' '}
-                {tenant.housing.city}
+                Logement actuel : {tenant.housing.address},{' '}
+                {tenant.housing.postalCode} {tenant.housing.city}
+                {tenant.housing.residenceUnitNumber ? (
+                  <>
+                    {' '}
+                    (<code>{tenant.housing.residenceUnitNumber}</code>)
+                  </>
+                ) : null}
               </p>
             ) : null}
             <p style={{ marginTop: 12 }}>
@@ -131,9 +137,38 @@ const LandlordCaseSearchPage: React.FC = () => {
             </section>
           ) : null}
 
+          {result.occupancyHistory && result.occupancyHistory.length > 0 ? (
+            <section>
+              <h2>Historique des logements</h2>
+              <ul className="bailleur-mini-list">
+                {result.occupancyHistory.map((row) => (
+                  <li key={row.id}>
+                    <span>
+                      {row.address}
+                      {row.residenceUnitNumber ? (
+                        <> — <code>{row.residenceUnitNumber}</code></>
+                      ) : null}
+                      {row.isCurrent ? ' (actuel)' : ''}
+                    </span>
+                    <span className="muted">
+                      {row.endedLabel ??
+                        `Depuis le ${new Date(row.from).toLocaleDateString('fr-FR')}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section>
             <h2>Historique des demandes ({result.totalTickets})</h2>
             <TicketList tickets={result.ticketHistory} />
+            {result.ticketHistory.some((t) => t.housingLabel) ? (
+              <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>
+                Les demandes marquées « ancien logement » ont été ouvertes avant un
+                déménagement.
+              </p>
+            ) : null}
           </section>
         </div>
       ) : null}

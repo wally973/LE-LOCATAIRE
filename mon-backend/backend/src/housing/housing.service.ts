@@ -3,10 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateHousingDto } from './dto/create-housing.dto';
 import { UpdateHousingDto } from './dto/update-housing.dto';
 import { AssignTenantDto } from './dto/assign-tenant.dto';
+import { TenantOccupancyService } from '../tenant-occupancy/tenant-occupancy.service';
 
 @Injectable()
 export class HousingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly occupancy: TenantOccupancyService,
+  ) {}
 
   // TERRITORIALISATION GUYANE
   private ensureIsInGuyane(city: string) {
@@ -58,7 +62,7 @@ export class HousingService {
   async create(dto: CreateHousingDto) {
     this.ensureIsInGuyane(dto.city);
 
-    return this.prisma.housing.create({
+    const housing = await this.prisma.housing.create({
       data: {
         address: dto.address,
         city: this.mapCityToEnum(dto.city) as any,
@@ -66,6 +70,8 @@ export class HousingService {
         landlordId: dto.landlordId,
       },
     });
+    await this.occupancy.ensureHousingUnitNumber(housing.id);
+    return this.prisma.housing.findUniqueOrThrow({ where: { id: housing.id } });
   }
 
   // RÉCUPÉRER TOUS LES LOGEMENTS
@@ -152,11 +158,40 @@ export class HousingService {
       );
     }
 
-    return this.prisma.tenantProfile.update({
-      where: { userId: dto.tenantId },
-      data: {
-        housingId: dto.housingId,
-      },
+    const moveOutDate = dto.moveOutDate
+      ? new Date(dto.moveOutDate)
+      : new Date();
+    const moveInDate = dto.moveInDate
+      ? new Date(dto.moveInDate)
+      : moveOutDate;
+
+    if (tenant.housingId === dto.housingId) {
+      return tenant;
+    }
+
+    if (tenant.housingId != null && tenant.housingId !== dto.housingId) {
+      await this.occupancy.changeHousing({
+        tenantProfileId: tenant.id,
+        previousHousingId: tenant.housingId,
+        newHousingId: dto.housingId,
+        moveOutDate,
+        moveInDate,
+      });
+      return this.prisma.tenantProfile.findUniqueOrThrow({
+        where: { id: tenant.id },
+        include: { housing: true },
+      });
+    }
+
+    await this.prisma.tenantProfile.update({
+      where: { id: tenant.id },
+      data: { housingId: dto.housingId },
+    });
+    await this.occupancy.recordMoveIn(tenant.id, dto.housingId, moveInDate);
+
+    return this.prisma.tenantProfile.findUniqueOrThrow({
+      where: { id: tenant.id },
+      include: { housing: true },
     });
   }
 }

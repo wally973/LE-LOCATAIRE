@@ -57,6 +57,138 @@ Swagger : `http://localhost:3000/api`
 | Q5 | Vidéos | Archive interne d’abord (stub), YouTube en Sprint 8+ |
 | Q6 | Non recevables | Traçabilité + message locataire ; compteur bailleur plus tard |
 | Q7 | Artisans flow locataire | Ticket vers admin (owner), pas module `artisans/` bailleur |
+| Q8 | Numéro dossier locataire (`DOS-XXXXXX`) | **Permanent** pour un même compte / même bailleur, même en cas de déménagement |
+| Q9 | Numéro affaire (`AFF-AAAA-XXXXXX`) | **Un par demande** (ticket) |
+| Q10 | Immatriculation logement (`LOG-CP-XXXXXX`) | **Unique** par logement (code postal + identifiant interne) ; visible sur le dossier et l’historique |
+| Q11 | Changement de logement | Le **DOS** et l’**historique des demandes** sont conservés ; les tickets passés portent la mention « ancien logement » |
+| Q12 | Fin d’occupation | Date de fin = **état des lieux de sortie** (`TenantHousingHistory.to`, motif `ETAT_DES_LIEUX_SORTIE`) |
+| Q13 | Numéros locataire existants chez le bailleur | **Alignement par fichier** (import initial + mises à jour) : le numéro bailleur devient la référence métier affichée et recherchable ; un identifiant technique interne reste possible pour l’historique et les échanges API |
+| Q14 | Un seul numéro « client » côté bailleur | Pas de double saisie : recherche dossier, exports et écrans bailleur utilisent le **numéro bailleur** ; le `DOS-…` auto-généré ne s’affiche qu’en secours si aucun numéro importé |
+
+**Import bailleur (à coder — cadrage)** :
+
+- Fichier CSV/Excel fourni par l’organisme (colonnes minimales : `numero_locataire_bailleur`, `nom`, `prenom`, `email` ou `telephone`, `ref_logement` = `LOG-…` ou adresse, optionnel `date_fin_occupation` / EDL sortie).
+- Règle : **à la création ou à la première synchro**, si `numero_locataire_bailleur` est présent → il est enregistré comme référence officielle du dossier pour cet organisme (unicité **par bailleur**, pas globale).
+- Recherche : `GET /tickets/lookup/dossier/:ref` accepte indifféremment le numéro bailleur ou le `DOS-…` interne.
+- Logements : même logique possible avec `externalRef` / `LOG-…` déjà prévus sur `Housing`.
+
+| Q15 | Parcours technicien référent | **Une seule affaire (`AFF-…`) = un fil unique** : toutes les actions (RDV, questions, photos, validation travaux, paiement entreprise) se font **dans le même ticket**, sans modules éparpillés |
+| Q16 | Options sans dispersion | Plusieurs **types d’action** possibles sur une affaire, mais **un seul écran / une seule timeline** côté référent et côté locataire (comme la conversation Lia, puis reprise humaine) |
+| Q17 | Rôle référent | Profil **AGENT** (ou équivalent) rattaché bailleur/agence : peut prendre en charge une affaire assignée ; le bailleur voit la même timeline en lecture |
+
+**Fil d’affaire — actions prévues (cadrage, à coder par phases)** :
+
+| Action référent | Effet locataire (app) | Socle technique déjà présent |
+|-----------------|----------------------|------------------------------|
+| Proposer un **rendez-vous** | Notification + accepter / proposer autre créneau | `PlanningSlot`, champs `slotProposedAt` / `slotConfirmedAt` sur `ArtisanRequest` |
+| Poser des **questions** complémentaires | Message dans le fil ; réponse texte/photo | `TicketMessage` (étendre rôles : référent humain, pas seulement Lia) |
+| Demander **photos** (réception travaux, complément sinistre) | Statut « en attente de votre photo » + upload | `AWAITING_TENANT_PHOTO`, `Document` sur ticket |
+| **Valider réception** des travaux | Demande photos avant clôture ; le référent valide | Nouvelle étape métier sur ticket + trace horodatée |
+| Déclencher **paiement entreprise** | Optionnel : accusé « intervention terminée » | `Invoice` + statut `ArtisanRequest` ; paiement hors app ou lien compta selon choix bailleur |
+
+**Règle d’or** : ne pas créer d’écrans « RDV », « chat sinistre », « photos » séparés — tout est une **timeline d’événements** sur `AFF-…`, avec boutons d’action contextuels selon l’étape (diagnostic → intervention → réception → clôture).
+
+| Q18 | Page réclamations — référent de secteur | **Page dédiée** (route prévue : `/agent/reclamations` ou `/referent/reclamations`) : liste des affaires du **périmètre agence/secteur** (`AgentProfile.agenceId` → `Housing.agenceId`) |
+| Q19 | Colonnes liste référent | **N° dossier** (numéro bailleur ou `DOS-…`), **N° affaire** (`AFF-…`), **métier** (catégorie IA / corps de métier : plomberie, électricité, etc.), **jours sans traitement**, statut, logement, locataire |
+| Q20 | Affichage « jours sans traitement » | **`0`** → style normal (pas de retard affiché). **`> 0`** → affichage **`+N`** en **rouge** (ex. `+3` = 3 jours sans action humaine sur l’affaire). Tri par défaut : retard décroissant |
+| Q21 | Définition « sans traitement » | Nombre de jours calendaires depuis la **dernière action humaine** sur l’affaire (message référent, changement statut, RDV, demande photo, validation) ; si aucune action humaine : depuis `Ticket.createdAt` (ou depuis fin analyse Lia si ticket encore `LIA_ANALYZING`) |
+| Q22 | Suivi référent | Filtres : *mes prises en charge*, *à traiter*, *en attente locataire*, *en attente entreprise* ; accès direct au **fil AFF** pour agir (cf. Q15–Q17) |
+| Q23 | Vision bailleur (pilotage) | Même données agrégées + **tableau de bord** : actions réalisées, **affaires en retard** (`joursSansTraitement > 0`), **secteurs (agences) défaillants** (taux / nombre de `+N` élevés, délai moyen). Route prévue : `/bailleur/pilotage-reclamations` |
+| Q24 | Secteur défaillant | Agence / secteur dont le **nombre d’affaires en retard** ou le **délai moyen** dépasse un seuil configurable par bailleur (paramètre admin à définir) |
+
+**Écrans (cadrage UI)**
+
+| Profil | Page | Contenu principal |
+|--------|------|-------------------|
+| **Référent secteur** (`AGENT`) | Réclamations secteur | Table : dossier · affaire · métier · `+jours` · statut · bouton *Ouvrir* |
+| **Bailleur** | Pilotage réclamations | KPI + liste globale + **classement secteurs** (retards, actions faites sur 7/30 j) |
+
+**Données backend à prévoir** (non encore codées) :
+
+- `Ticket.assignedAgentId` (prise en charge par un référent).
+- `Ticket.lastHumanActionAt` (horodatage dernière action hors IA automatique).
+- `GET /agents/me/reclamations` — liste scopée agence, champs calculés : `dossierNumber`, `caseNumber`, `metier`, `joursSansTraitement`, `affichageRetard` (`"0"` \| `"+N"`).
+- `GET /landlords/me/reclamations/pilotage` — agrégats par agence + liste des retards.
+
+**CSS (règle affichage)** : classe `.retard-jours--ok` (couleur texte normale) pour `0` ; `.retard-jours--alert` (rouge, graisse) pour `+N`.
+
+| Q25 | IA analyse par secteur / résidence | Dans la **même section** réclamations (référent + pilotage bailleur), une **IA de corrélation** détecte les **signaux faibles répétés** sur une résidence + un métier, et ouvre une **fiche alerte patrimoine** dédiée (pas un écran isolé) |
+| Q26 | Déclenchement | Seuil configurable (ex. **≥ 3 affaires** sur **30 jours**, même `residenceId` ou même immeuble, même famille de métier : `FUITE_TOITURE`, `PORTE_INTERIEURE`, `SANITAIRE`, etc.) |
+| Q27 | Page alerte IA | Titre du type : *« Résidence XXX — plusieurs réclamations [métier] »* ; liste des `AFF-…` liées ; **hypothèse IA** + **proposition d’action** ; boutons : *Valider et transmettre au patrimoine*, *Écarter*, *Demander expertise* |
+| Q28 | Hypothèses selon âge du bâti | Si `HlmResidence.residenceNeuve` ou livraison récente → piste **défaut de construction / GPA** ; sinon → piste **vieillissement / entretien patrimonial** ; l’IA cite les dates GPA / biennale / décennale si connues |
+| Q29 | Exemples métier (non exhaustif) | **Fuites toiture** (plusieurs logements) → rapport patrimoine toiture / étanchéité. **Portes intérieures sèches** → vieillissement boiseries / humidité résidence. **Sanitaires** (fuites récurrentes, dégâts) → réseau collectif ou vétusté installations |
+| Q30 | Remontée patrimoine | Génération d’un **rapport structuré** (PDF ou JSON + export) adressé au **service patrimoine** : résidence, métier, N affaires, hypothèse, recommandation, photos agrégées ; statut `PATRIMOINE_SIGNALE` sur les tickets du cluster |
+| Q31 | Rôle humain | L’IA **propose**, le référent ou le bailleur **valide** avant envoi patrimoine ; traçabilité dans la timeline (événement `PATRIMOINE_REPORT_SENT`) |
+| Q32 | Lien socle HLM | S’appuyer sur `Housing.hlmLogementId` → `HlmLogement.residenceId` → `HlmResidence` (`constructionYear`, `residenceNeuve`, garanties) ; sans lien HLM : regroupement par **adresse / résidence saisie** côté bailleur |
+
+**IA corrélation — flux (cadrage)**
+
+```mermaid
+flowchart TD
+  A[Affaires secteur / résidence] --> B{IA: même métier\nseuil atteint?}
+  B -->|Non| C[Liste réclamations classique]
+  B -->|Oui| D[Fiche alerte résidence]
+  D --> E{Âge résidence?}
+  E -->|Récente| F[Hypothèse défaut construction / GPA]
+  E -->|Ancienne| G[Hypothèse vieillissement patrimoine]
+  F --> H[Proposition utilisateur]
+  G --> H
+  H --> I{Validation humaine}
+  I -->|Oui| J[Rapport service patrimoine]
+  I -->|Non| K[Clôture alerte avec motif]
+```
+
+**Données backend à prévoir** (complément Q18–Q24) :
+
+- `PatrimoineAlert` (ou `ResidenceClaimCluster`) : `residenceId`, `metier`, `ticketIds[]`, `hypothesis`, `recommendation`, `status`, `createdByAiAt`, `validatedByUserId`, `sentToPatrimoineAt`.
+- Job planifié ou analyse à la volée sur `GET …/reclamations` : détection clusters + badge *« 1 alerte IA »* sur la page réclamations.
+- Service `PatrimoineInsightService` : règles métier + LLM pour rédiger le texte de proposition (s’appuie sur `AiMemory` résidence / décrets si besoin).
+- Routes : `GET /agents/me/reclamations/insights`, `GET /landlords/me/reclamations/insights`, `POST …/insights/:id/validate`, `POST …/insights/:id/send-patrimoine`.
+
+**Affichage UI** : encart ou onglet **« Analyses IA »** dans la page réclamations (référent + bailleur), sans quitter la section — cohérent avec Q15–Q16 (pas de dispersion).
+
+| Q33 | Dashboard **Patrimoine** | Espace dédié **« Patrimoine »** (menu principal) : **toutes les réclamations** et **alertes IA** référencées et navigables par **agence → secteur → résidence** ; distinct du pilotage « réclamations terrain » (référent) mais alimenté par les mêmes `AFF-…` |
+| Q34 | Hiérarchie de navigation | **Niveau 1 — Agence** (entité `Agence`) → **Niveau 2 — Secteur** (sous-zone : champ optionnel `secteur` sur `Housing` / regroupement géographique, ou = agence si structure plate) → **Niveau 3 — Résidence** (`HlmResidence` ou libellé résidence saisi) → **Niveau 4 — Logements / affaires** (`LOG-…`, liste `AFF-…`) |
+| Q35 | Contenu dashboard Patrimoine | Par niveau : compteurs (affaires ouvertes, en retard `+N`, alertes IA actives, rapports envoyés) ; drill-down jusqu’au détail affaire ; filtres métier, période, statut patrimoine |
+| Q36 | Page **gestion interne** Patrimoine | Sous-route `/patrimoine/gestion` (ou `/patrimoine/interne`) : file des **rapports à traiter**, alertes IA validées, dossiers GPA / vieillissement, assignation chargé de mission, statuts internes (*reçu*, *en analyse*, *programmé*, *clôturé*), notes et pièces jointes — **réservé au service patrimoine** (rôle dédié ou permission bailleur) |
+| Q37 | Alimentation | Les réclamations remontées depuis les référents (Q30) et les **clusters IA** (Q25–Q31) apparaissent automatiquement dans le dashboard Patrimoine ; une affaire peut être vue à la fois côté référent (opérationnel) et côté patrimoine (structurant) |
+| Q38 | Module activable | Feature flag bailleur `patrimoineModule` (comme les autres modules Sprint 6) : masqué si l’organisme n’a pas de service patrimoine dans l’app |
+
+**Dashboard Patrimoine — arborescence (cadrage UI)**
+
+```
+/patrimoine                          → Vue globale bailleur (KPI + carte secteurs)
+/patrimoine/agences/:agenceId        → Agence
+/patrimoine/agences/:id/secteurs/:s  → Secteur (si utilisé)
+/patrimoine/residences/:residenceId  → Résidence (liste logements + alertes IA)
+/patrimoine/residences/:id/affaires  → Toutes les AFF de la résidence
+/patrimoine/gestion                  → Gestion interne (file de travail patrimoine)
+/patrimoine/gestion/rapports/:id     → Détail rapport / alerte cluster
+```
+
+**Rôles et accès**
+
+| Profil | Dashboard Patrimoine | Gestion interne |
+|--------|---------------------|-----------------|
+| **Service patrimoine** (rôle `PATRIMOINE` ou `AGENT` + permission) | Lecture + drill-down complet | **Écriture** (statuts, assignation, clôture) |
+| **Bailleur / direction** | Lecture + KPI secteurs défaillants | Lecture (supervision) |
+| **Référent secteur** | Lecture résidences de son périmètre | Pas d’accès (sauf si double casquette) |
+
+**Données backend à prévoir** (complément)
+
+- `PatrimoineCase` : lien `PatrimoineAlert` / rapport + `residenceId` + `agenceId` + statut workflow interne + `assignedToUserId`.
+- `GET /patrimoine/dashboard` — agrégats par agence / secteur / résidence.
+- `GET /patrimoine/residences/:id/reclamations` — toutes les AFF + métadonnées retard + liens cluster IA.
+- `GET|PATCH /patrimoine/gestion/cases` — file gestion interne (CRUD statuts, commentaires).
+- Indexation : chaque `Ticket` exposé avec `agenceId`, `residenceId` (dénormalisé à la création pour perfs).
+
+**Cohérence produit** : trois volets complémentaires, **une seule source** (`Ticket` / `AFF-…`) :
+
+| Volet | Public | Question à laquelle il répond |
+|-------|--------|----------------------------|
+| **Réclamations secteur** (`/agent/reclamations`) | Référent | *Que dois-je traiter aujourd’hui ?* (`+N` rouge) |
+| **Pilotage bailleur** (`/bailleur/pilotage-reclamations`) | Direction / bailleur | *Quels secteurs sont en retard ?* |
+| **Dashboard Patrimoine** (`/patrimoine`) | Service patrimoine | *Où sont les problèmes structurels par résidence ?* + gestion des rapports |
 
 ---
 

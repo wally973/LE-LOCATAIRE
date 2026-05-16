@@ -178,6 +178,8 @@ model Housing {
   country           String                 @default("FRANCE")
   isInGuyane        Boolean                @default(true)
   externalRef       String?
+  /// Immatriculation unique du logement (résidence + ville), ex. LOG-97300-000012
+  residenceUnitNumber String?              @unique
   isValidated       Boolean                @default(false)
   validationComment String?
   landlordId        Int
@@ -234,9 +236,13 @@ model TenantHousingHistory {
   tenantId  Int
   housingId Int
   from      DateTime
+  /// Date de fin d'occupation — en principe l'état des lieux de sortie
   to        DateTime?
+  moveOutReason String?
   housing   Housing       @relation(fields: [housingId], references: [id])
   tenant    TenantProfile @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, from])
 }
 
 model Ticket {

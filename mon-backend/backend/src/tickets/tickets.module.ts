@@ -8,6 +8,7 @@ import { AiPhotoService } from '../ai/ai-photo.service';
 import { AuthModule } from '../auth/auth.module';
 import { LiaModule } from '../lia/lia.module';
 import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
+import { TenantOccupancyModule } from '../tenant-occupancy/tenant-occupancy.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
     NotificationsModule,
     FeatureFlagsModule,
     LiaModule,
+    TenantOccupancyModule,
   ],
   controllers: [TicketsController],
   providers: [TicketsService, AiPhotoService, CaseReferenceService],

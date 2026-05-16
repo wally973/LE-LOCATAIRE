@@ -17,6 +17,10 @@ export interface AiPipelineInput {
   tenantFeedback?: string;
   /** Locale du locataire (fr-FR par défaut). */
   locale: string;
+  /** Bailleur du logement — alimente le RAG juriste (Sprint G). */
+  landlordProfileId?: number;
+  /** Logement concerné — mémoires spécifiques résidence (Sprint G). */
+  housingId?: number;
 }
 
 /**

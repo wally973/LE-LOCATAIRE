@@ -135,10 +135,13 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                           final id = t['id'] as int;
                           final title = t['title'] as String? ?? 'Demande';
                           final status = t['status'] as String?;
+                          final caseNumber = t['caseNumber'] as String?;
                           return ListTile(
                             title: Text(title),
                             subtitle: Text(
-                              'Ticket #$id · ${_statusLabel(status)}',
+                              caseNumber != null
+                                  ? '$caseNumber · ${_statusLabel(status)}'
+                                  : 'Ticket #$id · ${_statusLabel(status)}',
                             ),
                             trailing: Chip(
                               label: Text(

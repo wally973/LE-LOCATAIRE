@@ -86,9 +86,9 @@ export class AiRoutingService {
       attempt,
       photoUrls,
       tenantFeedback: opts.tenantFeedback,
-      // Pas de champ langue côté User pour le moment ; on défaultera côté pipeline.
-      // Sprint 7 (multilingue) : enrichir TenantProfile / User avec preferredLocale.
       locale: 'fr-FR',
+      landlordProfileId: ticket.landlordProfileId ?? ticket.housing.landlordId,
+      housingId: ticket.housingId,
     });
 
     // Si la confiance est trop faible, on bascule en needsMorePhoto sauf si on a
@@ -128,6 +128,7 @@ export class AiRoutingService {
       {
         ...updated,
         title: ticket.title,
+        caseNumber: updated.caseNumber,
         tenant: ticket.tenant,
         housing: ticket.housing,
       },
@@ -348,6 +349,7 @@ export class AiRoutingService {
   private async fireSideEffects(
     ticket: {
       id: number;
+      caseNumber?: string | null;
       title: string;
       status: string;
       responsibility: TicketResponsibility;
@@ -373,16 +375,21 @@ export class AiRoutingService {
             ? 'WARNING'
             : 'INFO',
       },
-      { sendPush: true, ticketId: ticket.id },
+      {
+        sendPush: true,
+        ticketId: ticket.id,
+        caseNumber: ticket.caseNumber ?? undefined,
+      },
     );
 
     // 2) Effets spécifiques selon la décision finale
     switch (ticket.responsibility) {
       case 'BAILLEUR': {
+        const ref = ticket.caseNumber ?? `#${ticket.id}`;
         await this.notifications.createNotification({
           userId: landlordUserId,
-          title: `Nouveau ticket à votre charge — #${ticket.id}`,
-          message: `Ticket "${ticket.title}" classé "${decision.category}" (sévérité ${decision.severity}).`,
+          title: `Nouveau ticket à votre charge — ${ref}`,
+          message: `Affaire ${ref} : "${ticket.title}" classé "${decision.category}" (sévérité ${decision.severity}).`,
           type: 'INFO',
         });
         break;

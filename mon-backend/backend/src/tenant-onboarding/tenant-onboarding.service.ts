@@ -199,6 +199,13 @@ export class TenantOnboardingService {
         },
       });
 
+      await tx.tenantProfile.update({
+        where: { id: tenantProfile.id },
+        data: {
+          dossierNumber: `DOS-${String(tenantProfile.id).padStart(6, '0')}`,
+        },
+      });
+
       // Activation du compte locataire
       await tx.user.update({
         where: { id: request.userId },

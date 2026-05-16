@@ -313,3 +313,59 @@
   border-bottom: 1px solid #f1f5f9;
   font-size: 14px;
 }
+
+.bailleur-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0 28px;
+  max-width: 720px;
+}
+
+.bailleur-search-input {
+  flex: 1 1 280px;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+}
+
+.bailleur-search-btn {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.bailleur-search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bailleur-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.bailleur-search-tenant h2,
+.bailleur-search-results section > h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.bailleur-ticket-list__ref {
+  margin-top: 4px;
+}
+
+.bailleur-ticket-list__ref code {
+  font-size: 12px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}

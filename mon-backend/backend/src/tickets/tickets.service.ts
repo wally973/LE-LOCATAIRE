@@ -12,6 +12,7 @@ import { TicketStatus } from '@prisma/client';
 import { AiPhotoService } from '../ai/ai-photo.service';
 import { LiaOrchestratorService } from '../lia/lia-orchestrator.service';
 import { LiaConversationService } from '../lia/lia-conversation.service';
+import { CaseReferenceService } from './case-reference.service';
 
 @Injectable()
 export class TicketsService {
@@ -21,6 +22,7 @@ export class TicketsService {
     private readonly aiPhoto: AiPhotoService,
     private readonly liaOrchestrator: LiaOrchestratorService,
     private readonly liaConversation: LiaConversationService,
+    private readonly caseRef: CaseReferenceService,
   ) {}
 
   /**
@@ -70,6 +72,9 @@ export class TicketsService {
       },
     });
 
+    await this.caseRef.ensureTenantDossierNumber(tenantProfile.id);
+    await this.caseRef.assignCaseNumber(ticket.id);
+
     const messages = await this.liaOrchestrator.startTicketConversation(
       ticket.id,
       tenantUserId,
@@ -93,7 +98,7 @@ export class TicketsService {
     const ticket = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
       include: {
-        tenant: true,
+        tenant: { include: { user: { select: { email: true, phone: true } } } },
         housing: true,
       },
     });
@@ -101,6 +106,147 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Ticket introuvable');
 
     return ticket;
+  }
+
+  /**
+   * Recherche par numéro d'affaire — identité locataire + historique des demandes.
+   */
+  async lookupByCaseNumber(caseNumberRaw: string, userId: number, role: string) {
+    const caseNumber = this.caseRef.normalizeRef(caseNumberRaw);
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { caseNumber },
+      include: {
+        tenant: {
+          include: {
+            user: { select: { id: true, email: true, phone: true } },
+          },
+        },
+        housing: { include: { landlord: true } },
+      },
+    });
+    if (!ticket) {
+      throw new NotFoundException(`Aucune affaire pour le numéro ${caseNumber}`);
+    }
+
+    await this.assertCanViewTenantDossier(
+      userId,
+      role,
+      ticket.tenantId,
+      ticket.housing.landlordId,
+      ticket.tenant.userId,
+    );
+
+    return this.buildDossierPayload(ticket.tenantId, ticket.id);
+  }
+
+  /**
+   * Recherche par numéro de dossier locataire (toutes les affaires du locataire).
+   */
+  async lookupByDossierNumber(
+    dossierNumberRaw: string,
+    userId: number,
+    role: string,
+  ) {
+    const dossierNumber = this.caseRef.normalizeRef(dossierNumberRaw);
+    const tenant = await this.prisma.tenantProfile.findUnique({
+      where: { dossierNumber },
+      include: {
+        housing: true,
+        user: { select: { id: true, email: true, phone: true } },
+      },
+    });
+    if (!tenant) {
+      throw new NotFoundException(
+        `Aucun dossier pour le numéro ${dossierNumber}`,
+      );
+    }
+
+    const landlordId = tenant.housing?.landlordId;
+    await this.assertCanViewTenantDossier(
+      userId,
+      role,
+      tenant.id,
+      landlordId,
+      tenant.userId,
+    );
+
+    return this.buildDossierPayload(tenant.id);
+  }
+
+  private async assertCanViewTenantDossier(
+    userId: number,
+    role: string,
+    tenantProfileId: number,
+    landlordProfileId: number | null | undefined,
+    tenantUserId: number,
+  ) {
+    if (role === 'ADMIN') return;
+
+    if (role === 'LOCATAIRE') {
+      const tp = await this.prisma.tenantProfile.findUnique({
+        where: { userId },
+      });
+      if (!tp || tp.id !== tenantProfileId) {
+        throw new ForbiddenException('Accès refusé à ce dossier');
+      }
+      return;
+    }
+
+    if (role === 'BAILLEUR' || role === 'AGENT') {
+      const lp = await this.prisma.landlordProfile.findUnique({
+        where: { userId },
+      });
+      if (!lp || landlordProfileId !== lp.id) {
+        throw new ForbiddenException('Ce dossier n’appartient pas à votre organisme');
+      }
+      return;
+    }
+
+    throw new ForbiddenException('Rôle non autorisé');
+  }
+
+  private async buildDossierPayload(tenantProfileId: number, focusTicketId?: number) {
+    const tenant = await this.prisma.tenantProfile.findUnique({
+      where: { id: tenantProfileId },
+      include: {
+        user: { select: { id: true, email: true, phone: true } },
+        housing: true,
+      },
+    });
+    if (!tenant) throw new NotFoundException('Locataire introuvable');
+
+    const ticketHistory = await this.prisma.ticket.findMany({
+      where: { tenantId: tenantProfileId },
+      orderBy: { createdAt: 'desc' },
+      include: { housing: { select: { id: true, address: true, city: true } } },
+    });
+
+    const focusTicket = focusTicketId
+      ? ticketHistory.find((t) => t.id === focusTicketId)
+      : ticketHistory[0];
+
+    return {
+      dossierNumber: tenant.dossierNumber,
+      tenant: {
+        id: tenant.id,
+        firstName: tenant.firstName,
+        lastName: tenant.lastName,
+        dossierNumber: tenant.dossierNumber,
+        email: tenant.user.email,
+        phone: tenant.user.phone,
+        housing: tenant.housing
+          ? {
+              id: tenant.housing.id,
+              address: tenant.housing.address,
+              city: tenant.housing.city,
+              postalCode: tenant.housing.postalCode,
+            }
+          : null,
+      },
+      focusTicket,
+      ticketHistory,
+      totalTickets: ticketHistory.length,
+    };
   }
 
   async getMyTickets(userId: number, role: string) {

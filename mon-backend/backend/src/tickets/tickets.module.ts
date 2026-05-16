@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
+import { CaseReferenceService } from './case-reference.service';
 import { TicketsController } from './tickets.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -17,7 +18,7 @@ import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
     LiaModule,
   ],
   controllers: [TicketsController],
-  providers: [TicketsService, AiPhotoService],
+  providers: [TicketsService, AiPhotoService, CaseReferenceService],
   exports: [TicketsService],
 })
 export class TicketsModule {}

@@ -26,6 +26,11 @@ export const TicketList: React.FC<Props> = ({
         <li key={t.id} className="bailleur-ticket-list__item">
           <div>
             <strong>{t.title}</strong>
+            {t.caseNumber ? (
+              <div className="bailleur-ticket-list__ref">
+                <code>{t.caseNumber}</code>
+              </div>
+            ) : null}
             <div className="bailleur-ticket-list__meta">
               <TicketStatusBadge status={t.status} />
               {t.responsibility ? (

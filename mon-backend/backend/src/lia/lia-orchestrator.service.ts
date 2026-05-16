@@ -54,6 +54,24 @@ export class LiaOrchestratorService {
 
     await this.conversation.appendMessage(ticketId, 'LIA_HOST', welcome.text);
 
+    const ticketRefs = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      select: {
+        caseNumber: true,
+        tenant: { select: { dossierNumber: true } },
+      },
+    });
+    if (ticketRefs?.caseNumber) {
+      const dossier = ticketRefs.tenant.dossierNumber ?? '—';
+      await this.conversation.appendMessage(
+        ticketId,
+        'LIA_SYSTEM',
+        `Numéro d’affaire : ${ticketRefs.caseNumber}\n` +
+          `Dossier locataire : ${dossier}\n` +
+          `Conservez ce numéro pour toute question avec le bailleur.`,
+      );
+    }
+
     await this.prisma.ticket.update({
       where: { id: ticketId },
       data: { status: 'LIA_ANALYZING' },
@@ -63,10 +81,16 @@ export class LiaOrchestratorService {
       ticket.tenant.userId,
       {
         title: 'Lia a bien reçu votre demande',
-        message: welcome.text.slice(0, 200),
+        message: ticketRefs?.caseNumber
+          ? `[${ticketRefs.caseNumber}] ${welcome.text.slice(0, 160)}`
+          : welcome.text.slice(0, 200),
         type: 'INFO',
       },
-      { sendPush: true, ticketId },
+      {
+        sendPush: true,
+        ticketId,
+        caseNumber: ticketRefs?.caseNumber ?? undefined,
+      },
     );
 
     this.runAnalysisInBackground(ticketId);

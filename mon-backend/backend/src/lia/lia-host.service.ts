@@ -46,14 +46,14 @@ export class LiaHostService {
     if (params.alreadyExists) {
       return {
         text:
-          `Votre demande d’${params.artisanLabel} est déjà enregistrée. ` +
+          `Votre demande de ${params.artisanLabel} est déjà enregistrée. ` +
           `L’équipe vous contactera pour un devis — pas besoin de renvoyer le message.`,
         fromLlm: false,
       };
     }
     return {
       text:
-        `Parfait, j’ai transmis votre demande d’${params.artisanLabel} à notre équipe. ` +
+        `Parfait, j’ai transmis votre demande de ${params.artisanLabel} à notre équipe. ` +
         `Un devis vous sera proposé sous peu. Vous serez notifié(e) des prochaines étapes.`,
       fromLlm: false,
     };

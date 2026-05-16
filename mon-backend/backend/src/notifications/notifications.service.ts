@@ -15,6 +15,8 @@ export interface NotifyUserOptions {
   sendPush?: boolean;
   /** Pour ouvrir le ticket depuis une notification push (Sprint F — Lia). */
   ticketId?: number;
+  /** Numéro d’affaire lisible (ex. AFF-2026-000128). */
+  caseNumber?: string;
 }
 
 @Injectable()
@@ -91,6 +93,9 @@ export class NotificationsService {
         };
         if (options?.ticketId != null) {
           data.ticketId = String(options.ticketId);
+        }
+        if (options?.caseNumber) {
+          data.caseNumber = options.caseNumber;
         }
         const result = await this.pushPort.send({
           tokens,

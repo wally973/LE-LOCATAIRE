@@ -209,6 +209,8 @@ model TenantProfile {
   userId           Int                    @unique
   housingId        Int?                   @unique
   isOfficialTenant Boolean                @default(false)
+  /// Dossier locataire unique (ex. DOS-000042) — historique des demandes
+  dossierNumber    String?                @unique
   /// Fusion HLM — sujet Supabase Auth (sub JWT)
   authSubject      String?                @unique
   /// Fusion HLM — lien optionnel vers profil locataire métier UUID (socle)
@@ -239,6 +241,8 @@ model TenantHousingHistory {
 
 model Ticket {
   id                     Int                   @id @default(autoincrement())
+  /// Numéro d'affaire lisible (ex. AFF-2026-000128) — recherche bailleur / notifications
+  caseNumber             String?               @unique
   title                  String
   description            String
   status                 TicketStatus          @default(NEW)
@@ -281,6 +285,7 @@ model Ticket {
   /// Sprint F (LIA) — fil de conversation locataire ↔ hôte
   messages               TicketMessage[]
 
+  @@index([caseNumber])
   @@index([landlordProfileId, status])
   @@index([responsibility])
   @@index([escalatedAt])

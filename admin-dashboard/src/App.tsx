@@ -35,6 +35,7 @@ import LandlordPaymentsPage from '@pages/bailleur/LandlordPaymentsPage';
 import LandlordTicketsPage from '@pages/bailleur/LandlordTicketsPage';
 import LandlordTicketDetailPage from '@pages/bailleur/LandlordTicketDetailPage';
 import LandlordProfilePage from '@pages/bailleur/LandlordProfilePage';
+import LandlordCaseSearchPage from '@pages/bailleur/LandlordCaseSearchPage';
 import LocataireDashboardPage from '@pages/locataire/LocataireDashboardPage';
 import LocatairePaymentsPage from '@pages/locataire/LocatairePaymentsPage';
 import LocatairePaymentDetailPage from '@pages/locataire/LocatairePaymentDetailPage';
@@ -91,6 +92,7 @@ function App() {
             <Route path="locataires" element={<LandlordTenantsPage />} />
             <Route path="locataires/:id" element={<LandlordTenantDetailPage />} />
             <Route path="paiements" element={<LandlordPaymentsPage />} />
+            <Route path="recherche" element={<LandlordCaseSearchPage />} />
             <Route path="tickets" element={<LandlordTicketsPage />} />
             <Route path="tickets/:id" element={<LandlordTicketDetailPage />} />
             <Route path="profil" element={<LandlordProfilePage />} />

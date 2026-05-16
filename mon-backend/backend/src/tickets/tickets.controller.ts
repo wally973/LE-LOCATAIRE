@@ -61,6 +61,37 @@ export class TicketsController {
     return this.ticketsService.getMyRoutedTickets(req.user.id);
   }
 
+  @Get('lookup/case/:caseNumber')
+  @Roles('LOCATAIRE', 'BAILLEUR', 'AGENT', 'ADMIN')
+  @ApiOperation({
+    summary: 'Ouvrir un dossier par numéro d’affaire (AFF-…)',
+    description:
+      'Retourne le locataire, l’affaire concernée et l’historique de ses demandes.',
+  })
+  lookupByCase(@Req() req, @Param('caseNumber') caseNumber: string) {
+    return this.ticketsService.lookupByCaseNumber(
+      caseNumber,
+      req.user.id,
+      req.user.role,
+    );
+  }
+
+  @Get('lookup/dossier/:dossierNumber')
+  @Roles('BAILLEUR', 'AGENT', 'ADMIN', 'LOCATAIRE')
+  @ApiOperation({
+    summary: 'Ouvrir un dossier locataire par numéro DOS-…',
+  })
+  lookupByDossier(
+    @Req() req,
+    @Param('dossierNumber') dossierNumber: string,
+  ) {
+    return this.ticketsService.lookupByDossierNumber(
+      dossierNumber,
+      req.user.id,
+      req.user.role,
+    );
+  }
+
   /**
    * Récupérer un ticket par ID
    */

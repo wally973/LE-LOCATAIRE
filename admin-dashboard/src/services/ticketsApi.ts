@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import type { DossierLookupResult } from '@/types/bailleur';
 
 export type TicketStatusUi =
   | 'OPEN'
@@ -23,4 +24,20 @@ export const ticketsApi = {
       status: TicketStatusUi;
     }>,
   ) => apiClient.patch(`/tickets/${id}`, body).then((r) => r.data),
+
+  /** Recherche par numéro d'affaire AFF-… */
+  lookupByCase: (caseNumber: string) =>
+    apiClient
+      .get<DossierLookupResult>(
+        `/tickets/lookup/case/${encodeURIComponent(caseNumber.trim())}`,
+      )
+      .then((r) => r.data),
+
+  /** Recherche par dossier locataire DOS-… */
+  lookupByDossier: (dossierNumber: string) =>
+    apiClient
+      .get<DossierLookupResult>(
+        `/tickets/lookup/dossier/${encodeURIComponent(dossierNumber.trim())}`,
+      )
+      .then((r) => r.data),
 };

@@ -276,7 +276,36 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 - Flutter : `PushHandlerService` + `NotificationNavigation` persistante (SharedPreferences) ; `FcmService` prêt (`firebase_options.dart` — activer après `flutterfire configure`).
 - Conversation : bouton « Prendre une photo » si `AWAITING_TENANT_PHOTO` → `redo-photo`.
 
-**Suite (Sprint G+ / pipeline IA réel)** : pathologiste Gemini + juriste Mistral + RAG `AiMemory` (aujourd’hui = stub mots-clés Sprint 3).
+**Suite** : FCM prod, multilingue, enrichir `AiMemory` (embeddings).
+
+---
+
+### Sprint G — Pathologiste + juriste (pipeline Lia)
+
+**Contexte** : remplacer le stub mots-clés par une chaîne en 2 agents, testable en **simulation** sans vrais locataires.
+
+**Livré (backend)** :
+
+- **`AI_PIPELINE_MODE`** : `lia` (défaut), `stub`, ou `auto` (lia si clés API).
+- **`LiaPathologistService`** : Gemini Vision si `GEMINI_API_KEY`, sinon simulation (fuite, électricité, etc.).
+- **`LiaJuristService`** : Mistral + extraits `AiMemory` si `MISTRAL_API_KEY`, sinon règles + mémoire.
+- **`AiPipelineLiaAdapter`** : pathologiste → juriste ; repli stub si échec.
+- **`AiMemoryService`** : recherche RAG par mots-clés (bailleur + global).
+- Scripts : `scripts/seed-ai-memory.ts`, `scripts/test-sprint-g.ps1`.
+- Variables : voir `.env.example` (`GEMINI_*`, `MISTRAL_*`, `AI_PIPELINE_MODE`).
+
+**Simulation locale (sans clés API)** :
+
+```powershell
+cd mon-backend/backend
+npx ts-node scripts/seed-lia-demo.ts
+npx ts-node scripts/seed-ai-memory.ts
+# AI_PIPELINE_MODE=lia par défaut — pathologiste/juriste en mode simulation
+npm run start:dev
+.\scripts\test-sprint-g.ps1
+```
+
+**Avec vrais LLM** : renseigner `GEMINI_API_KEY` et/ou `MISTRAL_API_KEY`, redémarrer le serveur.
 
 **Flutter (Sprint F — UI)** :
 
@@ -295,7 +324,8 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 | ~~A~~ | ~~Feature flags par bailleur~~ | **Fait** |
 | ~~B~~ | ~~Notifications réelles~~ | **Fait** — prod : SMTP/FCM |
 | ~~D~~ | ~~Dashboard bailleur~~ | **Fait** |
-| ~~F~~ | ~~Lia / LLM (conversation)~~ | **Fait** — hôte Groq + fil + push `ticketId` ; pipeline patho/juriste réel = sprint suivant |
+| ~~F~~ | ~~Lia / LLM (conversation)~~ | **Fait** |
+| ~~G~~ | ~~Pathologiste + juriste~~ | **Fait** — Gemini/Mistral optionnels + simulation |
 | C | **Multilingue + avatar 2D** | Locales + guide UX |
 | E | **YouTube Data API** | Remplacer stub vidéo |
 | G | **Compliance OPS / SLS** | Extension social |
@@ -373,3 +403,4 @@ Ne pas committer `projet.txt` ni les fichiers Office temporaires (`~$*`).
 | 15 mai 2026 | Session assistant | Renommage DTO Swagger : `AdminUpdateLandlordDto` / `LandlordUpdateProfileDto` |
 | 15 mai 2026 | Porteur projet | §0 ajouté : porteur non développeur, explications simples attendues |
 | 16 mai 2026 | Session assistant | Sprint F clôturé : push ticketId, FCM hook Flutter, photo depuis conversation |
+| 16 mai 2026 | Session assistant | Sprint G : pipeline pathologiste + juriste + AiMemory RAG |

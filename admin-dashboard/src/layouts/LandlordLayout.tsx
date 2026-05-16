@@ -54,6 +54,9 @@ const LandlordLayout: React.FC = () => {
             <NavLink to="/bailleur/paiements" className={navCls}>
               Paiements
             </NavLink>
+            <NavLink to="/bailleur/recherche" className={navCls}>
+              Recherche dossier
+            </NavLink>
             <NavLink to="/bailleur/tickets" className={navCls}>
               Tickets
             </NavLink>

@@ -7,16 +7,28 @@ import { VideoLibraryModule } from '../video-library/video-library.module';
 import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { AI_PIPELINE } from './ai-pipeline.port';
 import { AiPipelineStubAdapter } from './ai-pipeline-stub.adapter';
+import { AiPipelineLiaAdapter } from './ai-pipeline-lia.adapter';
+import { AiMemoryService } from './ai-memory.service';
+import { LiaPathologistService } from './agents/lia-pathologist.service';
+import { LiaJuristService } from './agents/lia-jurist.service';
 import { AiRoutingService } from './ai-routing.service';
 import { AiRoutingController } from './ai-routing.controller';
 
+function resolvePipelineMode(): 'stub' | 'lia' {
+  const mode = (process.env.AI_PIPELINE_MODE ?? 'lia').toLowerCase();
+  if (mode === 'stub') return 'stub';
+  if (mode === 'lia') return 'lia';
+  // auto : Lia si au moins une clé LLM, sinon stub
+  if (mode === 'auto') {
+    if (process.env.GEMINI_API_KEY || process.env.MISTRAL_API_KEY) return 'lia';
+    return 'stub';
+  }
+  return 'lia';
+}
+
 /**
- * Module Sprint 3 — routage automatique IA des tickets.
- *
- * Sprint 4 : import optionnel de VideoLibraryModule pour proposer des
- *            tutoriels quand l'IA classe en LOCATAIRE.
- * Sprint 7 : remplacer AiPipelineStubAdapter par OpenAiPipelineAdapter
- *            (ou un compose multi-adapter) sans toucher au reste du code.
+ * Module Sprint 3+ — routage IA des tickets.
+ * Sprint G : pipeline Lia (pathologiste + juriste) sélectionnable via AI_PIPELINE_MODE.
  */
 @Module({
   imports: [
@@ -30,10 +42,18 @@ import { AiRoutingController } from './ai-routing.controller';
   controllers: [AiRoutingController],
   providers: [
     AiRoutingService,
+    AiMemoryService,
+    LiaPathologistService,
+    LiaJuristService,
     AiPipelineStubAdapter,
+    AiPipelineLiaAdapter,
     {
       provide: AI_PIPELINE,
-      useExisting: AiPipelineStubAdapter,
+      useFactory: (
+        lia: AiPipelineLiaAdapter,
+        stub: AiPipelineStubAdapter,
+      ) => (resolvePipelineMode() === 'lia' ? lia : stub),
+      inject: [AiPipelineLiaAdapter, AiPipelineStubAdapter],
     },
   ],
   exports: [AiRoutingService, AI_PIPELINE],

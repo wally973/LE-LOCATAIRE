@@ -67,21 +67,21 @@ export const LandlordDashboardPanels: React.FC<Props> = ({ dashboard }) => {
         <div className="bailleur-stat-grid">
           <div className="bailleur-stat">
             <div className="bailleur-stat__title">Tickets routés</div>
-            <div className="bailleur-stat__value">{ai.routedCount}</motion.div>
-          </motion.div>
+            <div className="bailleur-stat__value">{ai.routedCount}</div>
+          </div>
           <div className="bailleur-stat">
-            <div className="bailleur-stat__title">Confiance moyenne</motion.div>
+            <div className="bailleur-stat__title">Confiance moyenne</div>
             <div className="bailleur-stat__value">
               {ai.avgConfidence != null
                 ? `${Math.round(ai.avgConfidence * 100)} %`
                 : '—'}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
           <div className="bailleur-stat">
-            <div className="bailleur-stat__title">Non recevables</motion.div>
-            <div className="bailleur-stat__value">{ai.nonRecevableCount}</motion.div>
-          </motion.div>
-        </motion.div>
+            <div className="bailleur-stat__title">Non recevables</div>
+            <div className="bailleur-stat__value">{ai.nonRecevableCount}</div>
+          </div>
+        </div>
         {Object.keys(ai.byCategory).length > 0 && (
           <ul className="bailleur-mini-list">
             {Object.entries(ai.byCategory)

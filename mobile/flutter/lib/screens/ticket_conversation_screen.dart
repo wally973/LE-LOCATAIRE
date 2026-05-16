@@ -198,6 +198,10 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
       ),
       body: Column(
         children: [
+          if (_ticket?['caseNumber'] != null) _CaseNumberBanner(
+            caseNumber: _ticket!['caseNumber'] as String,
+            dossierNumber: (_ticket!['tenant'] as Map<String, dynamic>?)?['dossierNumber'] as String?,
+          ),
           if (analyzing) _AnalyzingBanner(),
           Expanded(
             child: _loading && _messages.isEmpty
@@ -269,6 +273,44 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
             onSend: _send,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CaseNumberBanner extends StatelessWidget {
+  final String caseNumber;
+  final String? dossierNumber;
+
+  const _CaseNumberBanner({
+    required this.caseNumber,
+    this.dossierNumber,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.tag_outlined, color: Colors.blue.shade800, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                dossierNumber != null
+                    ? 'Affaire $caseNumber · Dossier $dossierNumber'
+                    : 'Numéro d’affaire : $caseNumber',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

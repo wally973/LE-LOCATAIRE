@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/ticket_flow_service.dart';
 import 'description_screen.dart';
+import 'my_tickets_screen.dart';
+import '../services/notification_navigation.dart';
+import 'ticket_conversation_screen.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -11,6 +14,23 @@ class StartScreen extends StatefulWidget {
 
 class _StartScreenState extends State<StartScreen> {
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openPendingNotification());
+  }
+
+  Future<void> _openPendingNotification() async {
+    final ticketId = await NotificationNavigation.takePendingTicketId();
+    if (ticketId == null || !mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TicketConversationScreen(ticketId: ticketId),
+      ),
+    );
+  }
 
   Future<void> _startTicketFlow() async {
     setState(() => _isLoading = true);
@@ -83,7 +103,27 @@ class _StartScreenState extends State<StartScreen> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text("Déclarer un problème"),
+                    : const Text('Déclarer un problème'),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 16,
+                  ),
+                ),
+                onPressed: _isLoading
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyTicketsScreen(),
+                          ),
+                        );
+                      },
+                child: const Text('Mes demandes'),
               ),
             ],
           ),

@@ -5,7 +5,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AiPhotoService } from '../ai/ai-photo.service';
 import { AuthModule } from '../auth/auth.module';
-import { AiRoutingModule } from '../ai-routing/ai-routing.module';
+import { LiaModule } from '../lia/lia.module';
 import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 
 @Module({
@@ -14,7 +14,7 @@ import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
     AuthModule,
     NotificationsModule,
     FeatureFlagsModule,
-    AiRoutingModule,
+    LiaModule,
   ],
   controllers: [TicketsController],
   providers: [TicketsService, AiPhotoService],

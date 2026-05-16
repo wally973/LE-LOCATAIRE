@@ -124,7 +124,15 @@ export class AiRoutingService {
       attempt,
     });
 
-    await this.fireSideEffects(updated, effectiveDecision);
+    await this.fireSideEffects(
+      {
+        ...updated,
+        title: ticket.title,
+        tenant: ticket.tenant,
+        housing: ticket.housing,
+      },
+      effectiveDecision,
+    );
 
     return this.prisma.ticket.findUniqueOrThrow({
       where: { id: ticket.id },
@@ -353,17 +361,20 @@ export class AiRoutingService {
     const tenantUserId = ticket.tenant.userId;
     const landlordUserId = ticket.housing.landlord.userId;
 
-    // 1) Notif au locataire — toujours
-    await this.notifications.createNotification({
-      userId: tenantUserId,
-      title: 'Votre demande a été analysée',
-      message: decision.message,
-      type:
-        ticket.responsibility === 'NON_RECEVABLE' ||
-        ticket.status === 'AWAITING_TENANT_PHOTO'
-          ? 'WARNING'
-          : 'INFO',
-    });
+    // 1) Notif au locataire — in-app + push (tap → ticket, Sprint F)
+    await this.notifications.notifyUser(
+      tenantUserId,
+      {
+        title: 'Lia a terminé l’analyse',
+        message: decision.message,
+        type:
+          ticket.responsibility === 'NON_RECEVABLE' ||
+          ticket.status === 'AWAITING_TENANT_PHOTO'
+            ? 'WARNING'
+            : 'INFO',
+      },
+      { sendPush: true, ticketId: ticket.id },
+    );
 
     // 2) Effets spécifiques selon la décision finale
     switch (ticket.responsibility) {

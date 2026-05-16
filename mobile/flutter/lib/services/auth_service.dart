@@ -28,28 +28,28 @@ class AuthService {
       }),
     );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final token = data['access_token']; // Supposons que le backend renvoie { access_token: "..." }
+    final code = response.statusCode;
+    final success = code >= 200 && code < 300;
 
-      if (token != null) {
-        // Stocker le token dans SharedPreferences
+    if (success) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final token = data['access_token'] as String? ?? data['token'] as String?;
+
+      if (token != null && token.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_tokenKey, token);
         return token;
-      } else {
-        throw Exception("Token manquant dans la réponse du serveur");
       }
-    } else {
-      // Gérer les erreurs spécifiques
-      if (response.statusCode == 401) {
-        throw Exception("Email ou mot de passe incorrect");
-      } else if (response.statusCode == 400) {
-        throw Exception("Données invalides");
-      } else {
-        throw Exception("Erreur serveur (${response.statusCode})");
-      }
+      throw Exception('Token manquant dans la réponse du serveur');
     }
+
+    if (code == 401) {
+      throw Exception('Email ou mot de passe incorrect');
+    }
+    if (code == 400) {
+      throw Exception('Données invalides');
+    }
+    throw Exception('Erreur serveur ($code)');
   }
 
   /// Inscription utilisateur

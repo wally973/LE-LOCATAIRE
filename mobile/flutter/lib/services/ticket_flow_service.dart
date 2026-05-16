@@ -80,9 +80,11 @@ class TicketFlowService {
   // -----------------------------
   // 4. Créer le ticket final
   // -----------------------------
-  Future<void> createTicket({
+  @Deprecated('Utiliser TicketService.createTicket')
+  Future<Map<String, dynamic>> createTicket({
     required String description,
     required int housingId,
+    String title = 'Problème signalé',
   }) async {
     final headers = await _headers();
 
@@ -90,7 +92,7 @@ class TicketFlowService {
       Uri.parse("$baseUrl/tickets"),
       headers: headers,
       body: jsonEncode({
-        "title": "Problème signalé",
+        "title": title,
         "description": description,
         "housingId": housingId,
       }),
@@ -102,6 +104,8 @@ class TicketFlowService {
       }
       throw Exception("Erreur lors de la création du ticket (${response.statusCode}) : ${response.body}");
     }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   // -----------------------------

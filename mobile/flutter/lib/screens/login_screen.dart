@@ -35,7 +35,11 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // Appel au service d'authentification
       await AuthService.instance.login(email, password);
-      await NotificationService.instance.syncDeviceTokenAfterLogin();
+      try {
+        await NotificationService.instance.syncDeviceTokenAfterLogin();
+      } catch (_) {
+        // La connexion reste valide même si l'enregistrement push échoue.
+      }
 
       // Connexion réussie : redirection vers /home
       if (mounted) {

@@ -1,7 +1,23 @@
 # LE LOCATAIRE — Notes de projet
 
 Document de synthèse regroupant les **résumés de fin de session** (assistant + développement backend).  
-Dernière mise à jour : **15 mai 2026**.
+Dernière mise à jour : **16 mai 2026**.
+
+---
+
+## 0. Public du document et mode d’échange
+
+Le porteur du projet **n’est pas développeur**. Il peut à tout moment demander des **explications en langage simple** sur un terme technique, une étape de travail, un choix d’architecture ou ce que signifie concrètement une livraison — afin de bien comprendre avant de valider la suite.
+
+**Attentes vis-à-vis de l’assistant (Cursor)** :
+
+- Privilégier le **pourquoi métier / produit** avant le **comment technique**.
+- Définir les acronymes et mots techniques à la **première occurrence** (ex. API, migration, push, stub, JWT).
+- Utiliser des **exemples concrets** (parcours locataire, bailleur 2terHabitat, notification sur le téléphone).
+- Éviter d’enchaîner du jargon sans pause ; proposer « je détaille si besoin » sur les points sensibles.
+- Ne pas supposer que le vocabulaire du code est évident pour tout le monde.
+
+**Pour le porteur du projet** : aucune question n’est « trop basique » — mieux vaut clarifier un point (ex. « c’est quoi une migration ? », « pourquoi Groq ? ») que valider à l’aveugle.
 
 ---
 
@@ -55,6 +71,7 @@ Swagger : `http://localhost:3000/api`
 | `924b5406` | **4** | feat(backend): vidéothèque IA + demandes d'artisan (sprint 4) |
 | `0a2f14ea` | **5** | feat(backend): backoffice volet social — cas, référents, journal (sprint 5) |
 | `79a6bc62` | **6** | feat(backend): notifications réelles SMTP/FCM + feature flags bailleur (sprint 6) |
+| `8afc7698` | **D** | feat: dashboard bailleur IA et escalades (sprint D) |
 
 Migrations Prisma associées (dossier `mon-backend/backend/prisma/migrations/`) :
 
@@ -64,6 +81,7 @@ Migrations Prisma associées (dossier `mon-backend/backend/prisma/migrations/`) 
 - `20260514190000_video_library_and_artisan_requests`
 - `20260515100000_social_case_backoffice`
 - `20260515120000_notifications_and_feature_flags`
+- `20260515140000_lia_conversation` (Sprint F)
 
 ---
 
@@ -220,7 +238,7 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 
 ### Sprint D — Dashboard bailleur (stats IA + escalades)
 
-**Commit** : *(à committer)*
+**Commit** : `8afc7698`
 
 **Livré** :
 
@@ -230,18 +248,58 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 
 ---
 
+### Sprint F — Lia (conversation async + hôte d’accueil)
+
+**Migration** : `20260515140000_lia_conversation`  
+**Contexte** : le locataire peut **fermer l’app dès le 1er message** et revenir sur **push** ; pas d’attente bloquante sur l’analyse patho/juriste.
+
+**Livré (backend)** :
+
+- Modèles **`TicketMessage`** (rôles `TENANT`, `LIA_HOST`, `LIA_SYSTEM`), **`AiMemory`** (RAG juriste — structure prête), statut ticket **`LIA_ANALYZING`**.
+- Module **`src/lia/`** : `LiaHostService` (Groq / fallback FR), `LiaOrchestratorService` (accueil synchrone + `analyzeTicket` en arrière-plan).
+- **`POST /tickets`** : retourne le ticket + `messages` (accueil immédiat).
+- **`GET /tickets/:id/messages`**, **`POST /tickets/:id/messages`** (locataire).
+- Variables : `GROQ_API_KEY`, `LIA_HOST_MODEL`, `LIA_HOST_ENABLED` (voir `.env.example`).
+
+**Décisions produit** :
+
+| Sujet | Décision |
+|--------|----------|
+| Fermeture app après 1er message | **Oui** — push à la fin d’analyse |
+| Contexte bailleur social | **2terHabitat** (fusion SIGUY/SIMKO, effetif 1er janv. 2026) — pas de références SIGUY/SIMKO dans le code |
+| Agents cibles (phases suivantes) | Hôte Groq → Pathologiste Gemini → Juriste Mistral + `AiMemory` → orchestrateur NestJS |
+
+**Livré (compléments 16 mai 2026)** :
+
+- Push FCM : champ `ticketId` dans le payload `data` (accueil Lia + fin d’analyse).
+- Anti-doublon : une seule analyse async à la fois par ticket.
+- Flutter : `PushHandlerService` + `NotificationNavigation` persistante (SharedPreferences) ; `FcmService` prêt (`firebase_options.dart` — activer après `flutterfire configure`).
+- Conversation : bouton « Prendre une photo » si `AWAITING_TENANT_PHOTO` → `redo-photo`.
+
+**Suite (Sprint G+ / pipeline IA réel)** : pathologiste Gemini + juriste Mistral + RAG `AiMemory` (aujourd’hui = stub mots-clés Sprint 3).
+
+**Flutter (Sprint F — UI)** :
+
+- `TicketConversationScreen` — fil bulles locataire / Lia, bandeau « Lia analyse… », envoi de messages, photo.
+- `MyTicketsScreen` — liste `GET /tickets/me`.
+- Création ticket → redirection conversation (`POST /tickets` + `messages`).
+- `TenantService` — logement via `GET /tenant/me` (plus de `housingId: 1` en dur).
+- FCM prod : `flutterfire configure` → `DefaultFirebaseOptions.isConfigured = true` + `google-services.json` / `GoogleService-Info.plist`.
+
+---
+
 ## 5. Prochaines étapes suggérées (non encore codées)
 
 | Priorité | Thème | Description |
 |----------|--------|-------------|
-| ~~A~~ | ~~Feature flags par bailleur~~ | **Fait** — garde sur tickets, IA, vidéos, artisan, social, onboarding, HLM, contrats, paiements |
-| ~~B~~ | ~~Notifications réelles~~ | **Fait** — brancher SMTP/FCM en prod (voir `.env.example`) ; apps : jeton dev + écran préférences |
-| ~~D~~ | ~~Dashboard bailleur~~ | **Fait** — `GET /landlords/me/dashboard` + UI admin-dashboard |
+| ~~A~~ | ~~Feature flags par bailleur~~ | **Fait** |
+| ~~B~~ | ~~Notifications réelles~~ | **Fait** — prod : SMTP/FCM |
+| ~~D~~ | ~~Dashboard bailleur~~ | **Fait** |
+| ~~F~~ | ~~Lia / LLM (conversation)~~ | **Fait** — hôte Groq + fil + push `ticketId` ; pipeline patho/juriste réel = sprint suivant |
 | C | **Multilingue + avatar 2D** | Locales + guide UX |
-| E | **YouTube Data API** | Remplacer stub vidéo (Sprint 8) |
-| F | **LLM réel** | Remplacer stub pipeline IA (Sprint 7) |
-| G | **Compliance OPS / SLS** | Tables liées `SocialCase` / obligations (extension 5.x) |
-| H | **Assurances / relances** | Modèles séparés, liés logement ou cas social |
+| E | **YouTube Data API** | Remplacer stub vidéo |
+| G | **Compliance OPS / SLS** | Extension social |
+| H | **Assurances / relances** | Modèles séparés |
 
 ---
 
@@ -268,6 +326,7 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 3. Ajouter ou compléter une sous-section dans **§4** (résumé de session).
 4. Ajuster **§5** (prochaines étapes) : barrer ce qui est fait, ajouter la priorité suivante.
 5. Si une décision produit a changé, mettre à jour **§2**.
+6. Rappeler **§0** : réponses accessibles au porteur non développeur ; explications sur demande.
 
 ### Modèle à copier pour une nouvelle session
 
@@ -312,3 +371,5 @@ Ne pas committer `projet.txt` ni les fichiers Office temporaires (`~$*`).
 | 15 mai 2026 | Session assistant | Création initiale : synthèse sessions 0–5 + roadmap |
 | 15 mai 2026 | Session assistant | Sprint 6 : notifications (SMTP/FCM) + feature flags bailleur |
 | 15 mai 2026 | Session assistant | Renommage DTO Swagger : `AdminUpdateLandlordDto` / `LandlordUpdateProfileDto` |
+| 15 mai 2026 | Porteur projet | §0 ajouté : porteur non développeur, explications simples attendues |
+| 16 mai 2026 | Session assistant | Sprint F clôturé : push ticketId, FCM hook Flutter, photo depuis conversation |

@@ -278,6 +278,8 @@ model Ticket {
   videoSuggestions       TicketVideoSuggestion[]
   /// Sprint 4 : demande d'artisan envoyée à l'owner (toi) — 0 ou 1 par ticket
   artisanRequest         ArtisanRequest?
+  /// Sprint F (LIA) — fil de conversation locataire ↔ hôte
+  messages               TicketMessage[]
 
   @@index([landlordProfileId, status])
   @@index([responsibility])
@@ -853,9 +855,51 @@ enum Role {
   PRESTATAIRE
 }
 
+/// Sprint F — messages du fil Lia (locataire / hôte).
+enum TicketMessageRole {
+  TENANT
+  LIA_HOST
+  LIA_SYSTEM
+}
+
+model TicketMessage {
+  id        Int               @id @default(autoincrement())
+  ticketId  Int
+  role      TicketMessageRole
+  content   String
+  locale    String            @default("fr-FR")
+  createdAt DateTime          @default(now())
+  ticket    Ticket            @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+/// Sprint F — base de connaissances juridique / résidence (RAG juriste).
+enum AiMemoryKind {
+  DECRET
+  RESIDENCE_ARCHIVE
+  FAQ_BAILLEUR
+}
+
+model AiMemory {
+  id                Int          @id @default(autoincrement())
+  landlordProfileId Int?
+  housingId         Int?
+  kind              AiMemoryKind
+  title             String
+  content           String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([landlordProfileId, kind])
+  @@index([housingId])
+}
+
 enum TicketStatus {
   /// Vient d'être créé, pipeline IA pas encore lancé
   NEW
+  /// Lia a accueilli le locataire ; pathologiste/juriste en cours (app peut être fermée)
+  LIA_ANALYZING
   /// IA a demandé une nouvelle photo au locataire, en attente de re-upload
   AWAITING_TENANT_PHOTO
   /// Ticket actif (routé vers BAILLEUR / LOCATAIRE / SOCIAL / ESCALADE)

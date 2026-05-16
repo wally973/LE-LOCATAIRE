@@ -269,9 +269,9 @@ export class AiPipelineStubAdapter implements AiPipelinePort {
       socialFlag: false,
       suggestedArtisanType: chosen.artisanType,
       message:
-        `Ce type d’intervention relève de l’entretien locatif. ` +
-        `Vous pouvez consulter une vidéo explicative ou demander un artisan partenaire ` +
-        `(${chosen.artisanType ?? 'artisan'}).`,
+        `Ce type d’intervention relève de l’entretien locatif (à votre charge). ` +
+        `Vous pouvez répondre ici, par exemple « je veux un plombier », ` +
+        `pour être mis(e) en relation avec un artisan partenaire — un devis vous sera proposé.`,
       pipelineSteps: steps,
     };
   }

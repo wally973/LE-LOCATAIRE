@@ -1,7 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-const String apiLocal = "http://192.168.x.x:3000";
+/// PC / simulateur iOS sur la même machine que le backend.
+const String apiLocal = "http://localhost:3000";
+/// Émulateur Android (localhost du PC = 10.0.2.2).
 const String apiEmulator = "http://10.0.2.2:3000";
+/// Téléphone physique : remplacez par l’IP locale du PC (ex. 192.168.1.42).
+const String apiPhone = "http://192.168.x.x:3000";
 
 enum DeviceEnvironment {
   android,
@@ -38,5 +42,16 @@ String getApiEndpoint() {
     return apiEmulator;
   }
 
-  return apiLocal;
+  if (environment == DeviceEnvironment.windows ||
+      environment == DeviceEnvironment.linux ||
+      environment == DeviceEnvironment.macos) {
+    return apiLocal;
+  }
+
+  if (environment == DeviceEnvironment.ios ||
+      environment == DeviceEnvironment.web) {
+    return apiLocal;
+  }
+
+  return apiPhone;
 }

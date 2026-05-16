@@ -13,6 +13,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
+import { PostTicketMessageDto } from '../lia/dto/post-ticket-message.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -63,6 +64,26 @@ export class TicketsController {
   /**
    * Récupérer un ticket par ID
    */
+  @Get(':id/messages')
+  @Roles('LOCATAIRE', 'BAILLEUR', 'AGENT', 'ADMIN')
+  @ApiOperation({ summary: 'Fil de conversation Lia d’un ticket' })
+  getTicketMessages(@Req() req, @Param('id', ParseIntPipe) id: number) {
+    return this.ticketsService.getTicketMessages(id, req.user.id, req.user.role);
+  }
+
+  @Post(':id/messages')
+  @Roles('LOCATAIRE')
+  @ApiOperation({
+    summary: 'Message locataire dans le fil — relance l’analyse en arrière-plan',
+  })
+  postTicketMessage(
+    @Req() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: PostTicketMessageDto,
+  ) {
+    return this.ticketsService.postTenantMessage(id, req.user.id, dto.content);
+  }
+
   @Get(':id')
   @Roles('LOCATAIRE', 'BAILLEUR', 'AGENT', 'ADMIN')
   getTicketById(@Param('id', ParseIntPipe) id: number) {

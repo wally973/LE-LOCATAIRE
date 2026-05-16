@@ -10,7 +10,8 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { TicketStatus } from '@prisma/client';
 import { AiPhotoService } from '../ai/ai-photo.service';
-import { AiRoutingService } from '../ai-routing/ai-routing.service';
+import { LiaOrchestratorService } from '../lia/lia-orchestrator.service';
+import { LiaConversationService } from '../lia/lia-conversation.service';
 
 @Injectable()
 export class TicketsService {
@@ -18,15 +19,15 @@ export class TicketsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly aiPhoto: AiPhotoService,
-    private readonly aiRouting: AiRoutingService,
+    private readonly liaOrchestrator: LiaOrchestratorService,
+    private readonly liaConversation: LiaConversationService,
   ) {}
 
   /**
    * Création d'un ticket (locataire) — tenantId = id TenantProfile, pas User.
    *
-   * Sprint 3 : le ticket est créé en status=NEW + responsibility=PENDING puis
-   * le pipeline IA est lancé immédiatement. La décision (routage, message au
-   * locataire, notifications) est gérée par AiRoutingService.
+   * Sprint F (Lia) : accueil immédiat + fil de messages ; analyse IA en arrière-plan
+   * (le locataire peut fermer l'app, push à la fin via AiRoutingService).
    */
   async createTicket(tenantUserId: number, dto: CreateTicketDto) {
     const tenantProfile = await this.prisma.tenantProfile.findUnique({
@@ -69,10 +70,23 @@ export class TicketsService {
       },
     });
 
-    // Pipeline IA : routage automatique + side effects (notifications, etc.)
-    await this.aiRouting.analyzeTicket(ticket.id, { force: true });
+    const messages = await this.liaOrchestrator.startTicketConversation(
+      ticket.id,
+      tenantUserId,
+    );
 
-    return this.getTicketById(ticket.id);
+    return {
+      ...(await this.getTicketById(ticket.id)),
+      messages,
+    };
+  }
+
+  async getTicketMessages(ticketId: number, userId: number, role: string) {
+    return this.liaConversation.listMessages(ticketId, userId, role);
+  }
+
+  async postTenantMessage(ticketId: number, tenantUserId: number, content: string) {
+    return this.liaOrchestrator.onTenantMessage(ticketId, tenantUserId, content);
   }
 
   async getTicketById(ticketId: number) {

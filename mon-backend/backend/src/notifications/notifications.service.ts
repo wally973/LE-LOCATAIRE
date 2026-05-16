@@ -13,6 +13,8 @@ import type { PushPort } from './ports/push.port';
 export interface NotifyUserOptions {
   sendEmail?: boolean;
   sendPush?: boolean;
+  /** Pour ouvrir le ticket depuis une notification push (Sprint F — Lia). */
+  ticketId?: number;
 }
 
 @Injectable()
@@ -83,11 +85,18 @@ export class NotificationsService {
       });
       const tokens = devices.map((d) => d.token);
       if (tokens.length > 0) {
+        const data: Record<string, string> = {
+          type: payload.type,
+          notificationId: String(notification.id),
+        };
+        if (options?.ticketId != null) {
+          data.ticketId = String(options.ticketId);
+        }
         const result = await this.pushPort.send({
           tokens,
           title: payload.title,
           body: payload.message,
-          data: { type: payload.type, notificationId: String(notification.id) },
+          data,
         });
         if (result.invalidTokens.length > 0) {
           await this.prisma.devicePushToken.deleteMany({

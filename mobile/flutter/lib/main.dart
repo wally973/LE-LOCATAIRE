@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'services/fcm_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/start_screen.dart';
 import 'screens/notification_settings_screen.dart';
+import 'screens/my_tickets_screen.dart';
+import 'screens/ticket_conversation_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FcmService.instance.init();
   runApp(const MyApp());
 }
 
@@ -31,6 +36,14 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const StartScreen(),
         '/notifications/settings': (context) =>
             const NotificationSettingsScreen(),
+        '/tickets': (context) => const MyTicketsScreen(),
+        '/ticket/conversation': (context) {
+          final args =
+              ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return TicketConversationScreen(
+            ticketId: args['ticketId'] as int,
+          );
+        },
       },
       initialRoute: '/', // Route initiale
     );

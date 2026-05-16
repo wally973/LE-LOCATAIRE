@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 import 'auth_service.dart';
+import 'fcm_service.dart';
 
 /// Préférences et jeton push (FCM) côté API backend.
 class NotificationService {
@@ -27,12 +28,13 @@ class NotificationService {
   /// Sans package firebase_messaging, utilise un jeton dev stocké localement.
   Future<void> syncDeviceTokenAfterLogin() async {
     final prefs = await SharedPreferences.getInstance();
-    var deviceToken = prefs.getString(_deviceTokenKey);
+    var deviceToken = await FcmService.instance.getToken();
+    deviceToken ??= prefs.getString(_deviceTokenKey);
     if (deviceToken == null || deviceToken.isEmpty) {
       deviceToken =
           'dev-${DateTime.now().millisecondsSinceEpoch}-${defaultTargetPlatform.name}';
-      await prefs.setString(_deviceTokenKey, deviceToken);
     }
+    await prefs.setString(_deviceTokenKey, deviceToken);
 
     final platform = defaultTargetPlatform == TargetPlatform.iOS
         ? 'ios'

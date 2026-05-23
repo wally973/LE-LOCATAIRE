@@ -497,8 +497,9 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                   child: Text(
-                    'Répondez à la question de Lia ci-dessous '
-                    '(ex. « depuis hier », « ce matin »). La photo viendra ensuite.',
+                    'Répondez à Lia en langage naturel (depuis quand, '
+                    'ce que vous avez déjà essayé, quelle pièce…). '
+                    'Elle adapte ses questions. La photo viendra ensuite.',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.amber.shade900,

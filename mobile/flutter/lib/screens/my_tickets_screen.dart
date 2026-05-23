@@ -66,10 +66,18 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
         return 'Lia analyse…';
       case 'AWAITING_TENANT_PHOTO':
         return 'Photo demandée';
+      case 'IN_PROGRESS':
+        return 'Prise en charge';
+      case 'RESOLVED':
+        return 'Résolu';
+      case 'CANCELLED':
+        return 'Clos';
       case 'AUTO_CLOSED':
         return 'Clôturé';
       case 'OPEN':
-        return 'En cours';
+        return 'Ouvert';
+      case 'NEW':
+        return 'Nouveau';
       default:
         return status ?? '—';
     }
@@ -78,7 +86,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
   Color _statusColor(String? status) {
     if (status == 'LIA_ANALYZING') return Colors.amber.shade800;
     if (status == 'AWAITING_TENANT_PHOTO') return Colors.orange;
-    if (status == 'AUTO_CLOSED') return Colors.grey;
+    if (status == 'IN_PROGRESS') return Colors.teal.shade700;
+    if (status == 'RESOLVED') return Colors.green.shade700;
+    if (status == 'AUTO_CLOSED' || status == 'CANCELLED') return Colors.grey;
     return Colors.blue;
   }
 

@@ -4,13 +4,13 @@ import '../config.dart';
 import '../models/companion_state.dart';
 import '../models/detected_claim.dart';
 import '../models/ticket_message.dart';
+import 'auth_service.dart';
 
 /// Plusieurs réclamations dans une même description.
 class MultipleClaimsException implements Exception {
   MultipleClaimsException(this.claims);
   final List<DetectedClaim> claims;
 }
-import 'auth_service.dart';
 
 class TicketService {
   TicketService._privateConstructor();
@@ -294,5 +294,48 @@ class TicketService {
     if (ticket == null) return false;
     final r = ticket['responsibility'] as String?;
     return r != null && r != 'PENDING';
+  }
+
+  /// Diagnostic confirmé par un référent / technicien (rectification expert).
+  static bool isExpertValidated(Map<String, dynamic>? ticket) {
+    final ai = _aiDecisionMap(ticket);
+    if (ai == null) return false;
+    if (ai['diagnosticAuthority'] == 'EXPERT_VALIDATED') return true;
+    final er = ai['expertRectification'];
+    if (er is Map && er['authority'] == 'EXPERT_VALIDATED') return true;
+    return false;
+  }
+
+  static String? expertReferentName(Map<String, dynamic>? ticket) {
+    final ai = _aiDecisionMap(ticket);
+    if (ai == null) return null;
+    final er = ai['expertRectification'];
+    if (er is Map) {
+      final name = er['expertDisplayName'] as String?;
+      if (name != null && name.trim().isNotEmpty) return name.trim();
+    }
+    final tc = ai['expertTakeCharge'];
+    if (tc is Map) {
+      final name = tc['expertDisplayName'] as String?;
+      if (name != null && name.trim().isNotEmpty) return name.trim();
+    }
+    return null;
+  }
+
+  static bool isExpertTakeCharge(Map<String, dynamic>? ticket) {
+    final ai = _aiDecisionMap(ticket);
+    if (ai == null) return false;
+    if (ai['expertTakeCharge'] != null) return true;
+    final er = ai['expertRectification'];
+    if (er is Map && er['takeCharge'] == true) return true;
+    return false;
+  }
+
+  static Map<String, dynamic>? _aiDecisionMap(Map<String, dynamic>? ticket) {
+    if (ticket == null) return null;
+    final ai = ticket['aiLastDecision'];
+    if (ai is Map<String, dynamic>) return ai;
+    if (ai is Map) return Map<String, dynamic>.from(ai);
+    return null;
   }
 }

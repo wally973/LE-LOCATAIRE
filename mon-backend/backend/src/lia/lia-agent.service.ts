@@ -94,6 +94,11 @@ export class LiaAgentService {
       return null;
     }
 
+    if (state.diagnosticAuthority === 'EXPERT_VALIDATED') {
+      if (trigger === 'TENANT_MESSAGE' && msg) return 'ACKNOWLEDGE_TENANT';
+      return null;
+    }
+
     if (trigger === 'TENANT_MESSAGE' && msg) {
       if (
         state.intake &&

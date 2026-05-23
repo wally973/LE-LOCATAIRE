@@ -711,19 +711,35 @@ class _DiagnosticResultBanner extends StatelessWidget {
     final responsibility = ticket['responsibility'] as String?;
     final label = TicketService.responsibilityLabel(responsibility);
     final message = TicketService.tenantMessageFromTicket(ticket);
+    final expertValidated = TicketService.isExpertValidated(ticket);
+    final referent = TicketService.expertReferentName(ticket);
+    final takeCharge = TicketService.isExpertTakeCharge(ticket);
     final isTenantCharge = responsibility == 'LOCATAIRE';
     final isLandlord = responsibility == 'BAILLEUR' ||
         responsibility == 'ESCALADE_BAILLEUR';
+    final isSocial = responsibility == 'SOCIAL';
 
     Color bg = Colors.green.shade50;
     Color fg = Colors.green.shade900;
-    if (isTenantCharge) {
+    if (expertValidated) {
+      bg = Colors.teal.shade50;
+      fg = Colors.teal.shade900;
+    } else if (isTenantCharge) {
       bg = Colors.orange.shade50;
       fg = Colors.orange.shade900;
     } else if (responsibility == 'NON_RECEVABLE') {
       bg = Colors.grey.shade100;
       fg = Colors.grey.shade800;
+    } else if (isSocial) {
+      bg = Colors.purple.shade50;
+      fg = Colors.purple.shade900;
     }
+
+    final title = expertValidated
+        ? (referent != null
+            ? 'Diagnostic confirmé par $referent — $label'
+            : 'Diagnostic confirmé par votre référent — $label')
+        : 'Diagnostic Lia — $label';
 
     return Material(
       color: bg,
@@ -733,13 +749,24 @@ class _DiagnosticResultBanner extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Diagnostic Lia — $label',
+              title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: fg,
                 fontSize: 14,
               ),
             ),
+            if (takeCharge) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Votre demande est prise en charge par le bailleur.',
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             if (message != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -763,9 +790,25 @@ class _DiagnosticResultBanner extends StatelessWidget {
             if (isLandlord) ...[
               const SizedBox(height: 8),
               Text(
-                'Un prestataire vous contactera selon son planning. '
-                'En cas d’urgence, coupez l’eau ou l’électricité si possible '
-                'et attendez son appel.',
+                expertValidated
+                    ? 'Un référent ou prestataire vous recontacte selon la priorité du dossier. '
+                        'En cas d’urgence, coupez l’eau ou l’électricité si possible.'
+                    : 'Un prestataire vous contactera selon son planning. '
+                        'En cas d’urgence, coupez l’eau ou l’électricité si possible '
+                        'et attendez son appel.',
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  height: 1.3,
+                ),
+              ),
+            ],
+            if (isSocial) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Un accompagnement social peut être proposé en complément. '
+                'Vous serez recontacté si besoin.',
                 style: TextStyle(
                   color: fg,
                   fontSize: 12,

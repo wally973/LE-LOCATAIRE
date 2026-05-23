@@ -4,6 +4,7 @@ import { AiRoutingService } from '../ai-routing/ai-routing.service';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 import { LiaConversationService } from './lia-conversation.service';
 import { LiaResearchService } from './lia-research.service';
+import { isExpertValidated } from './lia-expert-rectification.types';
 
 /**
  * Capacité « diagnostic » — pathologiste + juriste (pipeline existant).
@@ -47,8 +48,14 @@ export class LiaDiagnosticCapabilityService {
     try {
       const ticket = await this.prisma.ticket.findUnique({
         where: { id: ticketId },
-        select: { landlordProfileId: true },
+        select: { landlordProfileId: true, aiLastDecision: true },
       });
+      if (isExpertValidated(ticket?.aiLastDecision)) {
+        this.logger.log(
+          `Ticket ${ticketId} : diagnostic expert validé — analyse IA ignorée.`,
+        );
+        return;
+      }
       const flags = ticket?.landlordProfileId
         ? await this.featureFlags.getQualificationFlags(ticket.landlordProfileId)
         : await this.featureFlags.pickQualificationFlags({});

@@ -7,6 +7,30 @@ Dernière mise à jour : **22 mai 2026**.
 
 ---
 
+## Priorité en cours (22 mai 2026)
+
+**Avant toute évolution du dashboard référent** : reprendre et valider les **essais de l’écran de saisie** des réclamations sur l’**app mobile locataire** (`DescriptionScreen` → `MultiClaimScreen` → conversation Lia).
+
+### Backlog noté (pas la priorité immédiate)
+
+- **Notification push (FCM)** quand un référent **prend en charge** une affaire (`takeCharge` → statut `IN_PROGRESS`) : prévenir le locataire avec `ticketId` pour rouvrir le fil (même mécanisme que fin d’analyse Lia).
+
+### Checklist essais — saisie réclamation (Flutter)
+
+| # | Saisie test | Résultat attendu |
+|---|-------------|------------------|
+| 1 | Un sujet : *Fuite sous l’évier* | Un ticket → conversation Lia (message d’accueil visible) |
+| 2 | Deux sujets : *Fuite au WC et plus d’électricité dans la cuisine* | Écran **Plusieurs problèmes** (2 cartes) |
+| 3 | Après (2), ouvrir le 1er sujet puis revenir à l’accueil | Bandeau *Traiter le problème suivant* |
+| 4 | Compte sans logement actif | Message : contacter le bailleur |
+| 5 | Backend arrêté / mauvaise URL API | Message d’erreur lisible (pas écran bloqué) |
+
+**Compte démo** (si seed à jour) : `demo.locataire@lelocataire.test` / `DemoLocataire1!` — lancer backend + `flutter run` (Chrome ou téléphone sur le même Wi‑Fi, `config.dart` = IP du PC).
+
+**Script backend** (détection multi-sujets sans l’app) : `npx ts-node scripts/test-detect-claims.ts` depuis `mon-backend/backend`.
+
+---
+
 ## 0. Public du document et mode d’échange
 
 Le porteur du projet **n’est pas développeur**. Il peut à tout moment demander des **explications en langage simple** sur un terme technique, une étape de travail, un choix d’architecture ou ce que signifie concrètement une livraison — afin de bien comprendre avant de valider la suite.
@@ -794,3 +818,4 @@ Ne pas committer `projet.txt` ni les fichiers Office temporaires (`~$*`).
 | 17 mai 2026 | Porteur projet | Q64 : auto-recherche = moteur / anti-hallucination ; défaut `liaAutoResearchEnabled=true` |
 | 17 mai 2026 | Porteur projet | §6 : ne pas upgrader Prisma 7 / npm 11 avant validation septembre |
 | 22 mai 2026 | Porteur + assistant | Boucle rectification expert : `POST /tickets/:id/expert-rectification`, SharedState, Pro Briefing — `MANIFESTE_FINAL.md` |
+| 22 mai 2026 | Porteur + assistant | Priorité mobile saisie réclamation ; backlog push prise en charge ; checklist essais + script `test-detect-claims.ts` |

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/detected_claim.dart';
 import '../models/qualification_settings.dart';
 import '../services/tenant_service.dart';
 import '../services/ticket_service.dart';
@@ -18,12 +19,37 @@ class DescriptionScreen extends StatefulWidget {
 class _DescriptionScreenState extends State<DescriptionScreen> {
   final TextEditingController _controller = TextEditingController();
   bool _loading = false;
+  String _loadingLabel = 'Ouverture du dossier…';
   String? _error;
+
+  static const _examples = [
+    'Fuite sous l’évier depuis ce matin',
+    'Fuite au WC et plus d’électricité dans la cuisine',
+    'Infiltration au plafond quand il pleut',
+  ];
 
   String _titleFrom(String description) {
     final d = description.trim();
     if (d.length <= 80) return d;
     return '${d.substring(0, 77)}…';
+  }
+
+  void _applyExample(String text) {
+    _controller.text = text;
+    setState(() => _error = null);
+  }
+
+  Future<void> _openMultiClaim(List<DetectedClaim> claims) async {
+    if (!mounted) return;
+    await Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiClaimScreen(
+          claims: claims,
+          settings: widget.settings,
+        ),
+      ),
+    );
   }
 
   Future<void> _startConversation() async {
@@ -35,6 +61,7 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
 
     setState(() {
       _loading = true;
+      _loadingLabel = 'Analyse de votre description…';
       _error = null;
     });
 
@@ -49,18 +76,12 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
       final detected =
           await TenantService.instance.detectClaims(description);
       if (detected.length > 1) {
-        if (!mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MultiClaimScreen(
-              claims: detected,
-              settings: widget.settings,
-            ),
-          ),
-        );
+        await _openMultiClaim(detected);
         return;
       }
+
+      if (!mounted) return;
+      setState(() => _loadingLabel = 'Ouverture du dossier…');
 
       final excerpt = detected.length == 1 ? detected.first.excerpt : description;
 
@@ -87,17 +108,9 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
         (route) => route.isFirst,
       );
     } on MultipleClaimsException catch (e) {
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MultiClaimScreen(
-            claims: e.claims,
-            settings: widget.settings,
-          ),
-        ),
-      );
+      await _openMultiClaim(e.claims);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -145,7 +158,26 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            Text(
+              'Exemples pour tester :',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _examples.map((ex) {
+                return ActionChip(
+                  label: Text(
+                    ex,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onPressed: _loading ? null : () => _applyExample(ex),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _controller,
               maxLines: 4,
@@ -160,12 +192,12 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
             ),
             const SizedBox(height: 24),
             _loading
-                ? const Column(
+                ? Column(
                     children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
                       Text(
-                        'Ouverture du dossier…',
+                        _loadingLabel,
                         textAlign: TextAlign.center,
                       ),
                     ],

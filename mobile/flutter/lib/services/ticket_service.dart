@@ -10,6 +10,10 @@ import 'auth_service.dart';
 class MultipleClaimsException implements Exception {
   MultipleClaimsException(this.claims);
   final List<DetectedClaim> claims;
+
+  @override
+  String toString() =>
+      'Ce texte mélange encore plusieurs sujets. Reformulez un seul problème par dossier.';
 }
 
 class TicketService {
@@ -117,6 +121,7 @@ class TicketService {
     required String title,
     required String description,
     required int housingId,
+    String? claimCategory,
   }) async {
     final response = await http
         .post(
@@ -126,6 +131,8 @@ class TicketService {
             'title': title,
             'description': description,
             'housingId': housingId,
+            if (claimCategory != null && claimCategory.isNotEmpty)
+              'claimCategory': claimCategory,
           }),
         )
         .timeout(_createTimeout);

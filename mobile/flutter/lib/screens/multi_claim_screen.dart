@@ -49,6 +49,7 @@ class _MultiClaimScreenState extends State<MultiClaimScreen> {
         title: _titleFrom(claim.excerpt),
         description: claim.excerpt,
         housingId: housingId,
+        claimCategory: claim.category,
       );
 
       final others = widget.claims.where((c) => c.id != claim.id).toList();
@@ -70,6 +71,10 @@ class _MultiClaimScreenState extends State<MultiClaimScreen> {
         ),
         (route) => route.isFirst,
       );
+    } on MultipleClaimsException catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
     } catch (e) {
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');

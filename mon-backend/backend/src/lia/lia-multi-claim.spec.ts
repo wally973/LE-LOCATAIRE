@@ -16,6 +16,11 @@ describe('detectMultipleClaims', () => {
     expect(claims.length).toBe(2);
     const cats = claims.map((c) => c.category).sort();
     expect(cats).toEqual(['ELECTRICITY', 'PLUMBING']);
+    const plumbing = claims.find((c) => c.category === 'PLUMBING')!;
+    const electricity = claims.find((c) => c.category === 'ELECTRICITY')!;
+    expect(plumbing.excerpt.toLowerCase()).toMatch(/wc|fuite/);
+    expect(electricity.excerpt.toLowerCase()).toMatch(/[eé]lectri|cuisine/);
+    expect(plumbing.excerpt).not.toBe(electricity.excerpt);
   });
 
   it('détecte trois sujets sur phrases séparées', () => {

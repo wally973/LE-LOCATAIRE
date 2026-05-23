@@ -69,7 +69,7 @@ export class TicketsService {
     }
 
     const claims = detectMultipleClaims(dto.title, dto.description);
-    if (claims.length > 1) {
+    if (claims.length > 1 && !dto.claimCategory?.trim()) {
       throw new BadRequestException({
         code: 'MULTIPLE_CLAIMS',
         message:

@@ -56,7 +56,7 @@ const TOPIC_RULES: {
       /siphon/i,
       /robinet/i,
       /canalis/i,
-      /\beau\b/i,
+      /(?:^|\s|[''])eau(?:\s|$)/i,
     ],
   },
 ];
@@ -68,8 +68,53 @@ function splitSentences(text: string): string[] {
     .filter((s) => s.length > 8);
 }
 
+/** Découpe aussi sur « et » pour séparer deux sujets dans une phrase. */
+function clausesFromText(text: string): string[] {
+  const parts: string[] = [];
+  for (const sentence of splitSentences(text)) {
+    const chunks = sentence
+      .split(/\bet\b/i)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 8);
+    if (chunks.length > 1) {
+      parts.push(...chunks);
+    } else if (sentence.length > 0) {
+      parts.push(sentence);
+    }
+  }
+  const trimmed = text.trim();
+  if (parts.length === 0 && trimmed.length > 0) {
+    return [trimmed];
+  }
+  return parts;
+}
+
 function normalizeForMatch(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+}
+
+function clauseMatchesRule(clause: string, patterns: RegExp[]): boolean {
+  const norm = normalizeForMatch(clause);
+  return patterns.some((p) => p.test(norm));
+}
+
+function excerptForRule(full: string, patterns: RegExp[]): string {
+  const clauses = clausesFromText(full);
+  const matching = clauses.filter((c) => clauseMatchesRule(c, patterns));
+  if (matching.length > 0) {
+    return matching.join(' · ').trim().slice(0, 500);
+  }
+
+  const norm = normalizeForMatch(full);
+  for (const p of patterns) {
+    const m = p.exec(norm);
+    if (m && m.index != null) {
+      const ratio = full.length / Math.max(norm.length, 1);
+      const start = Math.max(0, Math.floor(m.index * ratio) - 15);
+      return full.slice(start, start + 220).trim();
+    }
+  }
+  return '';
 }
 
 /** Repère 0, 1 ou plusieurs sujets distincts (WC + élec = 2). */
@@ -78,28 +123,18 @@ export function detectMultipleClaims(
   description: string,
 ): DetectedClaim[] {
   const full = `${title}\n${description}`.trim();
-  const normFull = normalizeForMatch(full);
-  const sentences = splitSentences(full);
   const found: DetectedClaim[] = [];
   const seen = new Set<IntakeCategory>();
 
   for (const rule of TOPIC_RULES) {
-    const matching = sentences.filter((s) =>
-      rule.patterns.some((p) => p.test(normalizeForMatch(s))),
-    );
-    if (
-      matching.length === 0 &&
-      rule.patterns.some((p) => p.test(normFull))
-    ) {
-      matching.push(full.slice(0, 280));
-    }
-    if (matching.length > 0 && !seen.has(rule.category)) {
+    const excerpt = excerptForRule(full, rule.patterns);
+    if (excerpt.length > 0 && !seen.has(rule.category)) {
       seen.add(rule.category);
       found.push({
         id: rule.id,
         category: rule.category,
         label: rule.label,
-        excerpt: matching.join(' · ').trim().slice(0, 500),
+        excerpt,
       });
     }
   }

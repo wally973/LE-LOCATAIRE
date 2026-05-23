@@ -12,6 +12,11 @@ export class CreateTicketDto {
   @IsNumber()
   housingId: number;
 
+  /** Sujet déjà choisi sur l’écran multi-réclamations — ne pas re-bloquer. */
+  @IsOptional()
+  @IsString()
+  claimCategory?: string;
+
   // Optionnel : si tu veux analyser une photo en mémoire
   @IsOptional()
   photoBuffer?: Buffer;

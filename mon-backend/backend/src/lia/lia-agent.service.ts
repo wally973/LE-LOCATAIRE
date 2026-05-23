@@ -232,10 +232,40 @@ export class LiaAgentService {
     if (!intake) return { state, continueLoop: false };
 
     if (trigger === 'TENANT_MESSAGE' && state.lastTenantMessage) {
-      intake = this.comprehension.recordAnswer(
+      const turn = await this.comprehension.processTenantReply({
+        state: intake,
+        message: state.lastTenantMessage,
+        title: state.title,
+        description: state.description,
+        tenantFirstName: state.tenantFirstName,
+      });
+      intake = turn.state;
+      const parts: string[] = [];
+      if (turn.acknowledgment) parts.push(turn.acknowledgment);
+      if (turn.nextQuestionText) parts.push(turn.nextQuestionText);
+      if (parts.length > 0) {
+        await this.conversation.appendMessage(
+          state.ticketId,
+          'LIA_HOST',
+          parts.join('\n\n'),
+        );
+      }
+      await this.persistIntake(
+        state.ticketId,
         intake,
-        state.lastTenantMessage,
+        intake.phase === 'AWAITING_PHOTO' ? 'AWAITING_TENANT_PHOTO' : 'OPEN',
       );
+      if (intake.phase === 'DONE') {
+        return this.goalRunDiagnostic({ ...state, intake }, trigger);
+      }
+      return {
+        state: {
+          ...state,
+          intake,
+          agent: markGoalDone(state, 'COLLECT_MISSING_FACTS'),
+        },
+        continueLoop: false,
+      };
     } else if (trigger === 'TICKET_OPENED' && intake.phase === 'INTAKE') {
       const q = this.comprehension.currentQuestion(intake);
       if (q) {
@@ -254,7 +284,7 @@ export class LiaAgentService {
 
     if (intake.phase === 'INTAKE') {
       const q = this.comprehension.currentQuestion(intake);
-      if (q) {
+      if (q && trigger !== 'TENANT_MESSAGE') {
         await this.conversation.appendMessage(
           state.ticketId,
           'LIA_HOST',

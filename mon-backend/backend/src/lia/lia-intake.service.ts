@@ -27,9 +27,19 @@ export interface LiaIntakeState {
   stepIndex: number;
   answers: Record<string, string>;
   signals?: IntakeSignals;
+  /** Questions non pertinentes après analyse des réponses (intake réactif). */
+  skippedQuestionIds?: string[];
 }
 
-const QUESTIONS: Record<IntakeCategory, IntakeQuestion[]> = {
+export interface IntakeReactiveTurn {
+  state: LiaIntakeState;
+  /** Reformulation / prise en compte de ce que le locataire vient de dire. */
+  acknowledgment: string | null;
+  /** Prochaine question à poser, ou null si photo / analyse. */
+  nextQuestionText: string | null;
+}
+
+export const INTAKE_QUESTIONS: Record<IntakeCategory, IntakeQuestion[]> = {
   PLUMBING: [
     {
       id: 'since_when',
@@ -130,7 +140,7 @@ export function isFollowUpClosed(aiLastDecision: unknown): boolean {
 
 /** Résumé textuel pour le pathologiste / juriste (après les questions). */
 export function buildIntakeSummary(state: LiaIntakeState): string {
-  const questions = QUESTIONS[state.category];
+  const questions = INTAKE_QUESTIONS[state.category];
   const lines = questions
     .map((q) => {
       const a = state.answers[q.id];
@@ -200,25 +210,23 @@ export class LiaIntakeService {
       signals,
       description,
     );
-    const list = QUESTIONS[category];
-    let stepIndex = 0;
-    while (stepIndex < list.length && answers[list[stepIndex].id]) {
-      stepIndex++;
+    const skippedQuestionIds: string[] = [];
+    if (
+      category === 'ELECTRICITY' &&
+      this.isLightingOnlyScope(`${title} ${description}`, signals, answers)
+    ) {
+      skippedQuestionIds.push('breaker', 'breaker_stays', 'subscription');
     }
     const base: LiaIntakeState = {
       phase: 'INTAKE',
       category,
-      stepIndex,
+      stepIndex: 0,
       answers,
       signals,
+      skippedQuestionIds:
+        skippedQuestionIds.length > 0 ? skippedQuestionIds : undefined,
     };
-    if (stepIndex >= list.length) {
-      return {
-        ...base,
-        phase: this.needsPhoto(base) ? 'AWAITING_PHOTO' : 'DONE',
-      };
-    }
-    return base;
+    return this.reconcileStepIndex(base);
   }
 
   /** Analyse la phrase initiale et produit les messages Lia (situation → conseils). */
@@ -264,9 +272,20 @@ export class LiaIntakeService {
     }
 
     if (state.category === 'ELECTRICITY') {
-      messages.push(
-        `${name}, pour un problème électrique, ne touchez pas une installation endommagée : coupez le circuit concerné si vous savez lequel.`,
-      );
+      const lighting = this.isLightingOnlyScope(text, s, state.answers);
+      if (lighting) {
+        const room = s.roomHint ? ` (${s.roomHint})` : '';
+        messages.push(
+          `${name}, vous signalez un souci d’éclairage${room} — pas une coupure générale du logement.`,
+        );
+        messages.push(
+          'Si vous avez déjà changé l’ampoule, dites-le moi : je n’insisterai pas sur le tableau électrique sans nécessité.',
+        );
+      } else {
+        messages.push(
+          `${name}, pour un problème électrique, ne touchez pas une installation endommagée : coupez le circuit concerné si vous savez lequel.`,
+        );
+      }
     }
 
     return messages;
@@ -328,29 +347,98 @@ export class LiaIntakeService {
       }
     }
 
+    if (category === 'ELECTRICITY' && this.isLightingOnlyScope(d, signals)) {
+      answers.scope =
+        'Éclairage localisé (point lumineux, pas coupure générale).';
+      if (/ampoule/.test(d) && /chang|remplac|essay|neuf/.test(d)) {
+        answers.bulb_action = 'Ampoule déjà remplacée par le locataire.';
+      }
+    }
+
     return answers;
+  }
+
+  /** Problème d’éclairage ponctuel (salle de bain, ampoule…) vs coupure générale. */
+  isLightingOnlyScope(
+    text: string,
+    signals?: IntakeSignals,
+    answers?: Record<string, string>,
+  ): boolean {
+    if (answers?.scope?.includes('localisé')) return true;
+    const t = text.toLowerCase();
+    const localized =
+      /(lumi[eè]re|ampoule|[eé]clairage|lustre|neon|néon|plafonnier)/.test(
+        t,
+      ) &&
+      !/(toute la maison|tout le logement|plus de courant|plus d['']?[eé]lectri|disjoncteur|compteur|tableau)/.test(
+        t,
+      );
+    const roomLight =
+      /salle de bain.*(lumi|ampoule|éclair)|lumi.*salle de bain|cuisine.*(lumi|ampoule)/.test(
+        t,
+      );
+    return localized || roomLight;
   }
 
   getCurrentQuestion(state: LiaIntakeState): IntakeQuestion | null {
     if (state.phase !== 'INTAKE') return null;
-    const list = QUESTIONS[state.category];
-    return list[state.stepIndex] ?? null;
+    const list = INTAKE_QUESTIONS[state.category];
+    const skipped = new Set(state.skippedQuestionIds ?? []);
+    for (let i = state.stepIndex; i < list.length; i++) {
+      const q = list[i];
+      if (skipped.has(q.id)) continue;
+      if (state.answers[q.id]?.trim()) continue;
+      return { id: q.id, text: this.questionText(state, q) };
+    }
+    return null;
+  }
+
+  questionText(state: LiaIntakeState, q: IntakeQuestion): string {
+    const ctx = `${Object.values(state.answers).join(' ')}`;
+    if (
+      state.category === 'ELECTRICITY' &&
+      q.id === 'since_when' &&
+      this.isLightingOnlyScope(ctx, state.signals, state.answers)
+    ) {
+      return 'Depuis quand cet éclairage ne fonctionne-t-il plus ?';
+    }
+    if (
+      state.category === 'ELECTRICITY' &&
+      q.id === 'location_detail' &&
+      state.signals?.roomHint
+    ) {
+      return `Le problème concerne-t-il bien ${state.signals.roomHint} ?`;
+    }
+    return q.text;
+  }
+
+  reconcileStepIndex(state: LiaIntakeState): LiaIntakeState {
+    const list = INTAKE_QUESTIONS[state.category];
+    const skipped = new Set(state.skippedQuestionIds ?? []);
+    let stepIndex = 0;
+    while (stepIndex < list.length) {
+      const q = list[stepIndex];
+      if (skipped.has(q.id) || state.answers[q.id]?.trim()) {
+        stepIndex++;
+        continue;
+      }
+      break;
+    }
+    if (stepIndex >= list.length) {
+      return {
+        ...state,
+        stepIndex,
+        phase: this.needsPhoto(state) ? 'AWAITING_PHOTO' : 'DONE',
+      };
+    }
+    return { ...state, stepIndex, phase: 'INTAKE' };
   }
 
   recordAnswer(state: LiaIntakeState, answer: string): LiaIntakeState {
     const q = this.getCurrentQuestion(state);
     if (!q) return state;
     const answers = { ...state.answers, [q.id]: answer.trim() };
-    const nextIndex = state.stepIndex + 1;
-    const list = QUESTIONS[state.category];
-    if (nextIndex >= list.length) {
-      const withAnswers = { ...state, answers, stepIndex: nextIndex };
-      return {
-        ...withAnswers,
-        phase: this.needsPhoto(withAnswers) ? 'AWAITING_PHOTO' : 'DONE',
-      };
-    }
-    return { ...state, answers, stepIndex: nextIndex };
+    return this.reconcileStepIndex({ ...state, answers });
   }
 
   /** Photo utile pour le diagnostic visuel (sauf cas purement administratif). */
@@ -372,7 +460,7 @@ export class LiaIntakeService {
     requirePhoto: boolean,
   ): LiaIntakeState {
     const category = this.detectCategory(title, description);
-    const questions = QUESTIONS[category];
+    const questions = INTAKE_QUESTIONS[category];
     const answers: Record<string, string> = {};
     for (const q of questions) {
       answers[q.id] = '(conversation courte)';

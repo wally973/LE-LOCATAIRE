@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { LiaIntakeService, type LiaIntakeState } from './lia-intake.service';
+import {
+  LiaIntakeService,
+  type IntakeReactiveTurn,
+  type LiaIntakeState,
+} from './lia-intake.service';
+import { LiaIntakeReactiveService } from './lia-intake-reactive.service';
 import { LiaConversationService } from './lia-conversation.service';
 import { categoryLabel, isDifferentClaimTopic } from './lia-multi-claim';
 
@@ -11,6 +16,7 @@ import { categoryLabel, isDifferentClaimTopic } from './lia-multi-claim';
 export class LiaComprehensionService {
   constructor(
     private readonly intake: LiaIntakeService,
+    private readonly intakeReactive: LiaIntakeReactiveService,
     private readonly conversation: LiaConversationService,
   ) {}
 
@@ -63,6 +69,17 @@ export class LiaComprehensionService {
 
   recordAnswer(state: LiaIntakeState, answer: string): LiaIntakeState {
     return this.intake.recordAnswer(state, answer);
+  }
+
+  /** Intake réactif : analyse la réponse avant la prochaine question. */
+  processTenantReply(params: {
+    state: LiaIntakeState;
+    message: string;
+    title: string;
+    description: string;
+    tenantFirstName?: string;
+  }): Promise<IntakeReactiveTurn> {
+    return this.intakeReactive.processTenantReply(params);
   }
 
   currentQuestion(state: LiaIntakeState) {

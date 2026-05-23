@@ -103,6 +103,29 @@ export const INTAKE_QUESTIONS: Record<IntakeCategory, IntakeQuestion[]> = {
   ],
 };
 
+/** Éclairage localisé : ampoule déjà testée → interrupteur, disjoncteur pièce, douille. */
+export const INTAKE_LIGHTING_ELECTRICITY: IntakeQuestion[] = [
+  {
+    id: 'since_when',
+    text: 'Depuis quand cet éclairage ne fonctionne-t-il plus ?',
+  },
+  {
+    id: 'switch_ok',
+    text:
+      'L’interrupteur de la pièce fonctionne-t-il (avez-vous essayé marche et arrêt) ?',
+  },
+  {
+    id: 'room_breaker',
+    text:
+      'Avez-vous vérifié au tableau si le disjoncteur de ce circuit est bien enclenché (remis en position si besoin) ?',
+  },
+  {
+    id: 'socket_check',
+    text:
+      'La douille / le support de l’ampoule présente-t-il un signe d’usure (brunissement, jeu, odeur) ?',
+  },
+];
+
 /** Contexte intake stocké dans Ticket.aiLastDecision.intake */
 export function parseIntakeState(
   aiLastDecision: unknown,
@@ -138,15 +161,74 @@ export function isFollowUpClosed(aiLastDecision: unknown): boolean {
   return (aiLastDecision as { followUpClosed?: boolean }).followUpClosed === true;
 }
 
+/** Liste de questions active pour cet intake (général vs éclairage localisé). */
+export function getIntakeQuestionsForState(
+  state: LiaIntakeState,
+): IntakeQuestion[] {
+  if (usesLightingElectricityPath(state)) {
+    return INTAKE_LIGHTING_ELECTRICITY;
+  }
+  return INTAKE_QUESTIONS[state.category];
+}
+
+export function usesLightingElectricityPath(state: LiaIntakeState): boolean {
+  if (state.category !== 'ELECTRICITY') return false;
+  const ctx = [
+    ...Object.values(state.answers),
+    state.signals?.roomHint ?? '',
+  ].join(' ');
+  return isLightingOnlyScope(ctx, state.signals, state.answers);
+}
+
+export function isLightingOnlyScope(
+  text: string,
+  signals?: IntakeSignals,
+  answers?: Record<string, string>,
+): boolean {
+  if (answers?.scope?.includes('localisé')) return true;
+  const t = text.toLowerCase();
+  const localized =
+    /(lumi[eè]re|ampoule|[eé]clairage|lustre|neon|néon|plafonnier)/.test(t) &&
+    !/(toute la maison|tout le logement|plus de courant|plus d['']?[eé]lectri)/.test(
+      t,
+    ) &&
+    !/(disjoncteur|compteur|tableau).*(g[eé]n[eé]ral|tout)/.test(t);
+  const roomLight =
+    /salle de bain.*(lumi|ampoule|éclair)|lumi.*salle de bain|cuisine.*(lumi|ampoule)/.test(
+      t,
+    );
+  return localized || roomLight;
+}
+
+export function tenantAlreadyChangedBulb(
+  text: string,
+  answers?: Record<string, string>,
+): boolean {
+  if (answers?.bulb_action?.trim()) return true;
+  const t = text.toLowerCase();
+  return (
+    /ampoule/.test(t) &&
+    /chang|remplac|essay|neuf|malgr[eé]|d[eé]j[aà]/.test(t)
+  );
+}
+
 /** Résumé textuel pour le pathologiste / juriste (après les questions). */
 export function buildIntakeSummary(state: LiaIntakeState): string {
-  const questions = INTAKE_QUESTIONS[state.category];
+  const questions = getIntakeQuestionsForState(state);
   const lines = questions
     .map((q) => {
       const a = state.answers[q.id];
       return a ? `${q.text} → ${a}` : null;
     })
     .filter((x): x is string => x != null);
+  if (state.answers.bulb_action) {
+    lines.push(
+      `Ampoule — le locataire a déjà changé l’ampoule → ${state.answers.bulb_action}`,
+    );
+  }
+  if (state.answers.scope) {
+    lines.push(`Périmètre → ${state.answers.scope}`);
+  }
   const signalLines: string[] = [];
   if (state.signals?.rainingNow) {
     signalLines.push('Situation : il pleut / intempéries au moment du signalement.');
@@ -210,13 +292,6 @@ export class LiaIntakeService {
       signals,
       description,
     );
-    const skippedQuestionIds: string[] = [];
-    if (
-      category === 'ELECTRICITY' &&
-      this.isLightingOnlyScope(`${title} ${description}`, signals, answers)
-    ) {
-      skippedQuestionIds.push('breaker', 'breaker_stays', 'subscription');
-    }
     const base: LiaIntakeState = {
       phase: 'INTAKE',
       category,
@@ -224,7 +299,10 @@ export class LiaIntakeService {
       answers,
       signals,
       skippedQuestionIds:
-        skippedQuestionIds.length > 0 ? skippedQuestionIds : undefined,
+        category === 'ELECTRICITY' &&
+        isLightingOnlyScope(`${title} ${description}`, signals, answers)
+          ? ['breaker', 'breaker_stays', 'subscription']
+          : undefined,
     };
     return this.reconcileStepIndex(base);
   }
@@ -272,15 +350,23 @@ export class LiaIntakeService {
     }
 
     if (state.category === 'ELECTRICITY') {
-      const lighting = this.isLightingOnlyScope(text, s, state.answers);
+      const lighting = isLightingOnlyScope(text, s, state.answers);
+      const bulbDone = tenantAlreadyChangedBulb(text, state.answers);
       if (lighting) {
         const room = s.roomHint ? ` (${s.roomHint})` : '';
         messages.push(
           `${name}, vous signalez un souci d’éclairage${room} — pas une coupure générale du logement.`,
         );
-        messages.push(
-          'Si vous avez déjà changé l’ampoule, dites-le moi : je n’insisterai pas sur le tableau électrique sans nécessité.',
-        );
+        if (bulbDone) {
+          messages.push(
+            'Vous avez déjà changé l’ampoule : je ne vous demanderai pas de refaire ce test. ' +
+              'Nous allons orienter vers l’interrupteur, le disjoncteur du circuit et la douille si besoin.',
+          );
+        } else {
+          messages.push(
+            'Si l’ampoule n’a pas encore été testée, vous pourrez le préciser ; sinon nous vérifierons interrupteur et alimentation.',
+          );
+        }
       } else {
         messages.push(
           `${name}, pour un problème électrique, ne touchez pas une installation endommagée : coupez le circuit concerné si vous savez lequel.`,
@@ -347,42 +433,25 @@ export class LiaIntakeService {
       }
     }
 
-    if (category === 'ELECTRICITY' && this.isLightingOnlyScope(d, signals)) {
+    if (category === 'ELECTRICITY' && isLightingOnlyScope(d, signals)) {
       answers.scope =
         'Éclairage localisé (point lumineux, pas coupure générale).';
-      if (/ampoule/.test(d) && /chang|remplac|essay|neuf/.test(d)) {
-        answers.bulb_action = 'Ampoule déjà remplacée par le locataire.';
+      if (tenantAlreadyChangedBulb(d)) {
+        answers.bulb_action =
+          'Ampoule déjà remplacée par le locataire (mention initiale).';
+      }
+      if (/depuis|quelque temps|semaine|mois|hier|matin|jour/.test(d)) {
+        answers.since_when =
+          'Durée déjà indiquée à l’ouverture du dossier.';
       }
     }
 
     return answers;
   }
 
-  /** Problème d’éclairage ponctuel (salle de bain, ampoule…) vs coupure générale. */
-  isLightingOnlyScope(
-    text: string,
-    signals?: IntakeSignals,
-    answers?: Record<string, string>,
-  ): boolean {
-    if (answers?.scope?.includes('localisé')) return true;
-    const t = text.toLowerCase();
-    const localized =
-      /(lumi[eè]re|ampoule|[eé]clairage|lustre|neon|néon|plafonnier)/.test(
-        t,
-      ) &&
-      !/(toute la maison|tout le logement|plus de courant|plus d['']?[eé]lectri|disjoncteur|compteur|tableau)/.test(
-        t,
-      );
-    const roomLight =
-      /salle de bain.*(lumi|ampoule|éclair)|lumi.*salle de bain|cuisine.*(lumi|ampoule)/.test(
-        t,
-      );
-    return localized || roomLight;
-  }
-
   getCurrentQuestion(state: LiaIntakeState): IntakeQuestion | null {
     if (state.phase !== 'INTAKE') return null;
-    const list = INTAKE_QUESTIONS[state.category];
+    const list = getIntakeQuestionsForState(state);
     const skipped = new Set(state.skippedQuestionIds ?? []);
     for (let i = state.stepIndex; i < list.length; i++) {
       const q = list[i];
@@ -398,22 +467,18 @@ export class LiaIntakeService {
     if (
       state.category === 'ELECTRICITY' &&
       q.id === 'since_when' &&
-      this.isLightingOnlyScope(ctx, state.signals, state.answers)
+      isLightingOnlyScope(ctx, state.signals, state.answers)
     ) {
       return 'Depuis quand cet éclairage ne fonctionne-t-il plus ?';
     }
-    if (
-      state.category === 'ELECTRICITY' &&
-      q.id === 'location_detail' &&
-      state.signals?.roomHint
-    ) {
-      return `Le problème concerne-t-il bien ${state.signals.roomHint} ?`;
+    if (q.id === 'switch_ok' && state.signals?.roomHint) {
+      return `L’interrupteur de ${state.signals.roomHint} fonctionne-t-il (marche et arrêt essayés) ?`;
     }
     return q.text;
   }
 
   reconcileStepIndex(state: LiaIntakeState): LiaIntakeState {
-    const list = INTAKE_QUESTIONS[state.category];
+    const list = getIntakeQuestionsForState(state);
     const skipped = new Set(state.skippedQuestionIds ?? []);
     let stepIndex = 0;
     while (stepIndex < list.length) {

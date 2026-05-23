@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LiaHostService } from './lia-host.service';
 import {
-  INTAKE_QUESTIONS,
-  type IntakeCategory,
+  getIntakeQuestionsForState,
+  isLightingOnlyScope,
+  tenantAlreadyChangedBulb,
   type IntakeReactiveTurn,
   type LiaIntakeState,
   LiaIntakeService,
@@ -79,11 +80,7 @@ export class LiaIntakeReactiveService {
     }
 
     if (state.category === 'ELECTRICITY') {
-      const lighting = this.intake.isLightingOnlyScope(
-        full,
-        signals,
-        answers,
-      );
+      const lighting = isLightingOnlyScope(full, signals, answers);
 
       if (lighting) {
         answers.scope =
@@ -94,31 +91,35 @@ export class LiaIntakeReactiveService {
         skipped.add('subscription');
       }
 
-      if (/ampoule/.test(t) && /chang|remplac|essay|neuf|m[eê]me/.test(t)) {
+      if (tenantAlreadyChangedBulb(full, answers)) {
+        answers.bulb_action =
+          answers.bulb_action ??
+          'Ampoule déjà remplacée — ne pas redemander ce geste.';
+      } else if (
+        /ampoule/.test(t) &&
+        /chang|remplac|essay|neuf|m[eê]me|malgr/.test(t)
+      ) {
         answers.bulb_action = message.trim();
-        if (lighting) {
-          skipped.add('breaker');
-          skipped.add('breaker_stays');
-        }
+      }
+
+      if (
+        /(interrupteur|marche|arr[eê]t)/.test(t) &&
+        /(essay|fonction|oui|non|marche)/.test(t)
+      ) {
+        answers.switch_ok = message.trim();
+      }
+      if (/(disjoncteur|tableau)/.test(t) && /(essay|enclench|remis|oui|non)/.test(t)) {
+        answers.room_breaker = message.trim();
+      }
+      if (/(douille|support|culot)/.test(t)) {
+        answers.socket_check = message.trim();
       }
 
       if (
         /(lumi[eè]re|[eé]clairage|ampoule|plafonnier)/.test(t) &&
-        /(quel appareil|pas disjoncteur|pas le disjoncteur|je vous parle)/.test(
-          t,
-        )
+        /(quel appareil|pas disjoncteur|je vous parle)/.test(t)
       ) {
-        skipped.add('breaker');
-        skipped.add('breaker_stays');
-        skipped.add('subscription');
         answers.clarification = message.trim();
-      }
-
-      if (
-        /(disjoncteur|compteur|tableau)/.test(t) &&
-        /(essay|d[eé]j[aà]|oui|non)/.test(t)
-      ) {
-        answers.breaker = message.trim();
       }
     }
 
@@ -132,7 +133,9 @@ export class LiaIntakeReactiveService {
     }
 
     if (!answers.since_when && this.looksLikeSinceWhen(message)) {
-      const q = INTAKE_QUESTIONS[state.category].find((x) => x.id === 'since_when');
+      const q = getIntakeQuestionsForState(state).find(
+        (x) => x.id === 'since_when',
+      );
       if (q && !skipped.has('since_when')) {
         answers.since_when = message.trim();
       }
@@ -164,18 +167,28 @@ export class LiaIntakeReactiveService {
       return null;
     }
 
+    const bulbDone = tenantAlreadyChangedBulb(
+      `${message} ${Object.values(state.answers).join(' ')}`,
+      state.answers,
+    );
+
     if (/(quel appareil|je vous parle de la lumi)/.test(t)) {
       const room = state.signals?.roomHint ?? 'cet éclairage';
       return (
-        `D’accord, je comprends : il s’agit bien de la lumière (${room}), ` +
-        `pas d’une coupure électrique générale. Je n’insiste pas sur le disjoncteur.`
+        `D’accord : la lumière de ${room}, pas une coupure générale. ` +
+        (bulbDone
+          ? 'Ampoule déjà changée : nous vérifions interrupteur et alimentation du circuit.'
+          : '')
       );
     }
-    if (/ampoule/.test(t) && /chang|remplac|essay/.test(t)) {
+    if (bulbDone && /ampoule/.test(t)) {
       return (
-        'Merci : vous avez déjà changé l’ampoule. ' +
-        'Je note ce point avant la suite.'
+        'C’est bien noté : vous avez déjà changé l’ampoule, je ne vous le redemanderai pas. ' +
+        'Je vais orienter vers l’interrupteur, le disjoncteur de la pièce au tableau, puis la douille si besoin.'
       );
+    }
+    if (bulbDone && !state.answers.switch_ok) {
+      return null;
     }
     if (this.looksLikeSinceWhen(message)) {
       return 'Merci, j’ai bien noté depuis quand le problème est apparu.';
@@ -192,12 +205,14 @@ export class LiaIntakeReactiveService {
     title: string,
     description: string,
   ): Promise<{ state: LiaIntakeState; acknowledgment: string } | null> {
-    const list = INTAKE_QUESTIONS[state.category];
+    const list = getIntakeQuestionsForState(state);
     const system = [
       'Tu es Lia, assistante logement. JSON uniquement.',
       'Analyse la réponse du locataire pour l’intake (questions de qualification).',
       'Ne pose pas de question déjà couverte par la réponse.',
-      'Si le locataire parle d’une ampoule / lumière d’une pièce, ne demande pas le disjoncteur général.',
+      'Si le locataire a DÉJÀ changé l’ampoule, ne lui redemande jamais de changer l’ampoule.',
+      'Dans ce cas, oriente vers interrupteur de la pièce, disjoncteur du circuit au tableau, état de la douille.',
+      'Si le locataire parle d’une ampoule / lumière d’une pièce, ne traite pas comme une coupure générale du logement.',
       'Format JSON :',
       '{',
       '  "acknowledgment": "1-2 phrases bienveillantes en français",',

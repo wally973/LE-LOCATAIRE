@@ -27,9 +27,14 @@ export class AiMemoryService {
     housingId?: number;
     query: string;
     limit?: number;
+    /** Catégorie pathologiste pour booster RAG (ex. ELECTRICITY). */
+    category?: string;
   }): Promise<AiMemoryChunk[]> {
     const limit = params.limit ?? 5;
-    const query = params.query.toLowerCase();
+    const query = this.expandQueryForCategory(
+      params.query.toLowerCase(),
+      params.category,
+    ).toLowerCase();
     const tokens = query
       .split(/\s+/)
       .map((t) => t.trim())
@@ -84,7 +89,8 @@ export class AiMemoryService {
     }
 
     const legalHits = await this.legalRefs.search({
-      query: params.query,
+      query,
+      category: params.category,
       limit: limit - memoryHits.length,
     });
     const legalAsMemory: AiMemoryChunk[] = legalHits.map((h, idx) => ({
@@ -98,6 +104,48 @@ export class AiMemoryService {
     return [...memoryHits, ...legalAsMemory]
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
+  }
+
+  /** Synonymes métier pour compenser l’absence d’embeddings. */
+  private expandQueryForCategory(query: string, category?: string): string {
+    const q = query.toLowerCase();
+    if (
+      category === 'ELECTRICITY' ||
+      /électri|electri|ampoule|lumi[eè]re|éclairage|eclairage|disjoncteur|interrupteur|douille|plafonnier/.test(
+        q,
+      )
+    ) {
+      return `${query} électricité ampoule éclairage interrupteur disjoncteur tableau circuit douille panne courant`;
+    }
+    if (
+      category === 'PLUMBING' ||
+      /fuite|évier|evier|robinet|siphon|lavabo|plomberie/.test(q)
+    ) {
+      return `${query} plomberie évier robinet siphon fuite locataire bailleur`;
+    }
+    if (category === 'HUMIDITY' || /moisissure|humidit|infiltration/.test(q)) {
+      return `${query} humidité moisissure infiltration toiture bailleur`;
+    }
+    if (
+      category === 'HEATING' ||
+      /chauffage|radiateur|eau chaude|chaudiere|chaudière/.test(q)
+    ) {
+      return `${query} chauffage eau chaude radiateur bailleur logement décent`;
+    }
+    if (category === 'LOCK' || /serrure|clé perdue|cle perdue/.test(q)) {
+      return `${query} serrure clé porte accès bailleur locataire`;
+    }
+    if (
+      /ascenseur|vmc|ventilation|parties communes|couloir|hall|digicode|interphone/.test(
+        q,
+      )
+    ) {
+      return `${query} parties communes bâtiment ascenseur bailleur`;
+    }
+    if (/cafard|punaise|rat|nuisible|parasite/.test(q)) {
+      return `${query} nuisibles logement décent bailleur`;
+    }
+    return query;
   }
 
   formatForPrompt(chunks: AiMemoryChunk[]): string {

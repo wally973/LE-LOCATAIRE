@@ -27,12 +27,20 @@ export class AiPipelineLiaAdapter implements AiPipelinePort {
   async analyze(input: AiPipelineInput): Promise<AiPipelineDecision> {
     try {
       const patho = await this.pathologist.analyze(input);
-      const query = `${input.title} ${input.description} ${patho.category}`;
+      const query = [
+        input.title,
+        input.description,
+        input.tenantFeedback ?? '',
+        patho.category,
+      ]
+        .join(' ')
+        .trim();
       const memories = await this.aiMemory.searchRelevant({
         landlordProfileId: input.landlordProfileId,
         housingId: input.housingId,
         query,
-        limit: 5,
+        category: patho.category,
+        limit: 6,
       });
       return await this.jurist.decide({ input, pathologist: patho, memories });
     } catch (e) {

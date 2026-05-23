@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-21",
+  "description": "Typologie des réclamations locataires par périmètre (logement privé, parties communes / bâtiment, résidence). Sources : Service Public (F31697, F31699, F2042, F947, F21105), décrets 87-712/87-713, retours terrain bailleurs sociaux.",
+  "scopes": {
+    "LOGEMENT": {
+      "label": "Logement (lot privatif)",
+      "definition": "Pièces et équipements réservés au locataire : cuisine, SDB, chambres, tableau divisionnaire, chauffage individuel, porte d'entrée du lot.",
+      "claims": [
+        {
+          "id": "plomberie-fuite-localisee",
+          "label": "Fuite d'eau (évier, lavabo, WC, robinet)",
+          "examples": ["Fuite sous l'évier", "WC qui fuit en continu", "Robinet qui goutte"],
+          "pipelineCategory": "PLUMBING",
+          "responsibilityHint": "NUANCE",
+          "keywords": ["fuite", "évier", "wc", "robinet", "siphon"]
+        },
+        {
+          "id": "plomberie-eau-chaude",
+          "label": "Pas d'eau chaude / pression",
+          "examples": ["Plus d'eau chaude depuis 2 jours", "Eau tiède seulement"],
+          "pipelineCategory": "PLUMBING",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["eau chaude", "chauffe-eau", "ballon", "pression"]
+        },
+        {
+          "id": "electricite-eclairage",
+          "label": "Éclairage / prises / disjoncteur lot",
+          "examples": ["Lumière SDB ne marche plus", "Prise cuisine hors service", "Disjoncteur qui saute"],
+          "pipelineCategory": "ELECTRICITY",
+          "responsibilityHint": "NUANCE",
+          "keywords": ["ampoule", "lumière", "prise", "disjoncteur", "tableau"]
+        },
+        {
+          "id": "chauffage-individuel",
+          "label": "Chauffage ou radiateurs inopérants",
+          "examples": ["Radiateur froid en hiver", "Chaudière individuelle en panne"],
+          "pipelineCategory": "HEATING",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["chauffage", "radiateur", "chaudière", "froid"]
+        },
+        {
+          "id": "serrure-acces",
+          "label": "Serrure, clés, porte d'entrée",
+          "examples": ["Clé cassée dans la serrure", "Porte qui ne ferme plus", "Serrure bloquée"],
+          "pipelineCategory": "LOCK",
+          "responsibilityHint": "NUANCE",
+          "keywords": ["serrure", "clé", "porte", "verrou"]
+        },
+        {
+          "id": "humidite-moisissures-lot",
+          "label": "Humidité, moisissures (localisées)",
+          "examples": ["Taches noires SDB", "Odeur moisi chambre"],
+          "pipelineCategory": "HUMIDITY",
+          "responsibilityHint": "NUANCE",
+          "keywords": ["moisissure", "humidité", "condensation"]
+        },
+        {
+          "id": "menuiseries-fenetres",
+          "label": "Fenêtres, volets, baies",
+          "examples": ["Volet bloqué", "Fenêtre ne ferme pas", "Infiltration par menuiserie"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "NUANCE",
+          "keywords": ["fenêtre", "volet", "baie", "menuiserie"]
+        },
+        {
+          "id": "nuisibles-lot",
+          "label": "Nuisibles (cafards, rats, punaises)",
+          "examples": ["Cafards dans la cuisine", "Punaises de lit", "Rats aperçus"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["cafard", "rat", "punaise", "nuisible", "décent"]
+        },
+        {
+          "id": "equipements-securite-lot",
+          "label": "Détecteur de fumée / gaz (lot)",
+          "examples": ["Détecteur qui bippe", "Détecteur absent ou périmé"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["détecteur", "fumée", "gaz", "sécurité"]
+        }
+      ]
+    },
+    "BATIMENT": {
+      "label": "Bâtiment (parties communes de l'immeuble)",
+      "definition": "Éléments partagés par les logements du même bâtiment : cages d'escalier, halls, ascenseur, réseaux collectifs, VMC collective, éclairage des couloirs.",
+      "claims": [
+        {
+          "id": "toiture-infiltration",
+          "label": "Toiture / infiltration plafond",
+          "examples": ["Taches au plafond quand il pleut", "Goutte d'eau salon"],
+          "pipelineCategory": "ROOF",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["toiture", "infiltration", "pluie", "plafond"]
+        },
+        {
+          "id": "colonne-eau-collective",
+          "label": "Fuite canalisation / colonne collective",
+          "examples": ["Fuite au plafond du voisin du dessus", "Colonne d'eau qui coule cage escalier"],
+          "pipelineCategory": "PLUMBING",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["colonne", "canalisation", "collectif", "parties communes"]
+        },
+        {
+          "id": "ascenseur-panne",
+          "label": "Ascenseur en panne ou dangereux",
+          "examples": ["Ascenseur bloqué entre deux étages", "Porte cabine défectueuse"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["ascenseur", "cabine", "monte-charge"]
+        },
+        {
+          "id": "vmc-ventilation",
+          "label": "VMC / ventilation collective",
+          "examples": ["Plus d'extraction SDB", "VMC bruyante ou arrêtée"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["vmc", "ventilation", "extraction", "aération"]
+        },
+        {
+          "id": "eclairage-parties-communes",
+          "label": "Éclairage couloirs / hall / parking couvert",
+          "examples": ["Lampes couloir éteintes", "Hall sombre"],
+          "pipelineCategory": "ELECTRICITY",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["couloir", "hall", "parties communes", "éclairage"]
+        },
+        {
+          "id": "proprete-parties-communes",
+          "label": "Propreté / déchets parties communes",
+          "examples": ["Déchets dans la cage d'escalier", "Odeurs hall d'entrée"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["propreté", "ménage", "déchets", "insalubrité"]
+        },
+        {
+          "id": "interphone-digicode",
+          "label": "Interphone, digicode, porte immeuble",
+          "examples": ["Digicode ne fonctionne plus", "Interphone muet"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["interphone", "digicode", "porte palière"]
+        },
+        {
+          "id": "facade-ravalement",
+          "label": "Façade, ravalement, fissures structure",
+          "examples": ["Fissure façade", "Pierres qui se détachent"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["façade", "ravalement", "fissure", "structure"]
+        }
+      ]
+    },
+    "RESIDENCE": {
+      "label": "Résidence (ensemble immobilier / parc)",
+      "definition": "Périmètre au-delà d'un seul bâtiment : espaces verts, parkings, locaux techniques, gardien, sécurité globale, plusieurs bâtiments d'une même résidence HLM.",
+      "claims": [
+        {
+          "id": "espaces-verts",
+          "label": "Espaces verts / aires de jeux",
+          "examples": ["Pelouse non tondue", "Aire de jeux cassée", "Éclairage parking extérieur"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["jardin", "espaces verts", "aire de jeux", "parking"]
+        },
+        {
+          "id": "parking-securite",
+          "label": "Parking, portail, éclairage extérieur",
+          "examples": ["Portail parking bloqué", "Zone sombre résidence"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["parking", "portail", "éclairage extérieur"]
+        },
+        {
+          "id": "gardien-concierge",
+          "label": "Gardien / laverie / locaux résidence",
+          "examples": ["Laverie commune en panne", "Local poubelles saturé"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["gardien", "laverie", "local poubelles", "concierge"]
+        },
+        {
+          "id": "securite-residence",
+          "label": "Sécurité globale (éclairage, dégradations)",
+          "examples": ["Vandalisme sur la résidence", "Caméras HS"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "BAILLEUR",
+          "keywords": ["sécurité", "vandalisme", "surveillance"]
+        },
+        {
+          "id": "charges-regulisation",
+          "label": "Charges locatives / régularisation",
+          "examples": ["Charges trop élevées", "Poste non prévu au décret 87-713"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "NON_RECEVABLE",
+          "keywords": ["charges", "régularisation", "87-713", "contestation"],
+          "note": "Litige administratif / conciliation — pas une intervention technique Lia standard."
+        },
+        {
+          "id": "voisinage-litige",
+          "label": "Litige de voisinage (bruit, conflit)",
+          "examples": ["Voisin bruyant", "Dispute avec un autre locataire"],
+          "pipelineCategory": "OTHER",
+          "responsibilityHint": "NON_RECEVABLE",
+          "keywords": ["voisin", "bruit", "tapage", "conflit"],
+          "note": "Hors périmètre entretien bailleur — médiation / police / conciliation."
+        }
+      ]
+    }
+  },
+  "crossCutting": {
+    "label": "Règles transverses",
+    "rules": [
+      "Réparations locatives (décret 87-712) : ampoules, joints, petit entretien → locataire sauf vétusté ou défaut d'installation.",
+      "Grosses réparations, décence, structure, réseaux collectifs → bailleur (art. 1719, loi 89-462).",
+      "Charges récupérables : liste limitative décret 87-713 (entretien courant ascenseur, eau/chauffage collectif, TEOM, etc.).",
+      "Logement décent (F2042) : sécurité, chauffage, nuisibles, humidité excessive → action bailleur si critères non respectés.",
+      "Urgence hiver / eau : locataire alerte par écrit ; possibilité recours commission conciliation puis juge."
+    ]
+  }
+}

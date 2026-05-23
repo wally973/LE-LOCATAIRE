@@ -6,6 +6,14 @@ import type { AiPipelineDecision, AiPipelineInput } from '../ai-pipeline.port';
 import { parseJsonFromLlm } from '../utils/llm-json.util';
 import type { PathologistResult } from './pathologist.types';
 import { buildLocataireChargeMessage } from '../../lia/lia-tenant-explanation';
+import {
+  parseElectricitySignals,
+  resolveElectricityCharge,
+} from '../../lia/lia-electricity-rules';
+import {
+  parseHumidityChargeSignals,
+  resolveHumidityCharge,
+} from '../../lia/lia-humidity-rules';
 
 interface MistralJuristJson {
   responsibility:
@@ -69,6 +77,11 @@ export class LiaJuristService {
       'Si LOCATAIRE (évier/siphon/bouchon) : explique POURQUOI c’est à la charge du locataire (lavabo OK + évier bouché = entretien locatif, pas le bailleur).',
       'Priorité aux extraits FAQ les plus pertinents au cas (ex. fuite sous évier/robinet = LOCATAIRE sauf canalisation collective).',
       'Ne classe pas à la charge du bailleur une simple fuite de siphon ou robinet sous évier.',
+      'ÉLECTRICITÉ : ampoule, interrupteur, douille usée = souvent LOCATAIRE (décret 87-712).',
+      'Tableau, câblage fixe, disjoncteur qui ne tient pas, coupure sur tout le logement = BAILLEUR.',
+      'Si le contexte indique ampoule déjà changée et panne localisée (une pièce), utiliser interrupteur/disjoncteur du résumé intake.',
+      'HUMIDITÉ : locataire bricoleur / entretien courant → LOCATAIRE si photo sans dégradation structurelle manifeste.',
+      'Infiltration, fissure, salpêtre, remontée capillaire ou moisissure liée à la pluie → BAILLEUR.',
     ].join(' ');
 
     const user = [
@@ -234,6 +247,74 @@ export class LiaJuristService {
         )
       : false;
 
+    if (patho.category === 'ELECTRICITY') {
+      const elSignals = parseElectricitySignals(text);
+      const elCharge = resolveElectricityCharge(elSignals);
+      if (elCharge === 'BAILLEUR') {
+        return {
+          responsibility: 'BAILLEUR',
+          category: patho.category,
+          severity: patho.severity,
+          confidence: Math.max(patho.confidence, 0.82),
+          needsMorePhoto: false,
+          socialFlag: false,
+          message:
+            'Cette intervention concerne l’installation électrique du logement. Un agent du bailleur va vous recontacter.',
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: 'BAILLEUR',
+              extra: { rule: 'electricity_installation' },
+            },
+          ],
+        };
+      }
+      if (elCharge === 'ESCALADE_BAILLEUR') {
+        return {
+          responsibility: 'ESCALADE_BAILLEUR',
+          category: patho.category,
+          severity: patho.severity,
+          confidence: Math.max(patho.confidence, 0.72),
+          needsMorePhoto: false,
+          socialFlag: false,
+          message:
+            'Votre éclairage pose question après les vérifications (ampoule, interrupteur, disjoncteur). Un agent du bailleur va affiner la qualification.',
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: 'ESCALADE_BAILLEUR',
+              extra: { rule: 'electricity_lighting_uncertain' },
+            },
+          ],
+        };
+      }
+      if (elCharge === 'LOCATAIRE') {
+        return {
+          responsibility: 'LOCATAIRE',
+          category: patho.category,
+          severity: patho.severity,
+          confidence: Math.max(patho.confidence, 0.8),
+          needsMorePhoto: false,
+          socialFlag: false,
+          suggestedArtisanType: patho.suggestedArtisanType ?? 'ELECTRICIAN',
+          message: buildLocataireChargeMessage({
+            category: patho.category,
+            contextText: text,
+          }),
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: 'LOCATAIRE',
+              extra: { rule: 'electricity_tenant_minor', memoryId: topMemory?.id },
+            },
+          ],
+        };
+      }
+    }
+
     if (
       patho.category === 'PLUMBING' &&
       (isUnderFixture || faqSink) &&
@@ -272,6 +353,78 @@ export class LiaJuristService {
       'canalisation encastr',
     ];
     const isBailleurHint = bailleurHints.some((k) => text.includes(k));
+
+    if (patho.category === 'HUMIDITY') {
+      const hasPhoto = (params.input.photoUrls?.length ?? 0) > 0;
+      const humiditySignals = parseHumidityChargeSignals(text, patho, hasPhoto);
+      const humidityCharge = resolveHumidityCharge(humiditySignals);
+      if (humidityCharge === 'BAILLEUR') {
+        return {
+          responsibility: 'BAILLEUR',
+          category: patho.category,
+          severity: patho.severity,
+          confidence: Math.max(patho.confidence, 0.8),
+          needsMorePhoto: false,
+          socialFlag: false,
+          message:
+            'L’analyse (texte et photo) oriente vers une atteinte du bâti ou une infiltration : charge bailleur. Un agent va vous recontacter.',
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: 'BAILLEUR',
+              extra: {
+                rule: 'humidity_structural_photo',
+                photo: patho.humidityPhoto,
+              },
+            },
+          ],
+        };
+      }
+      if (humidityCharge === 'LOCATAIRE') {
+        return {
+          responsibility: 'LOCATAIRE',
+          category: patho.category,
+          severity: patho.severity,
+          confidence: Math.max(patho.confidence, 0.78),
+          needsMorePhoto: false,
+          socialFlag: false,
+          message: buildLocataireChargeMessage({
+            category: patho.category,
+            contextText: text,
+            humidityPhoto: patho.humidityPhoto,
+          }),
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: 'LOCATAIRE',
+              extra: { rule: 'humidity_tenant_surface_bricolage' },
+            },
+          ],
+        };
+      }
+      if (humidityCharge === 'ESCALADE_BAILLEUR') {
+        return {
+          responsibility: 'ESCALADE_BAILLEUR',
+          category: patho.category,
+          severity: patho.severity,
+          confidence: Math.max(patho.confidence, 0.7),
+          needsMorePhoto: false,
+          socialFlag: false,
+          message:
+            'La photo ne permet pas de trancher seul entre entretien locatif et défaut du logement. Un agent du bailleur va affiner.',
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: 'ESCALADE_BAILLEUR',
+              extra: { rule: 'humidity_photo_uncertain' },
+            },
+          ],
+        };
+      }
+    }
 
     const humidityBailleur =
       patho.category === 'HUMIDITY' &&
@@ -342,6 +495,7 @@ export class LiaJuristService {
       message: buildLocataireChargeMessage({
         category: patho.category,
         contextText: text,
+        humidityPhoto: patho.humidityPhoto,
       }),
       pipelineSteps: [
         ...steps,
@@ -370,6 +524,7 @@ export class LiaJuristService {
       message = buildLocataireChargeMessage({
         category: pathologist.category,
         contextText,
+        humidityPhoto: pathologist.humidityPhoto,
       });
     }
     return {

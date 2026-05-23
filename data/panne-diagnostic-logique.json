@@ -1,0 +1,1015 @@
+{
+  "schemaVersion": 1,
+  "region": "GUYANE",
+  "updatedAt": "2026-05-23",
+  "description": "Carte logique des pannes pour l'IA Organisateur (Lia). Probabilités = ordre de priorité des questions (estimations terrain Guyane : humidité, pluies, réseau EDF fragile, VMC, nuisibles tropicaux). Ne remplace pas un diagnostic sur site.",
+  "methodology": {
+    "probabilityGuyane": "Score 0-1 (somme par panne ≈ 1). Calibrage : retours bailleurs sociaux, Service Public, presse locale (infiltrations Cayenne), CERC réseau électrique 6× plus de coupures qu'en métropole, climat tropical humide (ARS/ADEME).",
+    "discriminantQuestion": "Une réponse suffit pour écarter la cause si la condition eliminatesIf est remplie.",
+    "organizerRule": "Poser d'abord les causes à danger CRITICAL/HIGH, puis par probabilityGuyane décroissante parmi les causes restantes."
+  },
+  "dangerLevels": {
+    "CRITICAL": "Risque immédiat pour les personnes (incendie, électrocution, effondrement, noyade). Stopper et alerter bailleur / 18 si urgence vitale.",
+    "HIGH": "Aggravation rapide ou santé (eau sur tableau, moisissures étendues, ascenseur personne bloquée).",
+    "MEDIUM": "Désordre sérieux sans danger immédiat (fuite active, panne chauffage prolongée).",
+    "LOW": "Gêne courante, menue réparation ou vérification simple."
+  },
+  "panes": [
+    {
+      "id": "PANNE_ECLAIRAGE_LOCALISE",
+      "label": "Éclairage en panne (une pièce ou un point lumineux)",
+      "category": "ELECTRICITY",
+      "scope": "LOGEMENT",
+      "keywords": ["lumière", "ampoule", "éclairage", "plafonnier", "néon", "salle de bain"],
+      "organizerPriority": [
+        "cause_ampoule_usee",
+        "cause_disjoncteur_circuit_declenche",
+        "cause_interrupteur_defectueux",
+        "cause_douille_support_use",
+        "cause_cablage_fixe_vetuste",
+        "cause_humidite_contact_electrique"
+      ],
+      "causes": [
+        {
+          "id": "cause_ampoule_usee",
+          "label": "Ampoule grillée ou inadaptée (LED/température humidité)",
+          "probabilityGuyane": 0.38,
+          "discriminantQuestion": {
+            "id": "q_ampoule_neuve_testee",
+            "text": "Avez-vous installé une ampoule neuve, du bon type (pas seulement retiré l'ancienne) ?",
+            "eliminatesIf": ["oui", "yes", "déjà changé", "deja change", "neuve"],
+            "eliminatesIfMeaning": "Si oui et toujours pas de lumière → ampoule seule n'explique plus la panne."
+          },
+          "danger": { "level": "LOW", "description": "Aucun risque si coupure locale au luminaire." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_disjoncteur_circuit_declenche",
+          "label": "Disjoncteur du circuit déclenché (surcharge, humidité)",
+          "probabilityGuyane": 0.22,
+          "discriminantQuestion": {
+            "id": "q_disjoncteur_circuit",
+            "text": "Au tableau, le disjoncteur de ce circuit est-il bien en position ENCLENCHÉE (remonté) ?",
+            "eliminatesIf": ["non", "déclenché", "declenche", "saute", "ne tient pas"],
+            "eliminatesIfMeaning": "Si déclenché ou ne tient pas → piste installation / court-circuit, pas simple ampoule."
+          },
+          "danger": { "level": "HIGH", "description": "Rearmement répété : risque court-circuit / incendie — ne pas forcer." },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_interrupteur_defectueux",
+          "label": "Interrupteur ou va-et-vient défectueux",
+          "probabilityGuyane": 0.18,
+          "discriminantQuestion": {
+            "id": "q_interrupteur_marche",
+            "text": "L'interrupteur de la pièce réagit-il (clic, voyant) quand vous l'actionnez plusieurs fois ?",
+            "eliminatesIf": ["non", "ne réagit pas", "ne reagit pas", "bloqué", "bloque"],
+            "eliminatesIfMeaning": "Si l'interrupteur ne réagit pas du tout → piste interrupteur / câblage commande."
+          },
+          "danger": { "level": "LOW", "description": "Couper le disjoncteur du circuit avant manipulation." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_douille_support_use",
+          "label": "Douille, support ou connexion oxydée (humidité Guyane)",
+          "probabilityGuyane": 0.12,
+          "discriminantQuestion": {
+            "id": "q_douille_signes",
+            "text": "La douille présente-t-elle brunissement, jeu, étincelle ou odeur de brûlé ?",
+            "eliminatesIf": ["oui", "yes", "odeur", "brun", "étincelle", "etincelle"],
+            "eliminatesIfMeaning": "Si signes visibles → piste douille / connexion à traiter."
+          },
+          "danger": { "level": "MEDIUM", "description": "Odeur ou étincelle : couper le circuit, ne pas resserrer à mains nues." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_cablage_fixe_vetuste",
+          "label": "Câblage encastré ou point lumineux fixe défaillant",
+          "probabilityGuyane": 0.07,
+          "discriminantQuestion": {
+            "id": "q_tous_points_ok",
+            "text": "Ampoule neuve, interrupteur OK, disjoncteur enclenché, et toujours aucune lumière sur CE point ?",
+            "eliminatesIf": ["oui", "yes", "toujours pas", "toujours rien"],
+            "eliminatesIfMeaning": "Si toutes les vérifications sont OK → escalade installation fixe bailleur."
+          },
+          "danger": { "level": "MEDIUM", "description": "Travaux sur installation fixe : électricien qualifié." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_humidite_contact_electrique",
+          "label": "Infiltration ou condensation sur luminaire (fréquent en saison des pluies)",
+          "probabilityGuyane": 0.03,
+          "discriminantQuestion": {
+            "id": "q_taches_plafond_pluie",
+            "text": "Voyez-vous des taches d'humidité au plafond/mur près du luminaire, surtout quand il pleut ?",
+            "eliminatesIf": ["oui", "yes", "pluie", "infiltration", "goutte"],
+            "eliminatesIfMeaning": "Si oui → lier à infiltration / toiture (autre panne possible en parallèle)."
+          },
+          "danger": { "level": "CRITICAL", "description": "Eau + électricité : couper le circuit, ne pas toucher, alerter bailleur." },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_ELECTRICITE_GENERALE",
+      "label": "Plus d'électricité (tout ou presque tout le logement)",
+      "category": "ELECTRICITY",
+      "scope": "LOGEMENT",
+      "keywords": ["plus de courant", "coupure", "tout le logement", "disjoncteur général", "EDF"],
+      "organizerPriority": [
+        "cause_coupure_reseau_edf",
+        "cause_disjoncteur_general",
+        "cause_impayes_abonnement",
+        "cause_infiltration_compteur",
+        "cause_defaut_tableau",
+        "cause_sinistre_partiel"
+      ],
+      "causes": [
+        {
+          "id": "cause_coupure_reseau_edf",
+          "label": "Coupure réseau EDF / quartier (Guyane : coupures plus fréquentes)",
+          "probabilityGuyane": 0.35,
+          "discriminantQuestion": {
+            "id": "q_voisins_sans_courant",
+            "text": "Vos voisins ou le hall de l'immeuble sont-ils aussi sans électricité ?",
+            "eliminatesIf": ["oui", "yes", "tout le quartier", "immeuble entier"],
+            "eliminatesIfMeaning": "Si coupure collective → attendre réseau / EDF, pas réparation logement seul."
+          },
+          "danger": { "level": "LOW", "description": "Vérifier réfrigérateur / médicaments thermosensibles." },
+          "responsibilityHint": "EXTERNE"
+        },
+        {
+          "id": "cause_disjoncteur_general",
+          "label": "Disjoncteur général ou différentiel déclenché dans le logement",
+          "probabilityGuyane": 0.28,
+          "discriminantQuestion": {
+            "id": "q_disjoncteur_general",
+            "text": "Le disjoncteur général (et le différentiel 30 mA) du tableau sont-ils en position ON ?",
+            "eliminatesIf": ["non", "déclenché", "declenche", "saute"],
+            "eliminatesIfMeaning": "Si déclenché → recherche surcharge ou défaut avant réarmement."
+          },
+          "danger": { "level": "HIGH", "description": "Ne pas réarmer en boucle ; retirer appareils branchés si répétition." },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_impayes_abonnement",
+          "label": "Contrat électricité résilié / impayés locataire",
+          "probabilityGuyane": 0.12,
+          "discriminantQuestion": {
+            "id": "q_avis_edf",
+            "text": "Avez-vous reçu un avis de coupure ou une mise en demeure de votre fournisseur d'électricité ?",
+            "eliminatesIf": ["oui", "yes", "impayé", "impaye", "coupure EDF"],
+            "eliminatesIfMeaning": "Si oui → régulariser contrat fournisseur, pas intervention bailleur."
+          },
+          "danger": { "level": "LOW", "description": "Démarche administrative." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_infiltration_compteur",
+          "label": "Eau sur compteur / tableau (pluies Guyane — cas documentés Cayenne)",
+          "probabilityGuyane": 0.1,
+          "discriminantQuestion": {
+            "id": "q_eau_tableau",
+            "text": "Y a-t-il de l'eau, des traces ou de l'humidité sur ou près du tableau électrique ou du compteur ?",
+            "eliminatesIf": ["oui", "yes", "eau", "humide", "goutte"],
+            "eliminatesIfMeaning": "Si oui → urgence : ne pas réarmer, bailleur + sécurisation."
+          },
+          "danger": { "level": "CRITICAL", "description": "Électrocution / incendie — ne pas toucher le tableau mouillé." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_defaut_tableau",
+          "label": "Défaut tableau divisionnaire ou câblage logement",
+          "probabilityGuyane": 0.1,
+          "discriminantQuestion": {
+            "id": "q_partie_logement_seule",
+            "text": "Une partie du logement a encore du courant (certaines pièces ou prises) ?",
+            "eliminatesIf": ["oui", "yes", "une pièce", "certaines prises"],
+            "eliminatesIfMeaning": "Si partiel → circuit défaillant, pas coupure générale réseau."
+          },
+          "danger": { "level": "MEDIUM", "description": "Diagnostic électricien requis." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_sinistre_partiel",
+          "label": "Appareil défectueux provoquant disjonction (climatiseur, plaque, etc.)",
+          "probabilityGuyane": 0.05,
+          "discriminantQuestion": {
+            "id": "q_debranchement_appareil",
+            "text": "Après avoir débranché le dernier appareil utilisé (clim, plaque, lave-linge), le disjoncteur tient-il ?",
+            "eliminatesIf": ["oui", "yes", "ça tient", "tenu"],
+            "eliminatesIfMeaning": "Si tient après débranchement → appareil ou prise en cause."
+          },
+          "danger": { "level": "MEDIUM", "description": "Surconsommation climatisation fréquente en Guyane." },
+          "responsibilityHint": "LOCATAIRE"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_FUITE_EAU_LOCALISEE",
+      "label": "Fuite d'eau (évier, lavabo, WC, robinet)",
+      "category": "PLUMBING",
+      "scope": "LOGEMENT",
+      "keywords": ["fuite", "goutte", "évier", "wc", "robinet", "siphon"],
+      "organizerPriority": [
+        "cause_robinet_joint_use",
+        "cause_siphon_bonde_bouche",
+        "cause_flexible_perce",
+        "cause_wc_mecanisme",
+        "cause_colonne_collective",
+        "cause_infiltration_voisin"
+      ],
+      "causes": [
+        {
+          "id": "cause_robinet_joint_use",
+          "label": "Joint de robinet ou mitigeur usé",
+          "probabilityGuyane": 0.32,
+          "discriminantQuestion": {
+            "id": "q_fuite_robinet_pose",
+            "text": "La fuite vient-elle du robinet lui-même (bec, poignée) quand l'eau est fermée ?",
+            "eliminatesIf": ["non", "pas du robinet", "siphon", "sous"],
+            "eliminatesIfMeaning": "Si la fuite ne vient pas du robinet fermé → autre point."
+          },
+          "danger": { "level": "LOW", "description": "Gaspillage d'eau limité si robinet fermé entre-temps." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_siphon_bonde_bouche",
+          "label": "Siphon, bonde ou évacuation bouchée (évier seul)",
+          "probabilityGuyane": 0.28,
+          "discriminantQuestion": {
+            "id": "q_lavabo_ok_evier_non",
+            "text": "L'eau s'écoule-t-elle normalement au lavabo mais pas (ou mal) à l'évier ?",
+            "eliminatesIf": ["oui", "yes", "lavabo bien", "lavabo ok"],
+            "eliminatesIfMeaning": "Si oui → bouchon local évier, charge locative typique."
+          },
+          "danger": { "level": "LOW", "description": "Refoulement possible si bouchon complet." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_flexible_perce",
+          "label": "Flexible d'alimentation percé ou mal serré",
+          "probabilityGuyane": 0.15,
+          "discriminantQuestion": {
+            "id": "q_flexible_visible",
+            "text": "La fuite est-elle sur le flexible métallique ou plastique sous l'évier / lavabo ?",
+            "eliminatesIf": ["oui", "yes", "flexible"],
+            "eliminatesIfMeaning": "Si oui sur flexible → remplacement rapide, souvent locataire."
+          },
+          "danger": { "level": "MEDIUM", "description": "Couper le robinet d'arrêt sous évier si accessible." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_wc_mecanisme",
+          "label": "Mécanisme WC (chasse qui coule / fuite réservoir)",
+          "probabilityGuyane": 0.15,
+          "discriminantQuestion": {
+            "id": "q_wc_chasse_coule",
+            "text": "Les WC laissent-ils couler en permanence ou la cuvette se remplit sans arrêt ?",
+            "eliminatesIf": ["oui", "yes", "coule", "chasse"],
+            "eliminatesIfMeaning": "Si oui → mécanisme chasse / flotteur."
+          },
+          "danger": { "level": "LOW", "description": "Surconsommation d'eau." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_colonne_collective",
+          "label": "Fuite colonne ou canalisation collective (plafond, cage escalier)",
+          "probabilityGuyane": 0.08,
+          "discriminantQuestion": {
+            "id": "q_fuite_plafond_autre_etage",
+            "text": "La fuite vient-elle du plafond, d'un mur mitoyen ou d'une zone hors de votre équipement (colonne) ?",
+            "eliminatesIf": ["oui", "yes", "plafond", "voisin", "étage au-dessus"],
+            "eliminatesIfMeaning": "Si oui → bailleur / parties communes."
+          },
+          "danger": { "level": "HIGH", "description": "Risque dégât des eaux vers logements inférieurs." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_infiltration_voisin",
+          "label": "Infiltration toiture ou façade (souvent aggravée par les pluies)",
+          "probabilityGuyane": 0.02,
+          "discriminantQuestion": {
+            "id": "q_pluie_aggrave",
+            "text": "La fuite s'aggrave-t-elle ou apparaît-elle surtout quand il pleut ?",
+            "eliminatesIf": ["oui", "yes", "pluie", "intempérie"],
+            "eliminatesIfMeaning": "Si lié à la pluie → panne toiture / infiltration (autre arbre)."
+          },
+          "danger": { "level": "HIGH", "description": "Protéger biens, signaler urgence si gouttes actives." },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_INFILTRATION_TOITURE",
+      "label": "Infiltration / taches au plafond (toiture, façade)",
+      "category": "ROOF",
+      "scope": "BATIMENT",
+      "keywords": ["infiltration", "toiture", "plafond", "pluie", "tache", "goutte"],
+      "organizerPriority": [
+        "cause_toiture_defaut_etancheite",
+        "cause_gouttiere_bouchee",
+        "cause_fenetre_toit",
+        "cause_condensation_sans_infiltration",
+        "cause_colonne_eau_voisine",
+        "cause_sinistre_tempete"
+      ],
+      "causes": [
+        {
+          "id": "cause_toiture_defaut_etancheite",
+          "label": "Défaut d'étanchéité toiture / terrasse",
+          "probabilityGuyane": 0.45,
+          "discriminantQuestion": {
+            "id": "q_pluie_declenche",
+            "text": "Les taches ou gouttes apparaissent-elles ou s'aggravent-elles pendant ou après la pluie ?",
+            "eliminatesIf": ["non", "pas lié", "toute l'année pareil"],
+            "eliminatesIfMeaning": "Si pas lié à la pluie → envisager condensation (autre piste)."
+          },
+          "danger": { "level": "HIGH", "description": "Eau sur installations électriques possible — protéger zone." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_gouttiere_bouchee",
+          "label": "Gouttière ou descente bouchée (feuilles, débris)",
+          "probabilityGuyane": 0.2,
+          "discriminantQuestion": {
+            "id": "q_debord_gouttiere",
+            "text": "Voyez-vous l'eau déborder des gouttières ou couler en façade lors des pluies ?",
+            "eliminatesIf": ["oui", "yes", "déborde", "deborde"],
+            "eliminatesIfMeaning": "Si débordement visible → entretien gouttières (souvent bailleur résidence)."
+          },
+          "danger": { "level": "MEDIUM", "description": "Chute d'eau sur façade / infiltration mur." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_fenetre_toit",
+          "label": "Velux / ouverture toit mal étanchée",
+          "probabilityGuyane": 0.12,
+          "discriminantQuestion": {
+            "id": "q_sous_velux",
+            "text": "La tache est-elle localisée juste sous une fenêtre de toit ou lucarne ?",
+            "eliminatesIf": ["oui", "yes", "velux", "lucarne"],
+            "eliminatesIfMeaning": "Si oui → joint menuiserie toit."
+          },
+          "danger": { "level": "MEDIUM", "description": "Éviter montée sur toit par le locataire." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_condensation_sans_infiltration",
+          "label": "Condensation (humidité intérieure, ventilation insuffisante)",
+          "probabilityGuyane": 0.15,
+          "discriminantQuestion": {
+            "id": "q_moisissure_angle_froid",
+            "text": "Les taches sont-elles dans un coin froid, sans lien avec la pluie, avec moisissures en surface ?",
+            "eliminatesIf": ["oui", "yes", "coin", "moisissure", "pas la pluie"],
+            "eliminatesIfMeaning": "Si oui → ventilation / hygrométrie (panne humidité liée)."
+          },
+          "danger": { "level": "MEDIUM", "description": "Santé respiratoire si moisissures." },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_colonne_eau_voisine",
+          "label": "Fuite canalisation logement du dessus",
+          "probabilityGuyane": 0.05,
+          "discriminantQuestion": {
+            "id": "q_etage_dessus",
+            "text": "Avez-vous signalé ou constaté un problème chez le voisin du dessus (eau, salle de bain) ?",
+            "eliminatesIf": ["oui", "yes", "voisin", "dessus"],
+            "eliminatesIfMeaning": "Si fuite voisine → origine privative autre lot, coordination bailleur."
+          },
+          "danger": { "level": "HIGH", "description": "Dégât des eaux en chaîne." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_sinistre_tempete",
+          "label": "Sinistre tempête / cyclone (force majeure)",
+          "probabilityGuyane": 0.03,
+          "discriminantQuestion": {
+            "id": "q_evenement_meteo",
+            "text": "Le problème est-il apparu juste après un épisode de vent fort, tempête ou cyclone ?",
+            "eliminatesIf": ["oui", "yes", "tempête", "tempete", "cyclone"],
+            "eliminatesIfMeaning": "Si oui → procédure sinistre / assurance, urgence structure."
+          },
+          "danger": { "level": "CRITICAL", "description": "Risque structurel — évacuer zone dangereuse si besoin." },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_EAU_CHAUDE",
+      "label": "Pas ou peu d'eau chaude",
+      "category": "PLUMBING",
+      "scope": "LOGEMENT",
+      "keywords": ["eau chaude", "ballon", "chauffe-eau", "tiède", "douche"],
+      "organizerPriority": [
+        "cause_disjoncteur_ballon",
+        "cause_ballon_vide_thermostat",
+        "cause_chauffe_eau_collectif",
+        "cause_pression_reseau",
+        "cause_entretien_locatif_negli",
+        "cause_vetuste_ballon"
+      ],
+      "causes": [
+        {
+          "id": "cause_disjoncteur_ballon",
+          "label": "Disjoncteur chauffe-eau déclenché",
+          "probabilityGuyane": 0.3,
+          "discriminantQuestion": {
+            "id": "q_disjoncteur_ballon",
+            "text": "Le disjoncteur dédié au chauffe-eau (au tableau) est-il enclenché ?",
+            "eliminatesIf": ["non", "déclenché", "declenche"],
+            "eliminatesIfMeaning": "Si déclenché → réarmement ou défaut ballon."
+          },
+          "danger": { "level": "MEDIUM", "description": "Ne pas forcer si répétition — risque électrique." },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_ballon_vide_thermostat",
+          "label": "Ballon électrique : thermostat, résistance ou cumulus",
+          "probabilityGuyane": 0.28,
+          "discriminantQuestion": {
+            "id": "q_ballon_individuel",
+            "text": "Avez-vous un chauffe-eau individuel (ballon) dans le logement ?",
+            "eliminatesIf": ["non", "collectif", "chaufferie"],
+            "eliminatesIfMeaning": "Si pas de ballon individuel → piste collective."
+          },
+          "danger": { "level": "LOW", "description": "Brûlure si eau très chaude au retour — tester prudemment." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_chauffe_eau_collectif",
+          "label": "Panne chaufferie / réseau eau chaude collective",
+          "probabilityGuyane": 0.25,
+          "discriminantQuestion": {
+            "id": "q_immeuble_sans_ec",
+            "text": "D'autres logements de l'immeuble sont-ils aussi sans eau chaude ?",
+            "eliminatesIf": ["oui", "yes", "tout l'immeuble", "voisins"],
+            "eliminatesIfMeaning": "Si collectif → bailleur / chaufferie."
+          },
+          "danger": { "level": "MEDIUM", "description": "Logement décent : eau chaude requise." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_pression_reseau",
+          "label": "Baisse de pression eau froide (réseau)",
+          "probabilityGuyane": 0.1,
+          "discriminantQuestion": {
+            "id": "q_eau_froide_faible",
+            "text": "La pression d'eau froide est-elle aussi faible aux robinets ?",
+            "eliminatesIf": ["oui", "yes", "faible", "presque plus"],
+            "eliminatesIfMeaning": "Si eau froide faible → problème réseau amont."
+          },
+          "danger": { "level": "LOW", "description": "Signaler coupure eau commune si généralisé." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_entretien_locatif_negli",
+          "label": "Entretien locatif négligé (détartrage rare en eau calcaire)",
+          "probabilityGuyane": 0.05,
+          "discriminantQuestion": {
+            "id": "q_entretien_jamais",
+            "text": "Le chauffe-eau n'a jamais été entretenu / vidangé depuis plusieurs années ?",
+            "eliminatesIf": ["non", "entretien récent", "entretien recent"],
+            "eliminatesIfMeaning": "Si entretien récent fait → écarter négligence seule."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_vetuste_ballon",
+          "label": "Vétusté équipement fourni par le bailleur",
+          "probabilityGuyane": 0.02,
+          "discriminantQuestion": {
+            "id": "q_age_ballon",
+            "text": "Le ballon a-t-il plus de 15 ans ou présente des signes de corrosion / fuite au pied ?",
+            "eliminatesIf": ["oui", "yes", "fuite", "corrosion", "rouille"],
+            "eliminatesIfMeaning": "Si vétusté avérée → remplacement bailleur."
+          },
+          "danger": { "level": "MEDIUM", "description": "Fuite ballon : couper eau et électricité." },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_VMC_VENTILATION",
+      "label": "VMC ou ventilation insuffisante / en panne",
+      "category": "HUMIDITY",
+      "scope": "BATIMENT",
+      "keywords": ["vmc", "ventilation", "extraction", "odeur", "condensation", "humide"],
+      "organizerPriority": [
+        "cause_bouches_obstruees",
+        "cause_vmc_collective_arret",
+        "cause_condensation_usage",
+        "cause_infiltration_eau",
+        "cause_moteur_vmc_hs"
+      ],
+      "causes": [
+        {
+          "id": "cause_bouches_obstruees",
+          "label": "Bouches d'extraction obstruées (poussière, peinture)",
+          "probabilityGuyane": 0.35,
+          "discriminantQuestion": {
+            "id": "q_bouche_visible",
+            "text": "Les grilles de ventilation (SDB, cuisine) sont-elles visibles, propres et ouvertes ?",
+            "eliminatesIf": ["non", "bouchée", "bouchee", "peinture", "obstruée"],
+            "eliminatesIfMeaning": "Si bouchées → nettoyage locataire possible avant escalade."
+          },
+          "danger": { "level": "LOW", "description": "Humidité accrue, moisissures à moyen terme." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_vmc_collective_arret",
+          "label": "VMC collective arrêtée ou grippée",
+          "probabilityGuyane": 0.3,
+          "discriminantQuestion": {
+            "id": "q_aspiration_bouche",
+            "text": "En approchant une feuille de papier d'une bouche, est-elle aspirée (mouvement visible) ?",
+            "eliminatesIf": ["non", "rien", "pas d'aspiration"],
+            "eliminatesIfMeaning": "Si pas d'aspiration → VMC collective ou moteur."
+          },
+          "danger": { "level": "MEDIUM", "description": "Moisissures fréquentes en Guyane si VMC arrêtée." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_condensation_usage",
+          "label": "Condensation liée aux usages (douche, séchage linge)",
+          "probabilityGuyane": 0.25,
+          "discriminantQuestion": {
+            "id": "q_aeration_quotidienne",
+            "text": "Aérez-vous au moins 10 minutes par jour et utilisez-vous la VMC pendant la douche ?",
+            "eliminatesIf": ["non", "jamais", "pas de vmc"],
+            "eliminatesIfMeaning": "Si pas d'aération → piste hygiène / usage avant travaux."
+          },
+          "danger": { "level": "LOW", "description": "Santé si moisissures déjà présentes." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_infiltration_eau",
+          "label": "Infiltration alimentant humidité (lien toiture)",
+          "probabilityGuyane": 0.07,
+          "discriminantQuestion": {
+            "id": "q_tache_plafond_sdb",
+            "text": "Y a-t-il une tache au plafond de la SDB en plus du manque d'extraction ?",
+            "eliminatesIf": ["oui", "yes", "tache", "goutte"],
+            "eliminatesIfMeaning": "Si oui → croiser avec panne infiltration."
+          },
+          "danger": { "level": "HIGH", "description": "Double cause structure + ventilation." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_moteur_vmc_hs",
+          "label": "Moteur ou gaines VMC défectueux",
+          "probabilityGuyane": 0.03,
+          "discriminantQuestion": {
+            "id": "q_bruit_moteur",
+            "text": "Entendez-vous le moteur VMC (grenier / local technique) tourner normalement ?",
+            "eliminatesIf": ["non", "silence", "grince", "bruit anormal"],
+            "eliminatesIfMeaning": "Si moteur silencieux ou bruit anormal → intervention technique."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_ASCENSEUR",
+      "label": "Ascenseur en panne ou dangereux",
+      "category": "OTHER",
+      "scope": "BATIMENT",
+      "keywords": ["ascenseur", "cabine", "bloqué", "coincé"],
+      "organizerPriority": [
+        "cause_personne_bloquee",
+        "cause_panne_mecanique",
+        "cause_coupure_electrique",
+        "cause_entretien_cabine",
+        "cause_vandalisme"
+      ],
+      "causes": [
+        {
+          "id": "cause_personne_bloquee",
+          "label": "Personne bloquée en cabine",
+          "probabilityGuyane": 0.08,
+          "discriminantQuestion": {
+            "id": "q_personne_dedans",
+            "text": "Y a-t-il actuellement une personne bloquée à l'intérieur de la cabine ?",
+            "eliminatesIf": ["oui", "yes", "bloqué", "bloque", "coincé"],
+            "eliminatesIfMeaning": "Si oui → procédure urgence ascensoriste / secours, pas questionnaire long."
+          },
+          "danger": { "level": "CRITICAL", "description": "Appeler secours / ascensoriste — ne pas forcer portes." },
+          "responsibilityHint": "BAILLEUR",
+          "skipOtherQuestions": true
+        },
+        {
+          "id": "cause_panne_mecanique",
+          "label": "Panne mécanique / électronique ascenseur",
+          "probabilityGuyane": 0.55,
+          "discriminantQuestion": {
+            "id": "q_aucun_etage",
+            "text": "L'ascenseur ne répond-il sur aucun étage (aucun voyant, porte fermée) ?",
+            "eliminatesIf": ["oui", "yes", "aucun", "rien"],
+            "eliminatesIfMeaning": "Si panne totale → contrat maintenance bailleur."
+          },
+          "danger": { "level": "HIGH", "description": "PMR sans ascenseur : priorité bailleur." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_coupure_electrique",
+          "label": "Coupure électrique immeuble",
+          "probabilityGuyane": 0.2,
+          "discriminantQuestion": {
+            "id": "q_coupure_immeuble",
+            "text": "Le hall ou les couloirs sont-ils aussi sans lumière (coupure générale immeuble) ?",
+            "eliminatesIf": ["oui", "yes"],
+            "eliminatesIfMeaning": "Si coupure générale → lier panne électricité générale."
+          },
+          "danger": { "level": "MEDIUM", "description": null },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_entretien_cabine",
+          "label": "Défaut mineur cabine (bouton, éclairage cabine)",
+          "probabilityGuyane": 0.12,
+          "discriminantQuestion": {
+            "id": "q_ascenseur_fonctionne",
+            "text": "L'ascenseur monte-t-il mais un bouton ou la lumière de cabine ne marche pas ?",
+            "eliminatesIf": ["oui", "yes", "monte"],
+            "eliminatesIfMeaning": "Si fonctionne partiellement → menue réparation / charge récupérable possible."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_vandalisme",
+          "label": "Vandalisme ou usage anormal",
+          "probabilityGuyane": 0.05,
+          "discriminantQuestion": {
+            "id": "q_degradation_visible",
+            "text": "Voyez-vous des dégradations volontaires (boutons arrachés, graffiti) dans la cabine ?",
+            "eliminatesIf": ["oui", "yes", "cassé", "vandalisé"],
+            "eliminatesIfMeaning": "Si vandalisme → signalement résidence / police si besoin."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_HUMIDITE_MOISISSURES",
+      "label": "Humidité / moisissures dans le logement",
+      "category": "HUMIDITY",
+      "scope": "LOGEMENT",
+      "keywords": ["moisissure", "humidité", "champignon", "odeur", "noir"],
+      "organizerPriority": [
+        "cause_bricolage_locataire",
+        "cause_ventilation_insuffisante",
+        "cause_infiltration_structurelle",
+        "cause_remontees_capillaires",
+        "cause_fuite_cachee",
+        "cause_usage_linge_interieur"
+      ],
+      "causes": [
+        {
+          "id": "cause_bricolage_locataire",
+          "label": "Locataire bricoleur — essais déjà faits",
+          "probabilityGuyane": 0.35,
+          "discriminantQuestion": {
+            "id": "q_bricolage_deja",
+            "text": "Avez-vous déjà traité vous-même (produit anti-moisissures, peinture, aération, déshumidificateur) ?",
+            "eliminatesIf": ["oui", "yes", "déjà", "deja", "essayé", "essaye", "traité", "traite", "bricol"],
+            "eliminatesIfMeaning": "Si oui et photo sans atteinte structurelle → entretien locatif probable."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_ventilation_insuffisante",
+          "label": "Ventilation insuffisante (VMC, aération)",
+          "probabilityGuyane": 0.4,
+          "discriminantQuestion": {
+            "id": "q_vmc_fonctionne",
+            "text": "La VMC ou les bouches d'extraction fonctionnent-elles (aspiration visible) ?",
+            "eliminatesIf": ["non", "pas d'air", "bouchée"],
+            "eliminatesIfMeaning": "Si VMC KO → croiser panne VMC."
+          },
+          "danger": { "level": "MEDIUM", "description": "Asthme, allergies — enfants sensibles." },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_infiltration_structurelle",
+          "label": "Infiltration toiture / façade",
+          "probabilityGuyane": 0.25,
+          "discriminantQuestion": {
+            "id": "q_moisissure_plafond_pluie",
+            "text": "Les moisissures sont-elles au plafond ou sur un mur extérieur, pires quand il pleut ?",
+            "eliminatesIf": ["oui", "yes", "plafond", "pluie"],
+            "eliminatesIfMeaning": "Si oui → panne infiltration prioritaire."
+          },
+          "danger": { "level": "HIGH", "description": "Structure + santé." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_remontees_capillaires",
+          "label": "Remontées capillaires (rez-de-chaussée, sol)",
+          "probabilityGuyane": 0.15,
+          "discriminantQuestion": {
+            "id": "q_tache_bas_mur",
+            "text": "Les taches partent-elles du bas du mur ou du sol (bande au ras du sol) ?",
+            "eliminatesIf": ["oui", "yes", "bas du mur", "sol"],
+            "eliminatesIfMeaning": "Si oui → travaux structurels bailleur."
+          },
+          "danger": { "level": "MEDIUM", "description": null },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_fuite_cachee",
+          "label": "Fuite encastrée (canalisation, joint douche)",
+          "probabilityGuyane": 0.12,
+          "discriminantQuestion": {
+            "id": "q_carrelage_sdb_spongieux",
+            "text": "Le carrelage ou le mur SDB est-il spongieux, chaud ou fuit-il en dessous du receveur ?",
+            "eliminatesIf": ["oui", "yes", "spongieux", "fuite"],
+            "eliminatesIfMeaning": "Si oui → fuite cachée, dégât des eaux."
+          },
+          "danger": { "level": "HIGH", "description": "Affaiblissement structure locale." },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_usage_linge_interieur",
+          "label": "Séchage linge intérieur sans aération",
+          "probabilityGuyane": 0.08,
+          "discriminantQuestion": {
+            "id": "q_linge_interieur",
+            "text": "Séchez-vous régulièrement du linge à l'intérieur sans ouvrir les fenêtres ?",
+            "eliminatesIf": ["oui", "yes", "tous les jours", "linge"],
+            "eliminatesIfMeaning": "Si oui seul facteur → conseil hygiène ; si moisissures étendues malgré aération → bailleur."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "LOCATAIRE"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_NUISIBLES",
+      "label": "Nuisibles (cafards, rats, punaises, termites)",
+      "category": "OTHER",
+      "scope": "LOGEMENT",
+      "keywords": ["cafard", "rat", "punaise", "nuisible", "termite"],
+      "organizerPriority": [
+        "cause_punaises_de_lit",
+        "cause_cafards_hygiene",
+        "cause_rongeurs",
+        "cause_termites_structure",
+        "cause_parties_communes_infestees"
+      ],
+      "causes": [
+        {
+          "id": "cause_punaises_de_lit",
+          "label": "Punaises de lit",
+          "probabilityGuyane": 0.15,
+          "discriminantQuestion": {
+            "id": "q_piqures_alignees",
+            "text": "Avez-vous des piqûres alignées ou groupées au réveil, et des taches sur le matelas ?",
+            "eliminatesIf": ["oui", "yes", "piqûre", "piqure", "matelas"],
+            "eliminatesIfMeaning": "Si oui → traitement spécialisé urgent, pas simple pulvérisation."
+          },
+          "danger": { "level": "MEDIUM", "description": "Propagation rapide entre logements." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_cafards_hygiene",
+          "label": "Cafards (blattes) — hygiène + climat tropical",
+          "probabilityGuyane": 0.45,
+          "discriminantQuestion": {
+            "id": "q_cafards_cuisine",
+            "text": "Voyez-vous des cafards surtout la nuit en cuisine ou près des déchets alimentaires ?",
+            "eliminatesIf": ["oui", "yes", "cuisine", "nuit"],
+            "eliminatesIfMeaning": "Si oui → désinsectisation + hygiène."
+          },
+          "danger": { "level": "LOW", "description": "Contamination alimentaire possible." },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_rongeurs",
+          "label": "Rats ou souris",
+          "probabilityGuyane": 0.25,
+          "discriminantQuestion": {
+            "id": "q_excrements_grignotage",
+            "text": "Avez-vous trouvé des excréments, des grignotages ou entendu des bruits dans les murs ?",
+            "eliminatesIf": ["oui", "yes", "rat", "souris", "excrément"],
+            "eliminatesIfMeaning": "Si oui → dératisation bailleur / résidence."
+          },
+          "danger": { "level": "MEDIUM", "description": "Risque sanitaire, câbles rongés (incendie)." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_termites_structure",
+          "label": "Termites ou capricornes (bois — zone tropicale)",
+          "probabilityGuyane": 0.1,
+          "discriminantQuestion": {
+            "id": "q_bois_pulverulent",
+            "text": "Du bois (charpente, menuiserie) s'effrite-t-il ou présente des galeries / sciure ?",
+            "eliminatesIf": ["oui", "yes", "termite", "bois", "sciure"],
+            "eliminatesIfMeaning": "Si oui → diagnostic structure urgent."
+          },
+          "danger": { "level": "HIGH", "description": "Risque structurel — ne pas percer seul." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_parties_communes_infestees",
+          "label": "Infestation parties communes / vide sanitaire",
+          "probabilityGuyane": 0.05,
+          "discriminantQuestion": {
+            "id": "q_hall_egouts",
+            "text": "Des nuisibles sont-ils visibles dans les couloirs, local poubelles ou près des égouts ?",
+            "eliminatesIf": ["oui", "yes", "hall", "poubelle", "égout"],
+            "eliminatesIfMeaning": "Si oui → traitement résidence entière."
+          },
+          "danger": { "level": "MEDIUM", "description": null },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_SERRURE_ACCES",
+      "label": "Serrure, clé ou porte d'entrée",
+      "category": "LOCK",
+      "scope": "LOGEMENT",
+      "keywords": ["serrure", "clé", "porte", "bloqué", "coincé"],
+      "organizerPriority": [
+        "cause_cle_perdue_locataire",
+        "cause_serrure_usee",
+        "cause_porte_gonflee_humidite",
+        "cause_cylindre_casse",
+        "cause_serrure_securite_bailleur"
+      ],
+      "causes": [
+        {
+          "id": "cause_cle_perdue_locataire",
+          "label": "Clé perdue ou oubliée",
+          "probabilityGuyane": 0.4,
+          "discriminantQuestion": {
+            "id": "q_cle_perdue",
+            "text": "Avez-vous perdu la clé ou l'avez-vous oubliée (sans casse dans la serrure) ?",
+            "eliminatesIf": ["oui", "yes", "perdue", "oublié", "oublie"],
+            "eliminatesIfMeaning": "Si oui → duplication / serrurier souvent à charge locataire."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_serrure_usee",
+          "label": "Serrure usée ou mal lubrifiée",
+          "probabilityGuyane": 0.25,
+          "discriminantQuestion": {
+            "id": "q_cle_tourne_difficile",
+            "text": "La clé tourne-t-elle difficilement depuis plusieurs semaines (avant blocage total) ?",
+            "eliminatesIf": ["oui", "yes", "difficile", "grince"],
+            "eliminatesIfMeaning": "Si usure progressive → remplacement serrure souvent bailleur."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_porte_gonflee_humidite",
+          "label": "Porte gonflée (humidité Guyane)",
+          "probabilityGuyane": 0.2,
+          "discriminantQuestion": {
+            "id": "q_porte_frotte",
+            "text": "La porte frotte-t-elle le sol ou le cadre sans problème de clé ?",
+            "eliminatesIf": ["oui", "yes", "frotte", "coince", "ferme pas"],
+            "eliminatesIfMeaning": "Si frottement seul → réglage menuiserie."
+          },
+          "danger": { "level": "LOW", "description": "Issue de secours : vérifier si porte bloquée de l'intérieur." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_cylindre_casse",
+          "label": "Clé cassée dans le cylindre",
+          "probabilityGuyane": 0.1,
+          "discriminantQuestion": {
+            "id": "q_cle_cassee",
+            "text": "Une clé est-elle cassée ou restée bloquée à l'intérieur du cylindre ?",
+            "eliminatesIf": ["oui", "yes", "cassée", "cassee", "bloquée dans"],
+            "eliminatesIfMeaning": "Si oui → serrurier urgence."
+          },
+          "danger": { "level": "MEDIUM", "description": "Ne pas forcer — risque de rester enfermé dehors." },
+          "responsibilityHint": "NUANCE"
+        },
+        {
+          "id": "cause_serrure_securite_bailleur",
+          "label": "Serrure conformité / sécurité logement décent",
+          "probabilityGuyane": 0.05,
+          "discriminantQuestion": {
+            "id": "q_porte_non_securisee",
+            "text": "La porte ne ferme-t-elle plus du tout au verrou (sécurité compromise) ?",
+            "eliminatesIf": ["oui", "yes", "ne verrouille pas", "ouverte"],
+            "eliminatesIfMeaning": "Si oui → urgence sécurité bailleur."
+          },
+          "danger": { "level": "HIGH", "description": "Risque intrusion." },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    },
+    {
+      "id": "PANNE_WC_EVACUATION",
+      "label": "WC bouchés ou refoulement",
+      "category": "PLUMBING",
+      "scope": "LOGEMENT",
+      "keywords": ["wc", "bouché", "bouche", "refoule", "évacuation"],
+      "organizerPriority": [
+        "cause_bouchon_wc_local",
+        "cause_papier_objet",
+        "cause_colonne_immeuble",
+        "cause_fosse_eaux_usees",
+        "cause_refoulement_pluie"
+      ],
+      "causes": [
+        {
+          "id": "cause_bouchon_wc_local",
+          "label": "Bouchon local WC / mécanisme",
+          "probabilityGuyane": 0.5,
+          "discriminantQuestion": {
+            "id": "q_autres_wc_ok",
+            "text": "Les autres WC ou éviers du logement s'écoulent-ils normalement ?",
+            "eliminatesIf": ["oui", "yes", "seulement ce wc", "un seul"],
+            "eliminatesIfMeaning": "Si seul ce WC → bouchon local."
+          },
+          "danger": { "level": "MEDIUM", "description": "Refoulement : arrêter de chasser, protéger sol." },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_papier_objet",
+          "label": "Objet ou excès papier",
+          "probabilityGuyane": 0.25,
+          "discriminantQuestion": {
+            "id": "q_objet_tombe",
+            "text": "Un objet est-il tombé dans la cuvette ou a-t-on jeté autre chose que du papier toilette ?",
+            "eliminatesIf": ["oui", "yes", "objet", "lingette"],
+            "eliminatesIfMeaning": "Si oui → débouchage ciblé."
+          },
+          "danger": { "level": "LOW", "description": null },
+          "responsibilityHint": "LOCATAIRE"
+        },
+        {
+          "id": "cause_colonne_immeuble",
+          "label": "Colonne d'évacuation immeuble bouchée",
+          "probabilityGuyane": 0.15,
+          "discriminantQuestion": {
+            "id": "q_voisins_meme_probleme",
+            "text": "Des voisins aux étages proches ont-ils le même problème au même moment ?",
+            "eliminatesIf": ["oui", "yes", "voisins", "étages"],
+            "eliminatesIfMeaning": "Si oui → colonne collective bailleur."
+          },
+          "danger": { "level": "HIGH", "description": "Refoulement eaux usées — insalubrité." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_fosse_eaux_usees",
+          "label": "Fosse / réseau assainissement saturé (zones peu dense)",
+          "probabilityGuyane": 0.05,
+          "discriminantQuestion": {
+            "id": "q_odeur_extérieur",
+            "text": "Y a-t-il des odeurs d'égout dans la cour ou chez plusieurs logements de la résidence ?",
+            "eliminatesIf": ["oui", "yes", "résidence", "cour"],
+            "eliminatesIfMeaning": "Si généralisé → assainissement résidence."
+          },
+          "danger": { "level": "HIGH", "description": "Risque sanitaire." },
+          "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "cause_refoulement_pluie",
+          "label": "Refoulement lors des fortes pluies (réseau)",
+          "probabilityGuyane": 0.05,
+          "discriminantQuestion": {
+            "id": "q_pluie_refoulement",
+            "text": "Le problème apparaît-il surtout pendant ou après de fortes pluies ?",
+            "eliminatesIf": ["oui", "yes", "pluie", "intempérie"],
+            "eliminatesIfMeaning": "Si oui → réseau pluvial / assainissement communal."
+          },
+          "danger": { "level": "HIGH", "description": "Fréquent en saison des pluies en Guyane." },
+          "responsibilityHint": "BAILLEUR"
+        }
+      ]
+    }
+  ],
+  "organizerGlobalRules": [
+    "Toujours détecter le type de panne (keywords ou classification) avant d'appliquer l'arbre.",
+    "Si danger CRITICAL : message sécurité immédiat, puis une seule question de confirmation si utile.",
+    "Si plusieurs pannes dans un message : traiter chaque arbre séparément (un ticket par sujet).",
+    "En saison des pluies (Guyane) : prioriser infiltration / eau sur tableau / refoulement.",
+    "Probabilités révisables après retour terrain (champ organizerFeedback)."
+  ],
+  "panneDetectionHints": [
+    { "panneId": "PANNE_ECLAIRAGE_LOCALISE", "patterns": ["lumière", "ampoule", "éclairage", "plafonnier"] },
+    { "panneId": "PANNE_ELECTRICITE_GENERALE", "patterns": ["plus de courant", "tout le logement", "coupure"] },
+    { "panneId": "PANNE_FUITE_EAU_LOCALISEE", "patterns": ["fuite", "goutte", "évier", "robinet"] },
+    { "panneId": "PANNE_INFILTRATION_TOITURE", "patterns": ["infiltration", "toiture", "plafond", "pluie"] },
+    { "panneId": "PANNE_EAU_CHAUDE", "patterns": ["eau chaude", "ballon", "douche froide"] },
+    { "panneId": "PANNE_VMC_VENTILATION", "patterns": ["vmc", "ventilation", "extraction"] },
+    { "panneId": "PANNE_ASCENSEUR", "patterns": ["ascenseur"] },
+    { "panneId": "PANNE_HUMIDITE_MOISISSURES", "patterns": ["moisissure", "humidité", "champignon"] },
+    { "panneId": "PANNE_NUISIBLES", "patterns": ["cafard", "rat", "punaise", "nuisible"] },
+    { "panneId": "PANNE_SERRURE_ACCES", "patterns": ["serrure", "clé", "porte bloquée"] },
+    { "panneId": "PANNE_WC_EVACUATION", "patterns": ["wc bouch", "refoule", "évacuation"] }
+  ]
+}

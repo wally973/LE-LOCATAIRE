@@ -8,6 +8,7 @@ import {
   type LiaIntakeState,
   LiaIntakeService,
 } from './lia-intake.service';
+import { syncOrganizerFromContext } from './lia-intake-organizer';
 
 /**
  * Intake réactif — analyse chaque réponse locataire avant la question suivante.
@@ -39,8 +40,15 @@ export class LiaIntakeReactiveService {
 
     let state = this.intake.recordAnswer(params.state, msg);
     state = this.applyRuleBasedAnalysis(state, msg, params.title, params.description);
+    state = syncOrganizerFromContext(
+      state,
+      params.title,
+      params.description,
+    );
 
-    const llm = await this.tryLlmAnalysis(state, msg, params.title, params.description);
+    const llm = state.organizer
+      ? null
+      : await this.tryLlmAnalysis(state, msg, params.title, params.description);
     if (llm) {
       state = llm.state;
     }
@@ -123,6 +131,15 @@ export class LiaIntakeReactiveService {
       }
     }
 
+    if (
+      /moisissure|humidit|moisi|condensation/.test(t) &&
+      /bricol|essay|trait|javel|peinture|deshumidificateur|déshumidificateur|aere|aéré/.test(
+        t,
+      )
+    ) {
+      answers.bricolage_attempts = message.trim();
+    }
+
     if (state.category === 'PLUMBING') {
       if (/siphon|d[eé]bouch|produit|visser/.test(t)) {
         answers.siphon_action = message.trim();
@@ -160,6 +177,18 @@ export class LiaIntakeReactiveService {
     message: string,
   ): string | null {
     const t = message.toLowerCase();
+    if (state.organizer) {
+      if (state.organizer.eliminatedCauseIds.includes('cause_ampoule_usee')) {
+        return (
+          'Merci — je ne vous redemanderai pas de changer l’ampoule. ' +
+          'Je continue le diagnostic avec les autres pistes.'
+        );
+      }
+      if (/depuis|semaine|hier|jour|mois/.test(t)) {
+        return 'Merci, c’est noté.';
+      }
+      return 'Merci pour cette précision, je l’intègre au diagnostic.';
+    }
     if (state.category !== 'ELECTRICITY') {
       if (this.looksLikeSinceWhen(message)) {
         return 'Merci, c’est noté pour la durée du problème.';

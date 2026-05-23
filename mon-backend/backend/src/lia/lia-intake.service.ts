@@ -1,5 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import type { CompanionUiState } from './lia-companion.types';
+import { buildElectricityJuristHint } from './lia-electricity-rules';
+import type { LiaIntakeOrganizerState } from './lia-intake-organizer';
+import {
+  applyOrganizerAnswer,
+  buildOrganizerContext,
+  buildOrganizerIntakeSummaryLines,
+  formatOrganizerQuestionText,
+  getPanneTreeById,
+  isOrganizerQuestionId,
+  nextOrganizerCauseForIntake,
+  ORG_QUESTION_PREFIX,
+  prefillEliminatedCauses,
+  resolveOrganizerPanne,
+} from './lia-intake-organizer';
+export type { LiaIntakeOrganizerState } from './lia-intake-organizer';
 
 /** Catégories dérivées du libellé initial (ex. PDF conversation). */
 export type IntakeCategory = 'PLUMBING' | 'ROOF' | 'ELECTRICITY' | 'GENERIC';
@@ -29,6 +44,10 @@ export interface LiaIntakeState {
   signals?: IntakeSignals;
   /** Questions non pertinentes après analyse des réponses (intake réactif). */
   skippedQuestionIds?: string[];
+  /** Parcours questions depuis panne-diagnostic-logique.json. */
+  organizer?: LiaIntakeOrganizerState;
+  intakeTitle?: string;
+  intakeDescription?: string;
 }
 
 export interface IntakeReactiveTurn {
@@ -214,7 +233,8 @@ export function tenantAlreadyChangedBulb(
 
 /** Résumé textuel pour le pathologiste / juriste (après les questions). */
 export function buildIntakeSummary(state: LiaIntakeState): string {
-  const questions = getIntakeQuestionsForState(state);
+  const organizerLines = buildOrganizerIntakeSummaryLines(state);
+  const questions = state.organizer ? [] : getIntakeQuestionsForState(state);
   const lines = questions
     .map((q) => {
       const a = state.answers[q.id];
@@ -241,9 +261,14 @@ export function buildIntakeSummary(state: LiaIntakeState): string {
       'Orientation métier : infiltration / toiture → charge bailleur probable.',
     );
   }
+  if (state.category === 'ELECTRICITY' && usesLightingElectricityPath(state)) {
+    const hint = buildElectricityJuristHint(state.answers);
+    if (hint) signalLines.push(hint);
+  }
   return [
     '[Contexte recueilli avec Lia avant diagnostic]',
     ...signalLines,
+    ...organizerLines,
     ...lines,
   ].join('\n');
 }
@@ -272,7 +297,9 @@ export class LiaIntakeService {
       return 'ROOF';
     }
     if (
-      /électri|electri|disjoncteur|compteur|courant|prise|panne/.test(t)
+      /électri|electri|disjoncteur|compteur|courant|prise|panne|ampoule|lumi[eè]re|[eé]clairage|interrupteur/.test(
+        t,
+      )
     ) {
       return 'ELECTRICITY';
     }
@@ -292,19 +319,52 @@ export class LiaIntakeService {
       signals,
       description,
     );
+    const fullText = `${title} ${description}`;
+    const tree = resolveOrganizerPanne(
+      category,
+      title,
+      description,
+      signals,
+      answers,
+    );
+    const organizer = tree
+      ? {
+          panneId: tree.id,
+          eliminatedCauseIds: prefillEliminatedCauses(
+            tree,
+            fullText,
+            answers,
+          ),
+          causeAnswers: {} as Record<string, string>,
+        }
+      : undefined;
+
     const base: LiaIntakeState = {
       phase: 'INTAKE',
       category,
       stepIndex: 0,
       answers,
       signals,
-      skippedQuestionIds:
-        category === 'ELECTRICITY' &&
-        isLightingOnlyScope(`${title} ${description}`, signals, answers)
+      intakeTitle: title,
+      intakeDescription: description,
+      organizer,
+      skippedQuestionIds: organizer
+        ? this.legacyQuestionIdsForCategory(category)
+        : category === 'ELECTRICITY' &&
+            isLightingOnlyScope(fullText, signals, answers)
           ? ['breaker', 'breaker_stays', 'subscription']
           : undefined,
     };
     return this.reconcileStepIndex(base);
+  }
+
+  /** Toutes les questions fixes d'une catégorie (désactivées si parcours organisateur). */
+  private legacyQuestionIdsForCategory(category: IntakeCategory): string[] {
+    const ids = INTAKE_QUESTIONS[category].map((q) => q.id);
+    if (category === 'ELECTRICITY') {
+      return [...ids, ...INTAKE_LIGHTING_ELECTRICITY.map((q) => q.id)];
+    }
+    return ids;
   }
 
   /** Analyse la phrase initiale et produit les messages Lia (situation → conseils). */
@@ -451,6 +511,27 @@ export class LiaIntakeService {
 
   getCurrentQuestion(state: LiaIntakeState): IntakeQuestion | null {
     if (state.phase !== 'INTAKE') return null;
+
+    if (state.organizer) {
+      const tree = getPanneTreeById(state.organizer.panneId);
+      if (!tree) return null;
+      const ctx = buildOrganizerContext(
+        state.intakeTitle ?? '',
+        state.intakeDescription ?? '',
+        state,
+      );
+      const cause = nextOrganizerCauseForIntake(
+        tree,
+        state.organizer,
+        ctx,
+      );
+      if (!cause) return null;
+      return {
+        id: `${ORG_QUESTION_PREFIX}${cause.id}`,
+        text: formatOrganizerQuestionText(tree, cause, state),
+      };
+    }
+
     const list = getIntakeQuestionsForState(state);
     const skipped = new Set(state.skippedQuestionIds ?? []);
     for (let i = state.stepIndex; i < list.length; i++) {
@@ -478,6 +559,27 @@ export class LiaIntakeService {
   }
 
   reconcileStepIndex(state: LiaIntakeState): LiaIntakeState {
+    if (state.organizer) {
+      const tree = getPanneTreeById(state.organizer.panneId);
+      if (!tree) {
+        return { ...state, organizer: undefined };
+      }
+      const ctx = buildOrganizerContext(
+        state.intakeTitle ?? '',
+        state.intakeDescription ?? '',
+        state,
+      );
+      const next = nextOrganizerCauseForIntake(tree, state.organizer, ctx);
+      if (!next) {
+        return {
+          ...state,
+          stepIndex: 0,
+          phase: this.needsPhoto(state) ? 'AWAITING_PHOTO' : 'DONE',
+        };
+      }
+      return { ...state, stepIndex: 0, phase: 'INTAKE' };
+    }
+
     const list = getIntakeQuestionsForState(state);
     const skipped = new Set(state.skippedQuestionIds ?? []);
     let stepIndex = 0;
@@ -502,8 +604,13 @@ export class LiaIntakeService {
   recordAnswer(state: LiaIntakeState, answer: string): LiaIntakeState {
     const q = this.getCurrentQuestion(state);
     if (!q) return state;
-    const answers = { ...state.answers, [q.id]: answer.trim() };
-    return this.reconcileStepIndex({ ...state, answers });
+    const trimmed = answer.trim();
+    const answers = { ...state.answers, [q.id]: trimmed };
+    let next: LiaIntakeState = { ...state, answers };
+    if (isOrganizerQuestionId(q.id)) {
+      next = applyOrganizerAnswer(next, q.id, trimmed);
+    }
+    return this.reconcileStepIndex(next);
   }
 
   /** Photo utile pour le diagnostic visuel (sauf cas purement administratif). */

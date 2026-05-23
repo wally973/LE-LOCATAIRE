@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "updatedAt": "2026-05-16",
+  "version": 2,
+  "updatedAt": "2026-05-21",
   "description": "Références locatif (métropole + outre-mer) — sources service-public.gouv.fr et legifrance.gouv.fr. Ne remplace pas un avis juridique.",
   "entries": [
     {
@@ -269,6 +269,176 @@
       "sortOrder": 40
     },
     {
+      "slug": "electricity-eclairage-localise",
+      "kind": "FAQ",
+      "category": "ELECTRICITY",
+      "title": "Éclairage localisé — ampoule, interrupteur, circuit",
+      "summary": "Ampoule et interrupteur souvent locataire ; disjoncteur circuit ou câblage fixe → bailleur.",
+      "content": "Une panne d'éclairage dans une seule pièce (salle de bain, chambre) après remplacement d'ampoule par le locataire : vérifier interrupteur et disjoncteur du circuit au tableau. Interrupteur ou douille/support usé : réparations locatives (décret 87-712). Disjoncteur qui ne tient pas en position, odeur, fils visibles, tableau ou câblage encastré : charge bailleur. Coupure sur tout le logement : vérifier disjoncteur général et abonnement, puis bailleur si l'installation est en cause.",
+      "responsibilityHint": "NUANCE",
+      "keywords": ["ampoule", "lumière", "éclairage", "interrupteur", "salle de bain", "disjoncteur", "douille", "circuit"],
+      "sources": [
+        {
+          "label": "Service Public — F31697",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31697",
+          "article": null
+        }
+      ],
+      "exceptions": ["Abonnement fournisseur locataire"],
+      "sortOrder": 41
+    },
+    {
+      "slug": "chauffage-eau-chaude-bailleur",
+      "kind": "FAQ",
+      "category": "HEATING",
+      "title": "Chauffage et eau chaude — panne",
+      "summary": "Absence de chauffage ou d'eau chaude en cours de bail : obligation de rétablissement par le bailleur (hors entretien locatif sur appareil locataire).",
+      "content": "Le bailleur doit maintenir un logement décent : chauffage adapté et eau chaude en bon état. Panne de chaudière collective, réseau ou équipement fourni par le bailleur : intervention bailleur (urgence en saison froide). Entretien courant d'un appareil individuel locatif peut relever du locataire si l'usage en est la cause ; la vétusté ou la panne sans faute locataire reste au bailleur.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["chauffage", "radiateur", "eau chaude", "chaudière", "ballon", "froid", "décent"],
+      "sources": [
+        {
+          "label": "Service Public — travaux bailleur F31699",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31699",
+          "article": null
+        },
+        {
+          "label": "Service Public — logement décent F2042",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2042",
+          "article": null
+        }
+      ],
+      "exceptions": ["Négligence locataire sur appareil individuel"],
+      "sortOrder": 42
+    },
+    {
+      "slug": "ascenseur-panne-bailleur",
+      "kind": "FAQ",
+      "category": "BUILDING_COMMON",
+      "title": "Ascenseur en panne",
+      "summary": "Remise en service et gros travaux : bailleur ; entretien courant cabine peut être charge récupérable (87-713).",
+      "content": "L'ascenseur est une partie commune. Panne, blocage, sécurité : le bailleur organise la remise en service. Le remplacement ou la grosse réparation n'est pas à la charge du locataire seul. L'entretien courant (ampoules cabine, petits boutons) peut entrer dans les charges récupérables selon le décret 87-713.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["ascenseur", "cabine", "panne", "parties communes", "monte-charge"],
+      "sources": [
+        {
+          "label": "Service Public — charges F947",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F947",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 43
+    },
+    {
+      "slug": "vmc-ventilation-collective",
+      "kind": "FAQ",
+      "category": "BUILDING_COMMON",
+      "title": "VMC et ventilation collective",
+      "summary": "Extraction d'air, VMC grippée ou bruyante dans les parties communes → bailleur.",
+      "content": "La ventilation mécanique contrôlée (VMC) et les réseaux d'extraction collectifs relèvent de l'entretien du bâtiment. Signalement : pièce concernée, bruit, odeurs, condensation. Le locataire entretient les bouches d'extraction accessibles ; le moteur, gaines et équipement collectif sont à la charge du bailleur.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["vmc", "ventilation", "extraction", "aération", "condensation"],
+      "sources": [
+        {
+          "label": "Service Public — logement décent F2042",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2042",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 44
+    },
+    {
+      "slug": "nuisibles-logement-decent",
+      "kind": "FAQ",
+      "category": "PESTS",
+      "title": "Nuisibles (cafards, rats, punaises)",
+      "summary": "Infestation = critère de décence ; traitement et origine structurelle → bailleur en principe.",
+      "content": "Un logement décent est exempt de nuisibles et parasites (rats, cafards, punaises de lit, etc.). Le locataire signale avec photos et pièces concernées. Le bailleur organise désinsectisation / traitement ; si l'origine est structurelle (réseau, parties communes), il prend en charge. L'entretien courant évite l'attraction des nuisibles (ordures, humidité).",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["cafard", "rat", "punaise", "nuisible", "parasite", "décent", "insalubrité"],
+      "sources": [
+        {
+          "label": "Service Public — logement décent F2042",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2042",
+          "article": null
+        }
+      ],
+      "exceptions": ["Infestation liée uniquement à négligence locative avérée"],
+      "sortOrder": 45
+    },
+    {
+      "slug": "serrure-acces-logement",
+      "kind": "FAQ",
+      "category": "LOCK",
+      "title": "Serrure et accès au logement",
+      "summary": "Serrure défectueuse ou sécurité de la porte du lot : souvent bailleur ; clé perdue par le locataire : locataire.",
+      "content": "Porte d'entrée du logement et serrure en état de fonctionnement : obligation du bailleur (sécurité, décence). Clé perdue ou cassée par le locataire : remplacement à ses frais. Porte palière ou digicode d'immeuble : parties communes → bailleur.",
+      "responsibilityHint": "NUANCE",
+      "keywords": ["serrure", "clé", "porte", "verrou", "accès"],
+      "sources": [
+        {
+          "label": "Service Public — dégradations F21105",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F21105",
+          "article": null
+        }
+      ],
+      "exceptions": ["Clé perdue par le locataire"],
+      "sortOrder": 46
+    },
+    {
+      "slug": "parties-communes-proprete",
+      "kind": "FAQ",
+      "category": "BUILDING_COMMON",
+      "title": "Propreté des parties communes",
+      "summary": "Nettoyage et hygiène des halls, cages d'escalier : bailleur (charges récupérables possibles).",
+      "content": "Le nettoyage régulier des parties communes (hall, escaliers, local poubelles) est assuré par le bailleur, éventuellement refacturé via charges récupérables (87-713). Insalubrité persistante, déchets, odeurs : signalement au bailleur avec photos et localisation (bâtiment, étage).",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["propreté", "ménage", "hall", "couloir", "déchets", "parties communes"],
+      "sources": [
+        {
+          "label": "Service Public — charges F947",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F947",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 47
+    },
+    {
+      "slug": "detecteur-fumee-securite",
+      "kind": "FAQ",
+      "category": "SAFETY",
+      "title": "Détecteur de fumée",
+      "summary": "Équipement de sécurité obligatoire : installation et bon fonctionnement en principe bailleur.",
+      "content": "Le détecteur de fumée doit être présent et fonctionnel (sécurité du logement). Défectueux, absent ou périmé : signalement immédiat au bailleur. Le locataire peut remplacer les piles si accessibles et si le bailleur l'a indiqué ; le remplacement de l'appareil ou mise aux normes relève du bailleur.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["détecteur", "fumée", "sécurité", "alarme"],
+      "sources": [
+        {
+          "label": "Service Public — logement décent F2042",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2042",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 48
+    },
+    {
+      "slug": "reclamations-perimetre-logement-batiment",
+      "kind": "FAQ",
+      "category": "GENERIC",
+      "title": "Où porter sa réclamation ? (logement, bâtiment, résidence)",
+      "summary": "Localiser le problème aide le routage : lot privé, parties communes d'un immeuble, ou ensemble résidentiel.",
+      "content": "Logement : cuisine, SDB, pièces privatives, équipements du lot (radiateurs individuels, tableau divisionnaire). Bâtiment : cage d'escalier, ascenseur, couloirs, colonnes, toiture, VMC collective. Résidence : parkings, espaces verts, laverie, portail, plusieurs bâtiments. Préciser la pièce, l'étage et si d'autres logements sont touchés accélère la prise en charge.",
+      "responsibilityHint": null,
+      "keywords": ["logement", "bâtiment", "résidence", "parties communes", "périmètre"],
+      "sources": [],
+      "exceptions": [],
+      "sortOrder": 5
+    },
+    {
       "slug": "humidite-moisissure-nuance",
       "kind": "FAQ",
       "category": "GENERIC",
@@ -286,6 +456,30 @@
       ],
       "exceptions": [],
       "sortOrder": 50
+    },
+    {
+      "slug": "humidite-photo-bricolage-bailleur",
+      "kind": "FAQ",
+      "category": "HUMIDITY",
+      "title": "Humidité — photo et locataire bricoleur",
+      "summary": "Charge locataire si photo sans dégradation structurelle manifeste ; bailleur si infiltration ou bâti atteint.",
+      "content": "En pièce humide (Guyane), le locataire assure ventilation et entretien courant. S'il a déjà essayé de traiter (bricolage) et que les photos ne montrent pas de dégradation structurelle manifeste (fissure, infiltration, salpêtre, remontée capillaire, cloques étendues), la charge reste locative. Si l'analyse photo ou le contexte révèle une atteinte du bâti ou une infiltration, le bailleur intervient. La photo sert de preuve objective pour limiter les litiges.",
+      "responsibilityHint": "NUANCE",
+      "keywords": ["humidité", "moisissure", "photo", "bricolage", "structure", "infiltration", "ventilation"],
+      "sources": [
+        {
+          "label": "Service Public — F2042 logement décent",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2042",
+          "article": null
+        },
+        {
+          "label": "Service Public — F21105 dégradations",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F21105",
+          "article": null
+        }
+      ],
+      "exceptions": ["Infiltration toiture ou façade avérée"],
+      "sortOrder": 51
     },
     {
       "slug": "degradations-responsabilite",

@@ -27,6 +27,17 @@ const CASES: { label: string; text: string; expectCount: number }[] = [
     text: 'Il y a un souci chez moi',
     expectCount: 0,
   },
+  {
+    label: 'ascenseur + chauffage',
+    text:
+      "L'ascenseur est bloqué et je n'ai plus de chauffage dans l'appartement",
+    expectCount: 2,
+  },
+  {
+    label: 'VMC + cafards résidence',
+    text: 'La VMC ne tourne plus et il y a des cafards dans la cuisine',
+    expectCount: 2,
+  },
 ];
 
 let failed = 0;

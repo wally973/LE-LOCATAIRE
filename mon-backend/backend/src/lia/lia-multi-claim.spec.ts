@@ -34,4 +34,14 @@ describe('detectMultipleClaims', () => {
     const claims = detectMultipleClaims('Souci', 'Il y a un souci chez moi');
     expect(claims.length).toBe(0);
   });
+
+  it('détecte ascenseur et chauffage comme sujets distincts', () => {
+    const text =
+      "L'ascenseur est bloqué et je n'ai plus de chauffage dans l'appartement";
+    const claims = detectMultipleClaims(text, text);
+    expect(claims.length).toBe(2);
+    const labels = claims.map((c) => c.label);
+    expect(labels).toContain('Parties communes / immeuble');
+    expect(labels).toContain('Chauffage / radiateurs');
+  });
 });

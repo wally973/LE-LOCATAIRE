@@ -3,7 +3,8 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import type { AiPipelineInput } from '../ai-pipeline.port';
 import { parseJsonFromLlm } from '../utils/llm-json.util';
-import type { PathologistResult } from './pathologist.types';
+import type { HumidityPhotoAssessment, PathologistResult } from './pathologist.types';
+import { inferHumidityPhotoFromText } from '../../lia/lia-humidity-rules';
 
 interface GeminiPathologistJson {
   category: string;
@@ -12,6 +13,9 @@ interface GeminiPathologistJson {
   needsMorePhoto: boolean;
   observation: string;
   suggestedArtisanType?: string;
+  structuralDegradationVisible?: boolean;
+  tenantSurfaceNeglectOnly?: boolean;
+  humidityIndicators?: string[];
 }
 
 /**
@@ -49,10 +53,13 @@ export class LiaPathologistService {
           `Description: ${input.description}`,
           input.tenantFeedback ? `Précision locataire: ${input.tenantFeedback}` : '',
           `Tentative n°${input.attempt}.`,
+          'Éclairage localisé (ampoule, SDB) sans coupure générale → ELECTRICITY.',
           'Réponds UNIQUEMENT en JSON valide avec les clés:',
           'category (PLUMBING|ELECTRICITY|HUMIDITY|LOCK|HEATING|WATER_DAMAGE|SOCIAL_SIGNAL|OTHER),',
           'severity (LOW|MEDIUM|HIGH), confidence (0-1), needsMorePhoto (boolean),',
           'observation (phrase courte en français), suggestedArtisanType (PLUMBER|ELECTRICIAN|LOCKSMITH|HEATING_TECH ou null).',
+          'Si HUMIDITY et photo : structuralDegradationVisible (fissure, infiltration, salpêtre, cloques étendues, remontée capillaire),',
+          'tenantSurfaceNeglectOnly (moisissure localisée/condensation sans atteinte structure), humidityIndicators (mots-clés courts).',
         ]
           .filter(Boolean)
           .join('\n'),
@@ -94,14 +101,50 @@ export class LiaPathologistService {
     if (!text) throw new Error('Réponse Gemini vide');
 
     const parsed = parseJsonFromLlm<GeminiPathologistJson>(text);
+    const base = this.buildPathologistResult(
+      parsed,
+      input,
+      true,
+    );
+    return base;
+  }
+
+  private buildPathologistResult(
+    parsed: GeminiPathologistJson,
+    input: AiPipelineInput,
+    fromLlm: boolean,
+  ): PathologistResult {
+    const category = parsed.category ?? 'OTHER';
+    const hasPhoto = input.photoUrls.length > 0;
+    const contextText = `${input.title} ${input.description} ${input.tenantFeedback ?? ''}`;
+    let humidityPhoto: HumidityPhotoAssessment | undefined;
+    if (category === 'HUMIDITY' && hasPhoto) {
+      if (
+        typeof parsed.structuralDegradationVisible === 'boolean' ||
+        typeof parsed.tenantSurfaceNeglectOnly === 'boolean'
+      ) {
+        humidityPhoto = {
+          structuralDegradationVisible: Boolean(
+            parsed.structuralDegradationVisible,
+          ),
+          tenantSurfaceNeglectOnly: Boolean(parsed.tenantSurfaceNeglectOnly),
+          indicators: Array.isArray(parsed.humidityIndicators)
+            ? parsed.humidityIndicators.map(String)
+            : [],
+        };
+      } else {
+        humidityPhoto = inferHumidityPhotoFromText(contextText, true);
+      }
+    }
     return {
-      category: parsed.category ?? 'OTHER',
+      category,
       severity: parsed.severity ?? 'MEDIUM',
       confidence: Math.min(1, Math.max(0, Number(parsed.confidence) || 0.5)),
       needsMorePhoto: Boolean(parsed.needsMorePhoto),
       observation: parsed.observation ?? 'Analyse visuelle effectuée.',
       suggestedArtisanType: parsed.suggestedArtisanType,
-      fromLlm: true,
+      fromLlm,
+      humidityPhoto,
     };
   }
 
@@ -139,7 +182,21 @@ export class LiaPathologistService {
       },
       {
         category: 'ELECTRICITY',
-        keywords: ['électric', 'electric', 'prise', 'disjonct'],
+        keywords: [
+          'électric',
+          'electric',
+          'prise',
+          'disjonct',
+          'ampoule',
+          'lumiere',
+          'lumière',
+          'éclairage',
+          'eclairage',
+          'interrupteur',
+          'plafonnier',
+          'courant',
+          'panne',
+        ],
         artisan: 'ELECTRICIAN',
         severity: 'MEDIUM',
       },
@@ -161,14 +218,28 @@ export class LiaPathologistService {
         const hasPhoto = input.photoUrls.length > 0;
         const needsMorePhoto =
           input.attempt === 1 && !hasPhoto && input.description.trim().length < 20;
+        const contextText = `${input.title} ${input.description} ${input.tenantFeedback ?? ''}`;
+        let observation = `Problème probable : ${b.category.toLowerCase()} (simulation).`;
+        let humidityPhoto: HumidityPhotoAssessment | undefined;
+        if (b.category === 'HUMIDITY' && hasPhoto) {
+          humidityPhoto = inferHumidityPhotoFromText(contextText, true);
+          if (humidityPhoto.structuralDegradationVisible) {
+            observation =
+              'Photo / texte : signes compatibles avec atteinte du bâti (infiltration ou structure).';
+          } else if (humidityPhoto.tenantSurfaceNeglectOnly) {
+            observation =
+              'Photo / texte : moisissure de surface localisée, sans dégradation structurelle manifeste.';
+          }
+        }
         return {
           category: b.category,
           severity: b.severity,
           confidence: hasPhoto ? 0.82 : 0.68,
           needsMorePhoto,
-          observation: `Problème probable : ${b.category.toLowerCase()} (simulation).`,
+          observation,
           suggestedArtisanType: b.artisan,
           fromLlm: false,
+          humidityPhoto,
         };
       }
     }

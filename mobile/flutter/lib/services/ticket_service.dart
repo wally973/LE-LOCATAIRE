@@ -260,6 +260,30 @@ class TicketService {
 
   /// Le locataire a déjà accepté ou refusé un artisan (boutons ou message).
   static bool hasArtisanChoiceInMessages(List<TicketMessage> messages) {
+    const declineHints = [
+      'pas de plombier',
+      'sans plombier',
+      'pas d’électricien',
+      "pas d'electricien",
+      'sans électricien',
+      'pas de serrurier',
+      'pas d’artisan',
+      "pas d'artisan",
+      'ne souhaite pas',
+      'ne veux pas',
+      'pas besoin de plombier',
+      'pas besoin d’électricien',
+    ];
+    const acceptHints = [
+      'souhaite un plombier',
+      'souhaite un électricien',
+      'souhaite un serrurier',
+      'souhaite un chauffagiste',
+      'souhaite un artisan',
+      'veux un plombier',
+      'veux un électricien',
+    ];
+
     for (final m in messages) {
       if (m.isLiaHost) {
         final c = m.content.toLowerCase();
@@ -271,17 +295,11 @@ class TicketService {
       }
       if (!m.isTenant) continue;
       final t = m.content.toLowerCase().trim();
-      if (t.contains('pas de plombier') ||
-          t.contains('sans plombier') ||
-          t.contains('ne souhaite pas') ||
-          t.contains('ne veux pas') ||
-          t.contains('pas besoin de plombier')) {
-        return true;
-      }
-      if (t.contains('souhaite un plombier') ||
-          t.contains('veux un plombier') ||
-          t.contains('voudrais un plombier') ||
-          (t.startsWith('oui') && t.contains('plombier'))) {
+      if (declineHints.any((k) => t.contains(k))) return true;
+      if (acceptHints.any((k) => t.contains(k))) return true;
+      if (t.startsWith('oui') &&
+          RegExp(r'plombier|électricien|electricien|serrurier|artisan')
+              .hasMatch(t)) {
         return true;
       }
     }

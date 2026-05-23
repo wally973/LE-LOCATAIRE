@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config.dart';
 import '../models/companion_state.dart';
+import '../models/tenant_artisan_offer.dart';
 import '../models/qualification_settings.dart';
 import '../models/ticket_message.dart';
 import '../widgets/companion_safety_banner.dart';
@@ -292,17 +293,19 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
     }
   }
 
-  Future<void> _acceptPlumber() async {
-    await _sendText('Oui, je souhaite un plombier');
+  Future<void> _acceptArtisan() async {
+    final offer = TenantArtisanOffer.fromTicket(_ticket);
+    await _sendText(offer?.acceptMessage ?? 'Oui, je souhaite un artisan');
   }
 
-  Future<void> _declinePlumber() async {
+  Future<void> _declineArtisan() async {
     if (_sending) return;
     setState(() => _sending = true);
     try {
+      final offer = TenantArtisanOffer.fromTicket(_ticket);
       final updated = await TicketService.instance.postMessage(
         widget.ticketId,
-        'Non, je ne souhaite pas de plombier',
+        offer?.declineMessage ?? 'Non, je ne souhaite pas d’artisan',
       );
       if (!mounted) return;
       final ticket = await TicketService.instance.getTicket(widget.ticketId);
@@ -390,6 +393,7 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
     final canSkipPhoto = !_settings.requirePhotoEvidence;
     final title = _ticket?['title'] as String? ?? 'Conversation avec Lia';
     final companion = CompanionState.fromTicketJson(_ticket);
+    final artisanOffer = TenantArtisanOffer.fromTicket(_ticket);
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -485,11 +489,12 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
                   ),
                 ),
               ),
-            if (showArtisanChoice)
+            if (showArtisanChoice && artisanOffer != null)
               _ArtisanChoicePanel(
+                offer: artisanOffer,
                 sending: _sending,
-                onAccept: _acceptPlumber,
-                onDecline: _declinePlumber,
+                onAccept: _acceptArtisan,
+                onDecline: _declineArtisan,
               ),
             if (!analyzing && inIntakeQuestions)
               Material(
@@ -534,11 +539,13 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
 }
 
 class _ArtisanChoicePanel extends StatelessWidget {
+  final TenantArtisanOffer offer;
   final bool sending;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
 
   const _ArtisanChoicePanel({
+    required this.offer,
     required this.sending,
     required this.onAccept,
     required this.onDecline,
@@ -554,8 +561,7 @@ class _ArtisanChoicePanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Si vous le souhaitez, nous pouvons vous proposer un plombier partenaire (devis). '
-              'L’intervention reste à votre charge : le bailleur n’est pas tenu de déboucher l’évier.',
+              offer.panelDescription,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -569,7 +575,7 @@ class _ArtisanChoicePanel extends StatelessWidget {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: sending ? null : onAccept,
-                    icon: const Icon(Icons.plumbing, size: 18),
+                    icon: Icon(offer.icon, size: 18),
                     label: const Text('Oui'),
                   ),
                 ),

@@ -57,7 +57,84 @@ const TOPIC_RULES: {
       /robinet/i,
       /canalis/i,
       /(?:^|\s|[''])eau(?:\s|$)/i,
+      /eau chaude/i,
+      /chauffe[- ]?eau/i,
     ],
+  },
+  {
+    id: 'heating',
+    category: 'GENERIC',
+    label: 'Chauffage / radiateurs',
+    patterns: [
+      /chauffage/i,
+      /radiateur/i,
+      /chaudi[eè]re/i,
+      /calorif[eè]re/i,
+      /pas de chauffage/i,
+      /il fait froid/i,
+    ],
+  },
+  {
+    id: 'building_common',
+    category: 'GENERIC',
+    label: 'Parties communes / immeuble',
+    patterns: [
+      /ascenseur/i,
+      /parties communes/i,
+      /couloir.*(sale|dechets|odeur|insalubr)/i,
+      /hall.*(sale|dechets|odeur|insalubr)/i,
+      /cage d.?escalier/i,
+      /interphone/i,
+      /digicode/i,
+      /\bvmc\b/i,
+      /ventilation collective/i,
+      /porte pali[eè]re/i,
+    ],
+  },
+  {
+    id: 'pests',
+    category: 'GENERIC',
+    label: 'Nuisibles / insalubrité',
+    patterns: [
+      /cafard/i,
+      /punaise/i,
+      /\brat\b/i,
+      /nuisible/i,
+      /parasite/i,
+      /insalubr/i,
+    ],
+  },
+  {
+    id: 'lock',
+    category: 'GENERIC',
+    label: 'Serrure / clés',
+    patterns: [
+      /serrure/i,
+      /cl[eé] perdue/i,
+      /cl[eé] cass/i,
+      /porte d.?entr[eé]e.*(coinc|bloqu|ferme pas)/i,
+      /(coinc|bloqu|ferme pas).*porte d.?entr[eé]e/i,
+    ],
+  },
+  {
+    id: 'residence',
+    category: 'GENERIC',
+    label: 'Résidence / extérieur',
+    patterns: [
+      /parking/i,
+      /espace[s]? vert/i,
+      /aire de jeu/i,
+      /portail/i,
+      /laverie/i,
+      /gardien/i,
+      /concierge/i,
+    ],
+  },
+  {
+    id: 'neighbor',
+    category: 'GENERIC',
+    label: 'Voisinage / bruit',
+    patterns: [/voisin/i, /tapage/i, /bruit.*(nuit|voisin)/i],
   },
 ];
 
@@ -149,12 +226,12 @@ export function detectMultipleClaims(
 ): DetectedClaim[] {
   const full = mergeTitleAndDescription(title, description);
   const found: DetectedClaim[] = [];
-  const seen = new Set<IntakeCategory>();
+  const seen = new Set<string>();
 
   for (const rule of TOPIC_RULES) {
     const excerpt = excerptForRule(full, rule.patterns);
-    if (excerpt.length > 0 && !seen.has(rule.category)) {
-      seen.add(rule.category);
+    if (excerpt.length > 0 && !seen.has(rule.id)) {
+      seen.add(rule.id);
       found.push({
         id: rule.id,
         category: rule.category,

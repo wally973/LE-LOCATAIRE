@@ -1,7 +1,7 @@
 # LE LOCATAIRE — Notes de projet
 
 Document de synthèse regroupant les **résumés de fin de session** (assistant + développement backend).  
-Dernière mise à jour : **22 mai 2026**.
+Dernière mise à jour : **21 mai 2026**.
 
 **Manifeste produit / architecture IA** : voir [`MANIFESTE_FINAL.md`](MANIFESTE_FINAL.md) (rectification expert, Goals + SharedState, mapping stack réelle).
 
@@ -28,6 +28,32 @@ Dernière mise à jour : **22 mai 2026**.
 **Compte démo** (si seed à jour) : `demo.locataire@lelocataire.test` / `DemoLocataire1!` — lancer backend + `flutter run` (Chrome ou téléphone sur le même Wi‑Fi, `config.dart` = IP du PC).
 
 **Script backend** (détection multi-sujets sans l’app) : `npx ts-node scripts/test-detect-claims.ts` depuis `mon-backend/backend`.
+
+### Référentiel réclamations (logement / bâtiment / résidence)
+
+Document source : [`data/reclamations-locataires.json`](data/reclamations-locataires.json) (typologie + exemples + charge probable).  
+Base juridique enrichie : [`data/legal-references.json`](data/legal-references.json) v2 (chauffage, ascenseur, VMC, nuisibles, serrure, parties communes, périmètre).
+
+| Périmètre | Exemples de réclamations fréquentes | Charge type |
+|-----------|-------------------------------------|-------------|
+| **Logement** | Fuite évier, lumière SDB, pas d’eau chaude, radiateur froid, serrure, nuisibles dans le lot | Nuance locataire / bailleur (87-712) |
+| **Bâtiment** | Infiltration toiture, colonne d’eau, ascenseur, VMC, hall/couloir, interphone | Bailleur (parties communes) |
+| **Résidence** | Parking, espaces verts, laverie, portail | Bailleur |
+| **Hors technique Lia** | Charges contestées, bruit de voisin | Admin / non recevable |
+
+Après pull : `npx ts-node scripts/seed-legal-references.ts` et `npx ts-node scripts/seed-ai-memory.ts` puis `npx ts-node scripts/sync-legal-references-assets.ts`.
+
+### Carte logique des pannes (IA Organisateur)
+
+Fichier : [`data/panne-diagnostic-logique.json`](data/panne-diagnostic-logique.json) — **11 types de panne**, chaque cause avec :
+
+- `probabilityGuyane` (ordre des questions, calibrage tropical / réseau / pluies)
+- `discriminantQuestion` (une réponse peut écarter la piste)
+- `danger` (CRITICAL → LOW)
+
+Chargement backend : `loadPanneDiagnosticCatalog()`, `detectPanneFromText()`, `nextOrganizerCause()` dans `mon-backend/backend/src/lia/panne-diagnostic.loader.ts`.
+
+**Intake réactif** : si un arbre est trouvé, `lia-intake-reactive` pose les `discriminantQuestion` du JSON (plus les listes fixes `INTAKE_QUESTIONS` / `INTAKE_LIGHTING_ELECTRICITY` pour ce dossier).
 
 ---
 

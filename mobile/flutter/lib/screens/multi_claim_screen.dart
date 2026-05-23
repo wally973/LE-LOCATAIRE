@@ -25,12 +25,6 @@ class _MultiClaimScreenState extends State<MultiClaimScreen> {
   bool _loading = false;
   String? _error;
 
-  String _titleFrom(String text) {
-    final d = text.trim();
-    if (d.length <= 80) return d;
-    return '${d.substring(0, 77)}…';
-  }
-
   Future<void> _openClaim(DetectedClaim claim) async {
     setState(() {
       _loading = true;
@@ -46,7 +40,7 @@ class _MultiClaimScreenState extends State<MultiClaimScreen> {
       }
 
       final payload = await TicketService.instance.createTicket(
-        title: _titleFrom(claim.excerpt),
+        title: claim.label,
         description: claim.excerpt,
         housingId: housingId,
         claimCategory: claim.category,

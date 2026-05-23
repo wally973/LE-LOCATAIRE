@@ -98,9 +98,23 @@ function clauseMatchesRule(clause: string, patterns: RegExp[]): boolean {
   return patterns.some((p) => p.test(norm));
 }
 
+function uniqueClauses(clauses: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of clauses) {
+    const key = normalizeForMatch(c);
+    if (key.length < 8 || seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out;
+}
+
 function excerptForRule(full: string, patterns: RegExp[]): string {
   const clauses = clausesFromText(full);
-  const matching = clauses.filter((c) => clauseMatchesRule(c, patterns));
+  const matching = uniqueClauses(
+    clauses.filter((c) => clauseMatchesRule(c, patterns)),
+  );
   if (matching.length > 0) {
     return matching.join(' · ').trim().slice(0, 500);
   }
@@ -118,11 +132,22 @@ function excerptForRule(full: string, patterns: RegExp[]): string {
 }
 
 /** Repère 0, 1 ou plusieurs sujets distincts (WC + élec = 2). */
+function mergeTitleAndDescription(title: string, description: string): string {
+  const t = title.trim();
+  const d = description.trim();
+  if (!d) return t;
+  if (!t || t === d) return d;
+  const tBase = t.replace(/…$/u, '').trim();
+  if (d.includes(tBase) && tBase.length > 10) return d;
+  if (t.includes(d)) return t;
+  return `${t}\n${d}`;
+}
+
 export function detectMultipleClaims(
   title: string,
   description: string,
 ): DetectedClaim[] {
-  const full = `${title}\n${description}`.trim();
+  const full = mergeTitleAndDescription(title, description);
   const found: DetectedClaim[] = [];
   const seen = new Set<IntakeCategory>();
 

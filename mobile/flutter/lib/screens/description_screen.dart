@@ -84,11 +84,15 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
       setState(() => _loadingLabel = 'Ouverture du dossier…');
 
       final excerpt = detected.length == 1 ? detected.first.excerpt : description;
+      final title = detected.length == 1
+          ? detected.first.label
+          : _titleFrom(excerpt);
 
       final payload = await TicketService.instance.createTicket(
-        title: _titleFrom(excerpt),
+        title: title,
         description: excerpt,
         housingId: housingId,
+        claimCategory: detected.length == 1 ? detected.first.category : null,
       );
 
       final ticketId = (payload['id'] as num).toInt();

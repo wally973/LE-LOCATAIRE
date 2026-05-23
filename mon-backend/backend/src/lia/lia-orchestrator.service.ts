@@ -160,8 +160,11 @@ export class LiaOrchestratorService {
   private formatInitialTenantMessage(title: string, description: string): string {
     const t = title.trim();
     const d = description.trim();
-    if (!d || t === d) return t || d;
-    if (t && !d) return t;
+    if (!d) return t;
+    if (!t || t === d) return d;
+    const tBase = t.replace(/…$/u, '').trim();
+    if (d.includes(tBase) && tBase.length > 10) return d;
+    if (t.includes(d)) return t;
     return `${t}\n\n${d}`;
   }
 }

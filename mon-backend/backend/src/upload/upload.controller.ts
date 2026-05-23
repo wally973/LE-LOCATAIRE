@@ -1,10 +1,12 @@
 import {
   Controller,
   Post,
+  Req,
   UploadedFile,
   UseInterceptors,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { v4 as uuid } from 'uuid';
@@ -32,9 +34,13 @@ export class UploadController {
       }),
     }),
   )
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
+  uploadFile(@Req() req: Request, @UploadedFile() file: Express.Multer.File) {
+    const configured = process.env.PUBLIC_API_BASE_URL?.replace(/\/$/, '');
+    const base =
+      configured ||
+      `${req.protocol}://${req.get('host') ?? 'localhost:3000'}`;
     return {
-      url: `http://localhost:3000/uploads/${file.filename}`,
+      url: `${base}/uploads/${file.filename}`,
     };
   }
 }

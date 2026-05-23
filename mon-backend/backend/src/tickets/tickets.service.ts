@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
@@ -14,9 +15,14 @@ import { LiaOrchestratorService } from '../lia/lia-orchestrator.service';
 import { LiaConversationService } from '../lia/lia-conversation.service';
 import { CaseReferenceService } from './case-reference.service';
 import { TenantOccupancyService } from '../tenant-occupancy/tenant-occupancy.service';
+import { buildLandlordInfoEvents } from '../lia/lia-landlord-history';
+import { detectMultipleClaims } from '../lia/lia-multi-claim';
+import { parseIntakeState } from '../lia/lia-intake.service';
 
 @Injectable()
 export class TicketsService {
+  private readonly logger = new Logger(TicketsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
@@ -62,6 +68,16 @@ export class TicketsService {
       );
     }
 
+    const claims = detectMultipleClaims(dto.title, dto.description);
+    if (claims.length > 1) {
+      throw new BadRequestException({
+        code: 'MULTIPLE_CLAIMS',
+        message:
+          'Plusieurs problèmes distincts détectés. Créez une demande séparée pour chaque sujet.',
+        claims,
+      });
+    }
+
     const ticket = await this.prisma.ticket.create({
       data: {
         title: dto.title,
@@ -76,7 +92,12 @@ export class TicketsService {
 
     await this.caseRef.ensureTenantDossierNumber(tenantProfile.id);
     await this.caseRef.assignCaseNumber(ticket.id);
-    await this.occupancy.recordMoveIn(tenantProfile.id, dto.housingId);
+
+    setImmediate(() => {
+      void this.occupancy
+        .recordMoveIn(tenantProfile.id, dto.housingId)
+        .catch(() => undefined);
+    });
 
     const messages = await this.liaOrchestrator.startTicketConversation(
       ticket.id,
@@ -108,7 +129,32 @@ export class TicketsService {
 
     if (!ticket) throw new NotFoundException('Ticket introuvable');
 
-    return ticket;
+    const artisan = await this.prisma.artisanRequest.findUnique({
+      where: { ticketId },
+      select: { createdAt: true },
+    });
+    return this.enrichTicketLandlordFields(ticket, artisan);
+  }
+
+  /** Infos lecture seule pour recherche dossier (pas d’envoi planning technicien). */
+  private enrichTicketLandlordFields<
+    T extends {
+      id: number;
+      title: string;
+      responsibility: string | null;
+      aiLastDecision: unknown;
+      updatedAt: Date;
+    },
+  >(ticket: T, artisan: { createdAt: Date } | null) {
+    const landlordInfoEvents = buildLandlordInfoEvents({
+      title: ticket.title,
+      responsibility: ticket.responsibility,
+      aiLastDecision: ticket.aiLastDecision,
+      updatedAt: ticket.updatedAt,
+      hasArtisanRequest: artisan != null,
+      artisanRequestedAt: artisan?.createdAt ?? null,
+    });
+    return { ...ticket, landlordInfoEvents };
   }
 
   /**
@@ -239,13 +285,25 @@ export class TicketsService {
       },
     });
 
-    const ticketHistory = ticketRows.map((t) => ({
-      ...t,
-      housingLabel:
-        currentHousingId != null && t.housingId !== currentHousingId
-          ? `Ancien logement — ${t.housing?.address ?? ''}`
-          : null,
-    }));
+    const artisanRows = await this.prisma.artisanRequest.findMany({
+      where: { ticketId: { in: ticketRows.map((t) => t.id) } },
+      select: { ticketId: true, createdAt: true },
+    });
+    const artisanByTicket = new Map(
+      artisanRows.map((a) => [a.ticketId, a.createdAt]),
+    );
+
+    const ticketHistory = ticketRows.map((t) => {
+      const artisanAt = artisanByTicket.get(t.id);
+      const artisan = artisanAt ? { createdAt: artisanAt } : null;
+      return {
+        ...this.enrichTicketLandlordFields(t, artisan),
+        housingLabel:
+          currentHousingId != null && t.housingId !== currentHousingId
+            ? `Ancien logement — ${t.housing?.address ?? ''}`
+            : null,
+      };
+    });
 
     const focusTicket = focusTicketId
       ? ticketHistory.find((t) => t.id === focusTicketId)

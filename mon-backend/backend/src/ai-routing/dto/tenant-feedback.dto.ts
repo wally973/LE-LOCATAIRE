@@ -10,4 +10,9 @@ export class TenantFeedbackDto {
   @IsString()
   @MaxLength(2000)
   feedback?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  photoUrl?: string;
 }

@@ -14,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   /// Gestion de la connexion
@@ -62,11 +63,17 @@ class _LoginScreenState extends State<LoginScreen> {
         title: const Text("Connexion"),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
             // Titre
             const Text(
               "Bienvenue !",
@@ -95,12 +102,25 @@ class _LoginScreenState extends State<LoginScreen> {
             // Champ mot de passe
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: "Mot de passe",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                labelText: 'Mot de passe',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock),
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword
+                      ? 'Afficher le mot de passe'
+                      : 'Masquer le mot de passe',
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
+                ),
               ),
-              obscureText: true,
             ),
             const SizedBox(height: 20),
 
@@ -137,8 +157,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
               child: const Text("Créer votre compte"),
             ),
-          ],
-        ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

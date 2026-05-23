@@ -14,6 +14,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   Future<void> _register() async {
@@ -62,11 +63,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         title: const Text("Inscription"),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
             const Text(
               "Créer un compte",
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -90,22 +97,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 20),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: "Mot de passe",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                labelText: 'Mot de passe',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock),
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword
+                      ? 'Afficher les mots de passe'
+                      : 'Masquer les mots de passe',
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
+                ),
               ),
-              obscureText: true,
             ),
             const SizedBox(height: 20),
             TextField(
               controller: _confirmPasswordController,
-              decoration: const InputDecoration(
-                labelText: "Confirmer le mot de passe",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock_outline),
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                labelText: 'Confirmer le mot de passe',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword
+                      ? 'Afficher les mots de passe'
+                      : 'Masquer les mots de passe',
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
+                ),
               ),
-              obscureText: true,
             ),
             const SizedBox(height: 20),
             if (_errorMessage != null)
@@ -128,8 +161,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     : const Text("Créer un compte"),
               ),
             ),
-          ],
-        ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

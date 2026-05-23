@@ -41,13 +41,16 @@ class _SummaryScreenState extends State<SummaryScreen> {
         );
       }
 
+      final settings =
+          await TenantService.instance.getQualificationSettings();
+
       final payload = await TicketService.instance.createTicket(
         title: _title,
         description: widget.description,
         housingId: housingId,
       );
 
-      final ticketId = payload['id'] as int;
+      final ticketId = (payload['id'] as num).toInt();
       final messages = TicketService.messagesFromTicketPayload(payload);
 
       if (!mounted) return;
@@ -57,7 +60,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
         MaterialPageRoute(
           builder: (_) => TicketConversationScreen(
             ticketId: ticketId,
-            initialMessages: messages,
+            initialMessages: messages.isEmpty ? null : messages,
+            settings: settings,
           ),
         ),
         (route) => route.isFirst,
@@ -77,7 +81,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       appBar: AppBar(
         title: const Text('Résumé du problème'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +114,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 _error!,
                 style: const TextStyle(color: Colors.red),
               ),
-            const Spacer(),
+            const SizedBox(height: 32),
             _loading
                 ? const Center(child: CircularProgressIndicator())
                 : ElevatedButton(

@@ -94,9 +94,10 @@ if (_imageBytes == null || _pickedImage == null) {
       appBar: AppBar(
         title: const Text("Prendre une photo"),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               widget.message,

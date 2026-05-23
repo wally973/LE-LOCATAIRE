@@ -28,9 +28,8 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
       ),
-      // Définition des routes
+      home: const AuthWrapper(),
       routes: {
-        '/': (context) => const AuthWrapper(), // Route par défaut avec vérification auth
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const StartScreen(),
@@ -45,12 +44,11 @@ class MyApp extends StatelessWidget {
           );
         },
       },
-      initialRoute: '/', // Route initiale
     );
   }
 }
 
-/// Widget qui vérifie si l'utilisateur est connecté et redirige automatiquement
+/// Affiche la connexion ou l’accueil selon le token enregistré (sans écran vide).
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -68,7 +66,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _checkAuthStatus();
   }
 
-  /// Vérifier si l'utilisateur a déjà un token valide
   Future<void> _checkAuthStatus() async {
     final isLoggedIn = await AuthService.instance.isLoggedIn();
     if (isLoggedIn) {
@@ -76,6 +73,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         await NotificationService.instance.syncDeviceTokenAfterLogin();
       } catch (_) {}
     }
+    if (!mounted) return;
     setState(() {
       _isLoggedIn = isLoggedIn;
       _isLoading = false;
@@ -85,24 +83,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      // Afficher un loader pendant la vérification
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
-
-    // Redirection automatique
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_isLoggedIn) {
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
-    });
-
-    // Retourner un widget temporaire
-    return const SizedBox.shrink();
+    if (_isLoggedIn) {
+      return const StartScreen();
+    }
+    return const LoginScreen();
   }
 }

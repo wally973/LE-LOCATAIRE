@@ -38,6 +38,26 @@ export class UpdateFeatureFlagsDto {
   @IsOptional()
   @IsBoolean()
   paiementsModule?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  liaConversationEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requirePhotoEvidence?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  liaAutoResearchEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  technicianCreateTicketEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  liaTicketRelanceEnabled?: boolean;
 }
 
 export const FEATURE_FLAG_KEYS = LANDLORD_MODULE_KEYS;

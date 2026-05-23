@@ -3,11 +3,13 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Inject,
   Param,
   ParseIntPipe,
   Post,
   Req,
   UseGuards,
+  forwardRef,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -21,6 +23,8 @@ import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AiRoutingService } from './ai-routing.service';
 import { TenantFeedbackDto } from './dto/tenant-feedback.dto';
+import { parseIntakeState } from '../lia/lia-intake.service';
+import { LiaOrchestratorService } from '../lia/lia-orchestrator.service';
 import {
   LandlordModuleGuard,
   RequiresLandlordModule,
@@ -41,6 +45,8 @@ export class AiRoutingController {
   constructor(
     private readonly aiRouting: AiRoutingService,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => LiaOrchestratorService))
+    private readonly liaOrchestrator: LiaOrchestratorService,
   ) {}
 
   /**
@@ -61,8 +67,33 @@ export class AiRoutingController {
     @Body() dto: TenantFeedbackDto,
   ) {
     await this.assertTenantOwnsTicket(req.user.id, ticketId);
+
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      select: { aiLastDecision: true },
+    });
+    const intake = parseIntakeState(ticket?.aiLastDecision);
+
+    if (intake?.phase === 'AWAITING_PHOTO' && dto.photoUrl) {
+      await this.liaOrchestrator.onPhotoUploaded(
+        ticketId,
+        req.user.id,
+        dto.photoUrl,
+        dto.feedback,
+      );
+      return this.prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: {
+          housing: { include: { landlord: { include: { user: true } } } },
+          tenant: { include: { user: true } },
+          documents: true,
+        },
+      });
+    }
+
     return this.aiRouting.analyzeTicket(ticketId, {
       tenantFeedback: dto.feedback,
+      photoUrl: dto.photoUrl,
       force: true,
     });
   }

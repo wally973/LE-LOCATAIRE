@@ -27,6 +27,7 @@ import { VideoLibraryModule } from './video-library/video-library.module';
 import { ArtisanRequestsModule } from './artisan-requests/artisan-requests.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { AgentsModule } from './agents/agents.module';
+import { LegalReferencesModule } from './legal-references/legal-references.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { AgentsModule } from './agents/agents.module';
     ArtisanRequestsModule,
     FeatureFlagsModule,
     AgentsModule,
+    LegalReferencesModule,
   ],
 })
 export class AppModule {}

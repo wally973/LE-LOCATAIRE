@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { AiMemoryKind } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { LegalReferencesService } from '../legal-references/legal-references.service';
 
 export interface AiMemoryChunk {
   id: number;
@@ -16,7 +17,10 @@ export interface AiMemoryChunk {
  */
 @Injectable()
 export class AiMemoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly legalRefs?: LegalReferencesService,
+  ) {}
 
   async searchRelevant(params: {
     landlordProfileId?: number;
@@ -63,7 +67,7 @@ export class AiMemoryService {
       return { ...row, score };
     });
 
-    return scored
+    const memoryHits = scored
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
@@ -74,6 +78,26 @@ export class AiMemoryService {
         content,
         score,
       }));
+
+    if (!this.legalRefs || memoryHits.length >= limit) {
+      return memoryHits;
+    }
+
+    const legalHits = await this.legalRefs.search({
+      query: params.query,
+      limit: limit - memoryHits.length,
+    });
+    const legalAsMemory: AiMemoryChunk[] = legalHits.map((h, idx) => ({
+      id: -(idx + 1),
+      kind: 'FAQ_BAILLEUR' as AiMemoryKind,
+      title: h.title,
+      content: `${h.summary}\n\n${h.content}`,
+      score: h.score,
+    }));
+
+    return [...memoryHits, ...legalAsMemory]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
   }
 
   formatForPrompt(chunks: AiMemoryChunk[]): string {

@@ -480,6 +480,16 @@ model LandlordFeatureFlags {
   hlmModule              Boolean  @default(false)
   contratsModule         Boolean  @default(true)
   paiementsModule        Boolean  @default(true)
+  /// Conversation Lia (questions avant photo / diagnostic)
+  liaConversationEnabled Boolean  @default(true)
+  /// Photo demandée : réponse verbale seule insuffisante (Q47)
+  requirePhotoEvidence   Boolean  @default(true)
+  /// Auto-recherche interne avant diagnostic — moteur anti-hallucination (Q42, Q55, Q64)
+  liaAutoResearchEnabled Boolean  @default(true)
+  /// Création d’affaire par technicien (appel / constat) (Q48)
+  technicianCreateTicketEnabled Boolean @default(false)
+  /// Relance IA des affaires non finalisées (Q49)
+  liaTicketRelanceEnabled Boolean @default(false)
   updatedAt              DateTime @updatedAt
   landlord               LandlordProfile @relation(fields: [landlordProfileId], references: [id], onDelete: Cascade)
 }
@@ -883,6 +893,37 @@ model TicketMessage {
   ticket    Ticket            @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, createdAt])
+}
+
+/// Référence juridique structurée (sync mobile offline + recherche API).
+enum LegalReferenceKind {
+  LOI
+  DECRET
+  CODE_CIVIL
+  ARRETE
+  FICHE_SP
+  FICHE_METIER
+  FAQ
+}
+
+model LegalReference {
+  slug                String             @id
+  version             Int                @default(1)
+  kind                LegalReferenceKind
+  category            String
+  title               String
+  summary             String
+  content             String
+  responsibilityHint  String?
+  keywords            String[]
+  sources             Json
+  exceptions          String[]           @default([])
+  sortOrder           Int                @default(0)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([category])
+  @@index([kind])
 }
 
 /// Sprint F — base de connaissances juridique / résidence (RAG juriste).

@@ -413,3 +413,271 @@
 .bailleur-table tbody tr:hover {
   background: #f8fafc;
 }
+
+.landlord-info-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.landlord-info-list--compact {
+  margin-top: 8px;
+}
+
+.landlord-info-item {
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 13px;
+}
+
+.landlord-info-item.landlord-info--tenant {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.landlord-info-item.landlord-info--declined {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.landlord-info-item.landlord-info--artisan {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+}
+
+.landlord-info-item.landlord-info--expert {
+  border-color: #6ee7b7;
+  background: #ecfdf5;
+}
+
+.landlord-info-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.landlord-info-item__date {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.landlord-info-item__detail {
+  margin: 6px 0 0;
+  color: #334155;
+  line-height: 1.4;
+}
+
+/* Pro Briefing technicien */
+.pro-briefing__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pro-briefing__badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.pro-briefing__summary {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border-left: 4px solid #2563eb;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pro-briefing__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pro-briefing__fact {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pro-briefing__fact--warn {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.pro-briefing__fact-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.pro-briefing__section {
+  margin-top: 20px;
+}
+
+.pro-briefing__section h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.pro-briefing__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pro-briefing__tags li {
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.pro-briefing__pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13px;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 0;
+}
+
+.pro-briefing__qa {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pro-briefing__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pro-briefing__chip {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  color: #334155;
+}
+
+.pro-briefing__chip:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.pro-briefing__chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pro-briefing__chat {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pro-briefing__exchange {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.pro-briefing__q {
+  margin: 0 0 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #475569;
+}
+
+.pro-briefing__a {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.pro-briefing__expert-banner {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #065f46;
+}
+
+.pro-briefing__expert-meta {
+  font-weight: 500;
+  color: #047857;
+}
+
+.pro-briefing__chip--warn {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.expert-rectify__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.expert-rectify__preset {
+  font-size: 13px;
+}
+
+.expert-rectify__flags {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expert-rectify__flags-label {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.expert-rectify__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.expert-rectify__take-charge {
+  margin: 12px 0 16px;
+}

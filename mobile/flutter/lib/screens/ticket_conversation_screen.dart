@@ -1,7 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../config.dart';
+import '../models/companion_state.dart';
+import '../models/qualification_settings.dart';
 import '../models/ticket_message.dart';
+import '../widgets/companion_safety_banner.dart';
+import '../services/tenant_service.dart';
 import '../services/ticket_flow_service.dart';
 import '../services/ticket_service.dart';
 
@@ -9,11 +14,13 @@ import '../services/ticket_service.dart';
 class TicketConversationScreen extends StatefulWidget {
   final int ticketId;
   final List<TicketMessage>? initialMessages;
+  final QualificationSettings? settings;
 
   const TicketConversationScreen({
     super.key,
     required this.ticketId,
     this.initialMessages,
+    this.settings,
   });
 
   @override
@@ -27,41 +34,147 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
 
   List<TicketMessage> _messages = [];
   Map<String, dynamic>? _ticket;
-  bool _loading = true;
+  bool _loading = false;
+  bool _syncing = false;
   bool _sending = false;
   bool _uploadingPhoto = false;
   String? _error;
   Timer? _refreshTimer;
+  Timer? _intakePollTimer;
+  Timer? _postAnalysisPollTimer;
+  int _lastMessageCount = 0;
+  int _analyzePollCount = 0;
+  int _intakePollCount = 0;
+  bool _refreshInFlight = false;
+  QualificationSettings _settings = QualificationSettings.defaults;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialMessages != null) {
-      _messages = List.from(widget.initialMessages!);
+    _settings = widget.settings ?? QualificationSettings.defaults;
+    final initial = widget.initialMessages;
+    if (initial != null && initial.isNotEmpty) {
+      _messages = List.from(initial);
+      _lastMessageCount = _messages.length;
+      _refresh(silent: true);
+    } else {
+      _refresh(silent: false);
     }
-    _refresh(silent: widget.initialMessages != null);
+    if (widget.settings == null) {
+      TenantService.instance.getQualificationSettings().then((s) {
+        if (mounted) setState(() => _settings = s);
+      });
+    }
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _intakePollTimer?.cancel();
+    _postAnalysisPollTimer?.cancel();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
+  int get _liaHostMessageCount =>
+      _messages.where((m) => m.isLiaHost).length;
+
+  bool get _needsBootstrapMessages =>
+      _liaHostMessageCount < 1 &&
+      !TicketService.isLiaAnalyzing(_ticket);
+
+  /// Récupère les messages Lia (accueil async ou Expert-Compagnon).
+  void _scheduleIntakePoll() {
+    _intakePollTimer?.cancel();
+    _intakePollCount = 0;
+    final phase = TicketService.intakePhase(_ticket);
+    final status = _ticket?['status'] as String?;
+    final bootstrap = _needsBootstrapMessages;
+    if (!bootstrap &&
+        phase != 'INTAKE' &&
+        phase != 'AWAITING_PHOTO' &&
+        status != 'OPEN' &&
+        status != 'AWAITING_TENANT_PHOTO') {
+      return;
+    }
+    final interval =
+        bootstrap ? const Duration(seconds: 2) : const Duration(seconds: 4);
+    final maxPolls = bootstrap ? 20 : 8;
+    final minMessages = bootstrap ? 2 : 5;
+    _intakePollTimer = Timer.periodic(interval, (_) {
+      _intakePollCount++;
+      if (_intakePollCount > maxPolls) {
+        _intakePollTimer?.cancel();
+        return;
+      }
+      if (bootstrap && _liaHostMessageCount >= 1) {
+        _intakePollTimer?.cancel();
+        return;
+      }
+      if (!bootstrap && _messages.length >= minMessages) {
+        _intakePollTimer?.cancel();
+        return;
+      }
+      final p = TicketService.intakePhase(_ticket);
+      if (p == 'DONE' && _messages.length >= 2) {
+        _intakePollTimer?.cancel();
+        return;
+      }
+      _refresh(silent: true);
+    });
+  }
+
+  /// Après envoi photo : récupère la bulle « Diagnostic » ajoutée en fin d’analyse.
+  void _schedulePostAnalysisPoll() {
+    _postAnalysisPollTimer?.cancel();
+    var count = 0;
+    _postAnalysisPollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      count++;
+      if (count > 20) {
+        _postAnalysisPollTimer?.cancel();
+        return;
+      }
+      final hasDiagBubble = _messages.any(
+        (m) =>
+            m.isLiaHost &&
+            (m.content.contains('Diagnostic') ||
+                m.content.contains('votre charge') ||
+                m.content.contains('entretien locatif')),
+      );
+      if (hasDiagBubble && TicketService.hasFinalDiagnostic(_ticket)) {
+        _postAnalysisPollTimer?.cancel();
+        _scrollToBottomIfNewMessages();
+        return;
+      }
+      _refresh(silent: true);
+    });
+  }
+
   void _scheduleRefreshWhileAnalyzing() {
     _refreshTimer?.cancel();
+    _analyzePollCount = 0;
     if (!TicketService.isLiaAnalyzing(_ticket)) return;
-    _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _analyzePollCount++;
+      if (_analyzePollCount > 36) {
+        _refreshTimer?.cancel();
+        return;
+      }
       _refresh(silent: true);
     });
   }
 
   Future<void> _refresh({bool silent = false}) async {
+    if (_refreshInFlight) return;
+    _refreshInFlight = true;
     if (!silent) {
       setState(() {
-        _loading = true;
+        if (_messages.isEmpty && _ticket == null) {
+          _loading = true;
+        } else {
+          _syncing = true;
+        }
         _error = null;
       });
     }
@@ -75,52 +188,100 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
         _messages = messages;
       });
       _scheduleRefreshWhileAnalyzing();
-      _scrollToBottom();
+      _scheduleIntakePoll();
+      _scrollToBottomIfNewMessages();
     } catch (e) {
       if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
       if (!silent) {
-        setState(() {
-          _error = e.toString().replaceFirst('Exception: ', '');
-        });
+        setState(() => _error = msg);
+      } else if (_needsBootstrapMessages || _messages.isEmpty) {
+        setState(() => _error = 'Connexion au serveur (${getApiEndpoint()}) : $msg');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Connexion serveur : $msg')),
+        );
       }
     } finally {
-      if (mounted && !silent) setState(() => _loading = false);
+      _refreshInFlight = false;
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _syncing = false;
+        });
+      }
     }
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottomIfNewMessages() {
+    if (_messages.length <= _lastMessageCount) return;
+    _lastMessageCount = _messages.length;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      final target = _scroll.position.maxScrollExtent;
+      if (!target.isFinite || target < 0) return;
+      _scroll.jumpTo(target);
     });
+  }
+
+  Future<ImageSource?> _pickPhotoSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Prendre une photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choisir dans la galerie'),
+              subtitle: const Text('Utile si pas de réseau tout de suite'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _addPhoto() async {
     if (_uploadingPhoto) return;
 
-    final picked = await ImagePicker().pickImage(source: ImageSource.camera);
+    final source = await _pickPhotoSource();
+    if (source == null) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 85,
+    );
     if (picked == null) return;
 
     setState(() => _uploadingPhoto = true);
     try {
       final bytes = await picked.readAsBytes();
-      final url = await TicketFlowService.instance.uploadPhoto(
+      final rawUrl = await TicketFlowService.instance.uploadPhoto(
         filename: picked.name,
         bytes: bytes,
       );
-      await TicketService.instance.redoPhoto(
+      final url = normalizeUploadUrl(rawUrl);
+      final ticket = await TicketService.instance.redoPhoto(
         widget.ticketId,
-        feedback: 'Photo ajoutée : $url',
+        photoUrl: url,
+        feedback: 'Photo envoyée par le locataire.',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Photo envoyée — Lia réanalyse votre dossier.')),
       );
+      setState(() => _ticket = ticket);
       await _refresh(silent: true);
+      _scheduleRefreshWhileAnalyzing();
+      _schedulePostAnalysisPoll();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -131,43 +292,34 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
     }
   }
 
-  Future<void> _requestPlumber() async {
+  Future<void> _acceptPlumber() async {
+    await _sendText('Oui, je souhaite un plombier');
+  }
+
+  Future<void> _declinePlumber() async {
     if (_sending) return;
     setState(() => _sending = true);
     try {
       final updated = await TicketService.instance.postMessage(
         widget.ticketId,
-        'Je souhaite un plombier',
+        'Non, je ne souhaite pas de plombier',
       );
+      if (!mounted) return;
+      final ticket = await TicketService.instance.getTicket(widget.ticketId);
       if (!mounted) return;
       setState(() {
         _messages = updated;
-        _sending = false;
+        _ticket = ticket;
       });
-      await _refresh(silent: true);
-    } catch (e) {
       if (!mounted) return;
-      setState(() => _sending = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        const SnackBar(
+          content: Text(
+            'Dossier enregistré. Utilisez l’accueil pour une autre demande.',
+          ),
+        ),
       );
-    }
-  }
-
-  Future<void> _send() async {
-    final text = _input.text.trim();
-    if (text.isEmpty || _sending) return;
-
-    setState(() => _sending = true);
-    _input.clear();
-
-    try {
-      final updated =
-          await TicketService.instance.postMessage(widget.ticketId, text);
-      if (!mounted) return;
-      setState(() => _messages = updated);
-      _scheduleRefreshWhileAnalyzing();
-      _scrollToBottom();
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -178,101 +330,334 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
     }
   }
 
+  Future<void> _skipPhoto() async {
+    if (_sending) return;
+    await _sendText('Je n’ai pas de photo');
+  }
+
+  Future<void> _sendText(String text) async {
+    if (text.isEmpty || _sending) return;
+
+    setState(() => _sending = true);
+
+    try {
+      final updated =
+          await TicketService.instance.postMessage(widget.ticketId, text);
+      if (!mounted) return;
+      final ticket = await TicketService.instance.getTicket(widget.ticketId);
+      if (!mounted) return;
+      setState(() {
+        _messages = updated;
+        _ticket = ticket;
+      });
+      _scheduleRefreshWhileAnalyzing();
+      _scheduleIntakePoll();
+      _scrollToBottomIfNewMessages();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _send() async {
+    final text = _input.text.trim();
+    if (text.isEmpty || _sending) return;
+    _input.clear();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await _sendText(text);
+  }
+
   @override
   Widget build(BuildContext context) {
     final analyzing = TicketService.isLiaAnalyzing(_ticket);
+    final awaitingPhoto = TicketService.isAwaitingTenantPhoto(_ticket);
+    final intakePhase = TicketService.intakePhase(_ticket);
+    final inIntakeQuestions = intakePhase == 'INTAKE';
+    final showPhotoActions =
+        !analyzing && (awaitingPhoto || TicketService.shouldOfferPhoto(_ticket));
     final responsibility = _ticket?['responsibility'] as String?;
-    final showArtisanAction =
-        !analyzing && responsibility == 'LOCATAIRE';
+    final followUpClosed = TicketService.isFollowUpClosed(_ticket);
+    final showArtisanChoice = !followUpClosed &&
+        !analyzing &&
+        !awaitingPhoto &&
+        responsibility == 'LOCATAIRE' &&
+        !TicketService.hasArtisanChoiceInMessages(_messages);
+    final showDiagnostic = TicketService.hasFinalDiagnostic(_ticket);
+    final canSkipPhoto = !_settings.requirePhotoEvidence;
     final title = _ticket?['title'] as String? ?? 'Conversation avec Lia';
+    final companion = CompanionState.fromTicketJson(_ticket);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(title, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loading ? null : () => _refresh(),
+            onPressed: (_loading || _syncing) ? null : () => _refresh(),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (_ticket?['caseNumber'] != null) _CaseNumberBanner(
-            caseNumber: _ticket!['caseNumber'] as String,
-            dossierNumber: (_ticket!['tenant'] as Map<String, dynamic>?)?['dossierNumber'] as String?,
-          ),
-          if (analyzing) _AnalyzingBanner(),
-          Expanded(
-            child: _loading && _messages.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null && _messages.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(_error!, textAlign: TextAlign.center),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading && _messages.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null && _messages.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(_error!, textAlign: TextAlign.center),
+                          ),
+                        )
+                      : ListView(
+                          controller: _scroll,
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: const EdgeInsets.only(bottom: 8),
+                          children: [
+                            if (_ticket?['caseNumber'] != null)
+                              _CaseNumberBanner(
+                                caseNumber: _ticket!['caseNumber'] as String,
+                                dossierNumber:
+                                    (_ticket!['tenant'] as Map<String, dynamic>?)?[
+                                        'dossierNumber'] as String?,
+                              ),
+                            if (companion != null)
+                              CompanionSafetyBanner(companion: companion),
+                            if (_needsBootstrapMessages && !analyzing)
+                              _BootstrapBanner(endpoint: getApiEndpoint()),
+                            if (analyzing) _AnalyzingBanner(),
+                            if (showDiagnostic && !analyzing)
+                              _DiagnosticResultBanner(ticket: _ticket!),
+                            if (_syncing)
+                              const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ..._messages.map(
+                              (m) => Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: _MessageBubble(message: m),
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                    : ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+            ),
+            if (followUpClosed)
+              Material(
+                color: Colors.grey.shade100,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Ce dossier est terminé. Pour un autre problème, ouvrez une nouvelle demande.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade800,
+                          height: 1.35,
                         ),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          return _MessageBubble(message: _messages[index]);
-                        },
                       ),
-          ),
-          if (showArtisanAction)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: ActionChip(
-                  avatar: const Icon(Icons.plumbing, size: 18),
-                  label: const Text('Demander un plombier'),
-                  onPressed: _sending ? null : _requestPlumber,
+                      const SizedBox(height: 8),
+                      FilledButton(
+                        onPressed: () => Navigator.of(context)
+                            .pushNamedAndRemoveUntil('/home', (_) => false),
+                        child: const Text('Retour à l’accueil'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          if (!analyzing && _ticket?['status'] == 'AWAITING_TENANT_PHOTO')
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Lia a besoin d’une photo plus nette ou d’une précision.',
+            if (showArtisanChoice)
+              _ArtisanChoicePanel(
+                sending: _sending,
+                onAccept: _acceptPlumber,
+                onDecline: _declinePlumber,
+              ),
+            if (!analyzing && inIntakeQuestions)
+              Material(
+                color: Colors.amber.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                  child: Text(
+                    'Répondez à la question de Lia ci-dessous '
+                    '(ex. « depuis hier », « ce matin »). La photo viendra ensuite.',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.orange.shade900,
+                      color: Colors.amber.shade900,
+                      height: 1.35,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _uploadingPhoto ? null : _addPhoto,
-                    icon: _uploadingPhoto
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.camera_alt_outlined),
-                    label: Text(
-                      _uploadingPhoto ? 'Envoi en cours…' : 'Prendre une photo',
-                    ),
-                  ),
-                ],
+                ),
+              ),
+            if (showPhotoActions)
+              _PhotoActionPanel(
+                ticket: _ticket,
+                companion: companion,
+                uploading: _uploadingPhoto,
+                sending: _sending,
+                canSkipPhoto: canSkipPhoto,
+                onPhoto: _addPhoto,
+                onSkip: _skipPhoto,
+              ),
+            if (!followUpClosed)
+              _MessageComposer(
+                controller: _input,
+                sending: _sending,
+                onSend: _send,
+                showPhotoButton: showPhotoActions,
+                onPhoto: _uploadingPhoto ? null : _addPhoto,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ArtisanChoicePanel extends StatelessWidget {
+  final bool sending;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  const _ArtisanChoicePanel({
+    required this.sending,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.purple.shade50,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Si vous le souhaitez, nous pouvons vous proposer un plombier partenaire (devis). '
+              'L’intervention reste à votre charge : le bailleur n’est pas tenu de déboucher l’évier.',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.purple.shade900,
+                height: 1.35,
               ),
             ),
-          _MessageComposer(
-            controller: _input,
-            sending: _sending,
-            onSend: _send,
-          ),
-        ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: sending ? null : onAccept,
+                    icon: const Icon(Icons.plumbing, size: 18),
+                    label: const Text('Oui'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: sending ? null : onDecline,
+                    child: const Text('Non'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoActionPanel extends StatelessWidget {
+  final Map<String, dynamic>? ticket;
+  final CompanionState? companion;
+  final bool uploading;
+  final bool sending;
+  final bool canSkipPhoto;
+  final VoidCallback onPhoto;
+  final VoidCallback onSkip;
+
+  const _PhotoActionPanel({
+    required this.ticket,
+    required this.companion,
+    required this.uploading,
+    required this.sending,
+    required this.canSkipPhoto,
+    required this.onPhoto,
+    required this.onSkip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.orange.shade50,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              ticket?['status'] == 'AWAITING_TENANT_PHOTO'
+                  ? 'Lia a besoin d’une photo plus nette ou d’une précision.'
+                  : 'Étape suivante : envoyez une photo du problème.',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.orange.shade900,
+              ),
+            ),
+            if (companion != null &&
+                companion!.photoGuidanceSteps.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              ...companion!.photoGuidanceSteps.asMap().entries.map(
+                    (e) => Text(
+                      '${e.key + 1}. ${e.value}',
+                      style: const TextStyle(fontSize: 12, height: 1.3),
+                    ),
+                  ),
+            ],
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: uploading ? null : onPhoto,
+              icon: uploading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.camera_alt_outlined),
+              label: Text(uploading ? 'Envoi en cours…' : 'Prendre une photo'),
+            ),
+            if (canSkipPhoto)
+              TextButton(
+                onPressed: sending ? null : onSkip,
+                child: const Text('Continuer sans photo'),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -306,6 +691,125 @@ class _CaseNumberBanner extends StatelessWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Colors.blue.shade900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiagnosticResultBanner extends StatelessWidget {
+  final Map<String, dynamic> ticket;
+
+  const _DiagnosticResultBanner({required this.ticket});
+
+  @override
+  Widget build(BuildContext context) {
+    final responsibility = ticket['responsibility'] as String?;
+    final label = TicketService.responsibilityLabel(responsibility);
+    final message = TicketService.tenantMessageFromTicket(ticket);
+    final isTenantCharge = responsibility == 'LOCATAIRE';
+    final isLandlord = responsibility == 'BAILLEUR' ||
+        responsibility == 'ESCALADE_BAILLEUR';
+
+    Color bg = Colors.green.shade50;
+    Color fg = Colors.green.shade900;
+    if (isTenantCharge) {
+      bg = Colors.orange.shade50;
+      fg = Colors.orange.shade900;
+    } else if (responsibility == 'NON_RECEVABLE') {
+      bg = Colors.grey.shade100;
+      fg = Colors.grey.shade800;
+    }
+
+    return Material(
+      color: bg,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Diagnostic Lia — $label',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: fg,
+                fontSize: 14,
+              ),
+            ),
+            if (message != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: TextStyle(color: fg, fontSize: 13, height: 1.35),
+              ),
+            ],
+            if (isTenantCharge) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Menues réparations / entretien sous l’évier : à régler par le locataire. '
+                'Le lavabo qui fonctionne et un évier seul bouché orientent vers un bouchon local, pas le bailleur.',
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  height: 1.3,
+                ),
+              ),
+            ],
+            if (isLandlord) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Un prestataire vous contactera selon son planning. '
+                'En cas d’urgence, coupez l’eau ou l’électricité si possible '
+                'et attendez son appel.',
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BootstrapBanner extends StatelessWidget {
+  final String endpoint;
+
+  const _BootstrapBanner({required this.endpoint});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.blue.shade800,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Lia prépare votre conversation…\nServeur : $endpoint',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.blue.shade900,
+                  height: 1.3,
                 ),
               ),
             ),
@@ -429,51 +933,59 @@ class _MessageComposer extends StatelessWidget {
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
+  final bool showPhotoButton;
+  final VoidCallback? onPhoto;
 
   const _MessageComposer({
     required this.controller,
     required this.sending,
     required this.onSend,
+    this.showPhotoButton = false,
+    this.onPhoto,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Écrire à Lia…',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      child: Row(
+        children: [
+          if (showPhotoButton)
+            IconButton(
+              tooltip: 'Prendre une photo',
+              onPressed: onPhoto,
+              icon: const Icon(Icons.camera_alt_outlined),
+            ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              minLines: 1,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Écrire à Lia…',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                onSubmitted: (_) => onSend(),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
+              onSubmitted: (_) => onSend(),
             ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: sending ? null : onSend,
-              icon: sending
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.send),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            onPressed: sending ? null : onSend,
+            icon: sending
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send),
+          ),
+        ],
       ),
     );
   }

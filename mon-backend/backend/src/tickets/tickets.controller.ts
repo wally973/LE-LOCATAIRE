@@ -14,6 +14,10 @@ import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { PostTicketMessageDto } from '../lia/dto/post-ticket-message.dto';
+import { ProBriefingAskDto } from '../lia/dto/pro-briefing-ask.dto';
+import { LiaProBriefingService } from '../lia/lia-pro-briefing.service';
+import { LiaExpertRectificationService } from '../lia/lia-expert-rectification.service';
+import { ExpertRectifyDto } from '../lia/dto/expert-rectify.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -28,7 +32,11 @@ import {
 @UseGuards(JwtAuthGuard, RolesGuard, LandlordModuleGuard)
 @RequiresLandlordModule('ticketsModule')
 export class TicketsController {
-  constructor(private readonly ticketsService: TicketsService) {}
+  constructor(
+    private readonly ticketsService: TicketsService,
+    private readonly proBriefing: LiaProBriefingService,
+    private readonly expertRectification: LiaExpertRectificationService,
+  ) {}
 
   /**
    * Création d’un ticket par un locataire
@@ -113,6 +121,47 @@ export class TicketsController {
     @Body() dto: PostTicketMessageDto,
   ) {
     return this.ticketsService.postTenantMessage(id, req.user.id, dto.content);
+  }
+
+  @Get(':id/pro-briefing')
+  @Roles('BAILLEUR', 'AGENT', 'ADMIN', 'PRESTATAIRE')
+  @ApiOperation({
+    summary: 'Pro Briefing — synthèse technique pour technicien / référent',
+  })
+  getProBriefing(@Req() req, @Param('id', ParseIntPipe) id: number) {
+    return this.proBriefing.generate(id, req.user.id, req.user.role);
+  }
+
+  @Post(':id/pro-briefing/ask')
+  @Roles('BAILLEUR', 'AGENT', 'ADMIN', 'PRESTATAIRE')
+  @ApiOperation({
+    summary: 'Interroger un ticket en langage naturel (Pro Briefing)',
+  })
+  askProBriefing(
+    @Req() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ProBriefingAskDto,
+  ) {
+    return this.proBriefing.ask(id, req.user.id, req.user.role, dto.question);
+  }
+
+  @Post(':id/expert-rectification')
+  @Roles('BAILLEUR', 'AGENT', 'ADMIN', 'PRESTATAIRE')
+  @ApiOperation({
+    summary:
+      'Rectification expert — surcharge le diagnostic IA (boucle de retour terrain)',
+  })
+  expertRectify(
+    @Req() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ExpertRectifyDto,
+  ) {
+    return this.expertRectification.rectifyAnalysis(
+      id,
+      req.user.id,
+      req.user.role,
+      dto,
+    );
   }
 
   @Get(':id')

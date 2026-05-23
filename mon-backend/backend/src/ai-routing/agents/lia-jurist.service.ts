@@ -5,6 +5,7 @@ import { AiMemoryService } from '../ai-memory.service';
 import type { AiPipelineDecision, AiPipelineInput } from '../ai-pipeline.port';
 import { parseJsonFromLlm } from '../utils/llm-json.util';
 import type { PathologistResult } from './pathologist.types';
+import { buildLocataireChargeMessage } from '../../lia/lia-tenant-explanation';
 
 interface MistralJuristJson {
   responsibility:
@@ -65,6 +66,7 @@ export class LiaJuristService {
       'Tu es le juriste d un bailleur social (2terHabitat, Guyane).',
       'Tu tranches la responsabilité : BAILLEUR, LOCATAIRE, SOCIAL, NON_RECEVABLE, ESCALADE_BAILLEUR ou PENDING.',
       'Réponds en JSON uniquement : responsibility, nonRecevableReason (ou null), message (français simple pour le locataire), socialFlag, rationale.',
+      'Si LOCATAIRE (évier/siphon/bouchon) : explique POURQUOI c’est à la charge du locataire (lavabo OK + évier bouché = entretien locatif, pas le bailleur).',
       'Priorité aux extraits FAQ les plus pertinents au cas (ex. fuite sous évier/robinet = LOCATAIRE sauf canalisation collective).',
       'Ne classe pas à la charge du bailleur une simple fuite de siphon ou robinet sous évier.',
     ].join(' ');
@@ -112,6 +114,7 @@ export class LiaJuristService {
     if (!text) throw new Error('Réponse Mistral vide');
 
     const parsed = parseJsonFromLlm<MistralJuristJson>(text);
+    const contextText = `${params.input.title} ${params.input.description} ${params.input.tenantFeedback ?? ''}`;
     return this.toDecision(params.pathologist, parsed, [
       {
         name: 'pathologist',
@@ -124,7 +127,7 @@ export class LiaJuristService {
         decision: parsed.responsibility,
         extra: { rationale: parsed.rationale },
       },
-    ]);
+    ], contextText);
   }
 
   private decideSimulated(params: {
@@ -244,9 +247,10 @@ export class LiaJuristService {
         needsMorePhoto: false,
         socialFlag: false,
         suggestedArtisanType: patho.suggestedArtisanType ?? 'PLUMBER',
-        message:
-          `Ce type d’intervention relève de l’entretien locatif (à votre charge). ` +
-          `Vous pouvez répondre « je veux un plombier » pour être mis(e) en relation — un devis vous sera proposé.`,
+        message: buildLocataireChargeMessage({
+          category: patho.category,
+          contextText: text,
+        }),
         pipelineSteps: [
           ...steps,
           {
@@ -335,9 +339,10 @@ export class LiaJuristService {
       needsMorePhoto: false,
       socialFlag: false,
       suggestedArtisanType: patho.suggestedArtisanType,
-      message:
-        `Ce type d’intervention relève de l’entretien locatif (à votre charge). ` +
-        `Vous pouvez répondre « je veux un plombier » pour être mis(e) en relation — un devis vous sera proposé.`,
+      message: buildLocataireChargeMessage({
+        category: patho.category,
+        contextText: text,
+      }),
       pipelineSteps: [
         ...steps,
         { name: 'jurist_simulation', decision: 'LOCATAIRE' },
@@ -357,8 +362,16 @@ export class LiaJuristService {
     pathologist: PathologistResult,
     jurist: MistralJuristJson,
     pipelineSteps: AiPipelineDecision['pipelineSteps'],
+    contextText = '',
   ): AiPipelineDecision {
     const responsibility = jurist.responsibility as TicketResponsibility;
+    let message = jurist.message;
+    if (responsibility === 'LOCATAIRE') {
+      message = buildLocataireChargeMessage({
+        category: pathologist.category,
+        contextText,
+      });
+    }
     return {
       responsibility,
       category: pathologist.category,
@@ -366,7 +379,7 @@ export class LiaJuristService {
       confidence: pathologist.confidence,
       needsMorePhoto: responsibility === 'PENDING',
       socialFlag: Boolean(jurist.socialFlag),
-      message: jurist.message,
+      message,
       suggestedArtisanType:
         responsibility === 'LOCATAIRE'
           ? pathologist.suggestedArtisanType

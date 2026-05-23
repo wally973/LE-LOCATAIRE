@@ -4,6 +4,7 @@ import {
   AiPipelineInput,
   AiPipelinePort,
 } from './ai-pipeline.port';
+import { buildLocataireChargeMessage } from '../lia/lia-tenant-explanation';
 
 /**
  * Adapter stub déterministe — Sprint 3.
@@ -268,10 +269,10 @@ export class AiPipelineStubAdapter implements AiPipelinePort {
       needsMorePhoto: false,
       socialFlag: false,
       suggestedArtisanType: chosen.artisanType,
-      message:
-        `Ce type d’intervention relève de l’entretien locatif (à votre charge). ` +
-        `Vous pouvez répondre ici, par exemple « je veux un plombier », ` +
-        `pour être mis(e) en relation avec un artisan partenaire — un devis vous sera proposé.`,
+      message: buildLocataireChargeMessage({
+        category: chosen.category,
+        contextText: text,
+      }),
       pipelineSteps: steps,
     };
   }

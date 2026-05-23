@@ -1,7 +1,9 @@
 # LE LOCATAIRE — Notes de projet
 
 Document de synthèse regroupant les **résumés de fin de session** (assistant + développement backend).  
-Dernière mise à jour : **16 mai 2026**.
+Dernière mise à jour : **22 mai 2026**.
+
+**Manifeste produit / architecture IA** : voir [`MANIFESTE_FINAL.md`](MANIFESTE_FINAL.md) (rectification expert, Goals + SharedState, mapping stack réelle).
 
 ---
 
@@ -88,6 +90,33 @@ Swagger : `http://localhost:3000/api`
 
 **Règle d’or** : ne pas créer d’écrans « RDV », « chat sinistre », « photos » séparés — tout est une **timeline d’événements** sur `AFF-…`, avec boutons d’action contextuels selon l’étape (diagnostic → intervention → réception → clôture).
 
+| *(détail Q43)* | **Ticket technicien — procédures annotées** | Pour les affaires nécessitant une **intervention terrain**, le ticket affiché au **technicien / référent** n’est pas une simple fiche : c’est une **procédure pas à pas annotée** (ce qui a été demandé au locataire, ce qu’il a fait, ce que l’IA a conclu à chaque étape, **niveau d’urgence**). Objectif : le technicien part avec un dossier **déjà qualifié** (moins de déplacement « pour voir »). À coder après socle intake + auto-recherche + diagnostic (V1 étendu ou début V2). Voir aussi Q48, Q51, Q56 |
+
+**Exemple métier — électricité, prise cuisine (fumée / odeur)** :
+
+| Étape | Qui | Action / annotation sur le ticket |
+|-------|-----|-----------------------------------|
+| 1 | Locataire | Signale : *fumée ou odeur de brûlé à la prise de la cuisine* |
+| 2 | Lia (organisateur) | Demande au locataire de **descendre le DPN** (disjoncteur) de la **prise cuisine** — consigne de sécurité avant photo |
+| 3 | Locataire | Confirme avoir coupé ; **photo de la prise** (upload dans le fil) |
+| 4 | IA (pathologiste + recherche interne) | **Diagnostic visuel / état de la prise** : ex. *prise en mauvais état*, *arrachée*, *fils visibles*, risque d’incendie |
+| 5 | IA (juriste + règles) | **Notes diagnostic affichées** sur le ticket : charge locataire / bailleur, recevabilité, **urgence** (ex. *urgente — ne pas réalimenter*, *intervention sous 24–48 h*) |
+| 6 | Technicien / référent | Voit la **timeline annotée** : constat → consigne sécurité → preuve photo → synthèse IA → urgence → **ordre de mission** avant KM ou trajet (canoë, secteur isolé) |
+
+**Affichage cible côté technicien** (même fil `AFF-…`, vue « mission terrain ») :
+
+- Bandeau **urgence** (couleur : normal / prioritaire / urgent / danger immédiat).
+- Bloc **« Procédure suivie »** : liste d’étapes cochées automatiquement (Lia, locataire, IA).
+- Bloc **« Notes IA diagnostic »** : texte structuré (constat technique + recommandation intervention + charge).
+- Pièces jointes : photos horodatées par étape.
+- Possibilité pour le technicien d’**ajouter une note terrain** ou de **valider / infirmer** une étape IA (retour pour nourrir la mémoire interne).
+
+**Données à prévoir** (cadrage technique, non codé) :
+
+- `TicketProcedureStep` ou JSON `procedureLog[]` dans `aiLastDecision` / table dédiée : `{ order, actor, label, status, at, payload }`.
+- Types d’acteurs : `LOCATAIRE`, `LIA_HOST`, `IA_DIAGNOSTIC`, `IA_RESEARCH`, `AGENT`, `TECHNICIAN`.
+- Lien avec `TicketMessage` + `Document` existants (une étape = message système ou bulle + éventuelle photo).
+
 | Q18 | Page réclamations — référent de secteur | **Page dédiée** (route prévue : `/agent/reclamations` ou `/referent/reclamations`) : liste des affaires du **périmètre agence/secteur** (`AgentProfile.agenceId` → `Housing.agenceId`) |
 | Q19 | Colonnes liste référent | **N° dossier** (numéro bailleur ou `DOS-…`), **N° affaire** (`AFF-…`), **métier** (catégorie IA / corps de métier : plomberie, électricité, etc.), **jours sans traitement**, statut, logement, locataire |
 | Q20 | Affichage « jours sans traitement » | **`0`** → style normal (pas de retard affiché). **`> 0`** → affichage **`+N`** en **rouge** (ex. `+3` = 3 jours sans action humaine sur l’affaire). Tri par défaut : retard décroissant |
@@ -156,6 +185,62 @@ flowchart TD
 | Q39 | Plusieurs bailleurs en Guyane | Application **SaaS multi-bailleurs** : chaque organisme (2terHabitat, autres bailleurs sociaux, etc.) a son **tenant** isolé (`landlordProfileId`) ; le produit ne doit pas être présenté juridiquement comme « l’app 2terHabitat » mais comme **plateforme LE LOCATAIRE** utilisée par plusieurs bailleurs |
 | Q40 | Données personnelles | Chaque bailleur reste **responsable de traitement** pour ses locataires ; pas d’export croisé entre bailleurs ; imports et fichiers réels **hors dépôt Git** (environnement sécurisé par organisme) |
 | Q41 | 2terHabitat dans le code | **Référence pilote / démo** uniquement (seeds, prompts IA de test) — à terme libellés génériques « votre bailleur », « bailleur social en Guyane » dans l’app et les prompts prod |
+| Q42 | **IA auto-recherche — moteur du produit (V1)** | **Décision porteur (mai 2026)** : l’auto-recherche n’est pas un « bonus » optionnel — c’est le **moteur** qui limite les **hallucinations** : le diagnostic ne conclut pas « de tête », il s’appuie sur **constat réel + fiches métiers + historique des résolutions**. Séquence : **Organisateur (Lia) → Auto-recherche → Diagnostic**. **V1** = recherche interne (`LiaResearchService` + AiMemory + tickets similaires). **V2** = mémoire riche, boucle itérative. **V3** = sources externes traçables si besoin |
+| Q44 | **Coexistence app 2terHabitat** | **Longue durée** : l’app existante locataire reste ; elle ne couvre **pas** le terrain technicien (affaire + bon de commande seulement). LE LOCATAIRE comble le **vide technicien / qualification amont** — pas remplacement brutal |
+| Q45 | **Gouvernance décisionnelle** | **Travaux** : le **technicien** décide ; le **responsable d’agence** vérifie cohérence travaux + **budget** avant visa. **Application** : le **directeur du patrimoine** a son mot à dire (cadrage, déploiement, modules Patrimoine) |
+| Q46 | **Commercialisation / présentation** | Contacts possibles : direction, technique, **CSE** pour présentation. **Cible** : convaincre **plusieurs bailleurs**, pas un seul pilote exclusif. **Échéance** : pause été → **fignoler** → présentation **septembre** (« mois des grandes décisions »). Succès = outil **validé**, prêt à **louer / déployer** à grande échelle |
+| Q47 | **Preuves locataire (photos)** | **Réponse verbale seule insuffisante** : prévenir, **demander des photos** quand c’est pertinent ; viser à **réduire le nombre** de photos (les bonnes au bon moment), pas un album systématique |
+| Q48 | **Affaires créées par le terrain** | Le **technicien** peut créer des affaires suite à **appel** ou **constat sur place** (pas seulement le locataire via l’app) |
+| Q49 | **Affaires multiples / relance IA** | Rôle clé de l’**IA** : détecter doublons, **relancer** une affaire non finalisée après **délai** configurable, **informer le locataire** ; éviter 3–4 `AFF-…` parallèles pour le même problème |
+| Q50 | **Agents de proximité vs technicien** (ex. 2terHabitat) | **Agents de proximité** = souvent **responsable de site** : parties communes, travaux **non techniques** (grille escalier, éclairage bâtiment, tonte, troubles voisinage…). **Technicien** = interventions techniques qualifiées. L’app doit **router** vers le bon profil / la bonne procédure |
+| Q51 | **Mobilité terrain** | Techniciens et agents : **portable ou tablette** en déplacement — UI mobile-first pour vue mission / procédures annotées (Q43) |
+| Q52 | **Urgence et prestataires** | Urgences **réelles**, mais insister : il existe des **prestataires avec planning** ; consigne locataire type : **couper le réseau / sécuriser**, **attendre le contact du prestataire** — pas promettre intervention immédiate systématique |
+| Q53 | **Charge locataire — suite** | Proposer au locataire : **artisan** (partenaire) **ou** **clôturer** le ticket selon le cas |
+| Q54 | **Désaccord sur la charge** | **Déplacement technicien recommandé** pour trancher sur place |
+| Q55 | **Auto-recherche — sources synchronisées** | Travaille en **synchronisation** avec : (1) **constat réel** (intake + photos), (2) **historique des résolutions** des tickets précédents, (3) **fiches métiers** — les trois ensemble, pas l’un sans les autres |
+| Q56 | **Photos — usage et rétention technicien** | Photos = **information complémentaire** pour le dossier technicien. Sur mobile technicien : avant envoi / clôture, question **« Voulez-vous garder les photos de l’affaire ? »** ; si oui → **répertoire local** sur l’appareil (miniatures). Pas d’obligation de tout conserver côté serveur indéfiniment sans règle |
+| Q57 | **Données 2terHabitat** | **Aucun document réel** 2terHabitat dans le dépôt / les tests ; **données factices** sur demande pour travailler |
+| Q58 | **Priorité porteur (été 2026)** | Finaliser un produit **convaincant multi-bailleurs** + **démo de présentation** → confiance avant septembre ; pas seulement une feature isolée |
+| Q59 | **Stratégie IA / budget** | **Budget initial = porteur projet**. Préférer des **IA légères, spécialisées, rapides** (y compris modèles peu connus / gratuits) pour **agents métier** — pas de gros LLM « généralistes » (culture, encyclopédie) en production. Possibilité : **former / enrichir** les agents spécialisés avec des modèles plus lourds **en amont** (hors ligne), pas en runtime sur chaque ticket. Réévaluer la stack actuelle (Gemini/Mistral) vers cette cible |
+| Q60 | **Réseau faible (Guyane)** | Les photos peuvent être **envoyées plus tard** quand le réseau revient — pas bloquer tout le parcours |
+| Q61 | **Outils actuels terrain** | Pas de check-list unique : chacun bricole (**Excel**, etc.) — opportunité de **standardiser** via procédures annotées (Q43) sans imposer Excel |
+| Q62 | **Modèle économique cible** | **Location / déploiement** à grande échelle (SaaS multi-bailleurs), pas « app interne unique » |
+| Q63 | **Actions activables par bailleur** | Chaque bailleur **active ou désactive** certaines actions (conversation, photo). Réglage via `LandlordFeatureFlags` + API bailleur ; admin plateforme peut tout modifier |
+| Q64 | **Auto-recherche = cœur des IA** | Fait partie des **IA en place** pour des réponses fiables : vérifie les faits (métier, historique) **avant** que le pathologiste / juriste ne conclut — **anti-hallucination**. Activée **par défaut** ; ce n’est pas une option marketing mais le fonctionnement normal du produit |
+
+**Actions configurables (Q63)** — champs `LandlordFeatureFlags` :
+
+| Champ | Défaut | Effet si activé |
+|-------|--------|-----------------|
+| `liaConversationEnabled` | `true` | Questions Lia avant photo / diagnostic |
+| `requirePhotoEvidence` | `true` | Photo demandée ; réponse verbale seule insuffisante |
+| `liaAutoResearchEnabled` | **`true`** (moteur — cf. Q64) | Fiches métier + affaires similaires injectées avant diagnostic ; désactivable seulement cas exceptionnel bailleur |
+| `technicianCreateTicketEnabled` | `false` | Technicien crée une affaire (appel / constat) — *à coder* |
+| `liaTicketRelanceEnabled` | `false` | Relance IA affaires non finalisées — *à coder* |
+
+**API** :
+
+- `GET /tenant/me/qualification-settings` — locataire (lecture).
+- `GET /landlords/me/feature-flags` — bailleur (modules + actions).
+- `PATCH /landlords/me/qualification-settings` — bailleur règle ses actions.
+- `PATCH /admin/landlords/:id/feature-flags` — admin (tout).
+
+**Priorité avant vacances (porteur — choix 2)** : finaliser le **parcours de qualification** (Lia + photo + bouton mobile) **piloté par ces flags** ; c’est l’amorce de la V2 et la démo de septembre.
+
+**Synthèse gouvernance 2terHabitat (schéma)**
+
+```
+Locataire (app existante)          LE LOCATAIRE (qualification + technicien)
+        │                                    │
+        ▼                                    ▼
+   AFF + bon de commande              Procédure annotée, IA, photos, urgence
+        │                                    │
+        └────────── coexistence ─────────────┘
+                              │
+        Technicien décide travaux ◄──► Responsable agence (budget / visa)
+                              │
+                    Directeur patrimoine (cadrage app, Patrimoine)
+```
 
 **Dashboard Patrimoine — arborescence (cadrage UI)**
 
@@ -415,6 +500,22 @@ Branchement : après routage `LOCATAIRE`, suggestion automatique de tutoriels.
 
 ---
 
+### Expert-Compagnon (ordonnanceur diagnostic + guide photo V1)
+
+**Intégré au parcours Lia** (mai 2026) — complète l’intake, ne remplace pas le juriste.
+
+| Couche | Fichiers / API |
+|--------|----------------|
+| Prompt système | `src/lia/prompts/expert-compagnon.prompt.ts` |
+| Service | `LiaCompanionService` — JSON Groq + repli règles métier + fiches `LegalReference` |
+| Persistance | `ticket.aiLastDecision.companion` (avatar, sécurité, étapes photo) |
+| Mobile | Bandeau sécurité + carte « Guide photo » dans `TicketConversationScreen` |
+| Vidéo augmentée V1 | **Guide sur photo** (`photo_guidance_steps`) — pas de caméra AR live (V2) |
+
+**Langues prévues** : `fr`, `gcf` (créole guyanais), `hat` (créole haïtien), `es`, `en`, `pt`.
+
+**Chaîne** : Intake (situation) → Expert-Compagnon (sécurité + speech) → questions → photo guidée → auto-recherche (`search_trigger`) → pathologiste → juriste.
+
 ### Sprint G — Pathologiste + juriste (pipeline Lia)
 
 **Contexte** : remplacer le stub mots-clés par une chaîne en 2 agents, testable en **simulation** sans vrais locataires.
@@ -452,17 +553,143 @@ npm run start:dev
 
 ---
 
-## 4bis. Périmètre V1 figé (référent secteur)
+## 4bis. Périmètre V1 figé (référent secteur + amorce auto-recherche)
 
 **Livré / en cours pour clôture V1 :**
 
+- **Parcours locataire** : création ticket → **conversation Lia** (intake questions → photo) → diagnostic (cf. Q42).
+- **IA auto-recherche V1** (amorce V2, cf. Q42) : si `liaAutoResearchEnabled` pour le bailleur → fiches métier + affaires similaires avant `analyzeTicket` (`LiaResearchService`).
+- **Actions par bailleur** (Q63) : conversation Lia, preuve photo, auto-recherche — activables/désactivables (`PATCH /landlords/me/qualification-settings`).
 - Page **`/agent/reclamations`** : liste secteur (agence du référent), colonnes dossier, affaire, métier, jours (`0` normal, `+N` rouge), ouverture détail ticket.
 - API **`GET /agents/me/reclamations`** (rôle `AGENT`, filtre `Housing.agenceId`).
 - Connexion dashboard : rôle JWT `AGENT` → espace référent.
 
-**Reporté V2 :** import numéros bailleur, pilotage direction, IA corrélation résidence, dashboard Patrimoine, actions référent avancées (RDV, paiement entreprise).
+**Reporté V2 (approfondissement, pas « première version » de l’auto-recherche) :** import numéros bailleur, pilotage direction, IA corrélation résidence, dashboard Patrimoine, actions référent avancées (RDV, paiement entreprise), **mémoire interne avancée** (clusters, boucle itérative recherche ↔ diagnostic, sources externes), **vue technicien avec procédures annotées** (cf. Q43 — ex. DPN cuisine + photo prise + notes IA + urgence).
+
+**Cadrage proche V1 (présentation / maquette)** : même contenu que Q43 peut être **affiché en lecture** sur le détail ticket référent dès que la timeline intake + photo + diagnostic existe — procédure « annotée » reconstruite à partir des `TicketMessage` + `aiLastDecision` sans module séparé au départ.
 
 **Compte test référent :** utilisateur `role=AGENT` + ligne `AgentProfile` (`landlordProfileId`, `agenceId` optionnel) ; logements du secteur avec le même `agenceId`.
+
+**Calendrier porteur (été → septembre 2026)** : pause vacances = fignolage + démo ; **présentation septembre** (direction, CSE, bailleurs multiples). Données de test : **factices uniquement** (Q57).
+
+---
+
+## 4ter. Dossier de présentation produit (argumentaire marché & stratégie)
+
+> **Usage** : base pour pitch bailleur, direction, partenaires — langage métier, pas technique.  
+> **À retenir** : la valeur du produit se construit **dans le temps** ; ce n’est pas une « app magique » livrée clé en main le jour J.
+
+### Pourquoi ce type d’application est rare sur le marché
+
+Peu d’acteurs acceptent le **coût de maturation** (temps + données + responsabilité métier). En pratique :
+
+| Acteur | Frein habituel |
+|--------|----------------|
+| **Locataire** | Ne peut ni ne doit porter un outil « trop technique » ; il veut signaler un problème simplement |
+| **Service informatique du bailleur** | Pas mandaté ni formé au métier locatif / diagnostic bâtiment |
+| **Informaticien du groupe** | Projet perçu comme lourd (données, IA, maintenance, responsabilité) pour un **ROI immédiat** incertain |
+| **Éditeur logiciel générique** | Préfère ERP / GED / ticketing sans **nourrir** chaque organisme au fil des réclamations réelles |
+
+**Conséquence** : sans « nourriture » (cas réels, retours terrain, règles bailleur), l’outil reste vide ou générique → personne ne le déploie → le marché reste vide sur ce créneau.
+
+**Positionnement LE LOCATAIRE** : le porteur produit accepte cette montée en charge progressive ; les utilisateurs (locataire, référent, bailleur) **utilisent** sans construire ni paramétrer l’IA.
+
+### Contexte pilote : 2terHabitat (app locataire existante vs LE LOCATAIRE)
+
+**2terHabitat** dispose déjà d’une application pour ses locataires. Côté locataire, l’usage se résume aujourd’hui à **voir une liste de tickets** avec peu d’information utile pour qualifier le problème :
+
+- numéro d’**affaire** ;
+- référence **IKOS** (ou équivalent métier bailleur) ;
+- **métier** ;
+- **date d’ouverture**.
+
+**Douleur côté agents / techniciens** : un même locataire peut ouvrir **3 à 4 affaires** pour des problèmes proches ou liés (ou mal qualifiés au départ). Chaque affaire est traitée comme un silo → charge lourde pour les agents, doublons, perte de vue d’ensemble sur le **dossier locataire**.
+
+**Réalité terrain Guyane** : des techniciens parcourent des **kilomètres** ou prennent parfois le **canoë sur la rivière** pour une simple vérification. Un déplacement inutile a un **coût humain et financier** élevé — bien plus qu’en zone urbaine dense.
+
+**Ce que LE LOCATAIRE apporte en plus** (justifie le temps de mise en place) :
+
+| Existant (aperçu ticket) | LE LOCATAIRE (cible) |
+|--------------------------|----------------------|
+| Liste d’affaires « plates » | **Conversation Lia** avant photo / diagnostic — contexte structuré |
+| Peu de qualification amont | **Photo + intake** pour trancher charge locataire / bailleur |
+| Plusieurs `AFF-…` éparpillées | Vision **un fil par affaire** + à terme regroupement / lien dossier `DOS-…` (Q8, Q15) |
+| Agent doit deviner l’urgence | **Métier**, gravité, retard **`+N` jours** pour le référent secteur (V1) |
+| Déplacement « au cas où » | Dossier **enrichi avant envoi terrain** (intake + **auto-recherche interne** + diagnostic) → moins de KM / trajets fluviaux inutiles |
+
+**Message pour la direction / le pilote 2terHabitat** : ce n’est pas « une deuxième app pour remplacer la leur du jour au lendemain », mais un **outil de qualification** qui vaut l’investissement temps parce que chaque déplacement évité ou mieux ciblé compte. **Mieux vaut un bon outil monté progressivement** qu’un ticketing minimal qui multiplie les affaires sans réduire les déplacements.
+
+**Philosophie porteur projet (à porter en présentation)** : prendre le temps de faire **quelque chose de bien** — pas une copie légère de l’existant — peut **changer la donne** : moins d’affaires mal qualifiées, moins de charge agents, moins de trajets inutiles. La lenteur du démarrage est le prix d’un outil qui devient **défendable** face au terrain guyanais ; la rapidité d’une app minimale, elle, laisse la douleur métier intacte.
+
+**Intégration à anticiper** : **coexistence longue** avec l’app locataire existante (Q44) ; import / alignement numéros bailleur (Q13–Q14) ; règles anti-doublon et **relance IA** (Q49) ; création d’affaire par **technicien** (Q48).
+
+### Réclamations locatives : répétitives par nature
+
+En gestion locative, la majorité des dossiers **se ressemblent** (fuite, électricité, porte, humidité, toiture…). Ce qui varie surtout :
+
+- **Le lieu** (pièce, équipement, partie du logement) ;
+- **La gravité** (gêne, risque, coupure totale) ;
+- **L’ampleur** (localisé vs généralisé, récurrent vs premier incident).
+
+**Implication produit** : une **base de données interne** (tickets, photos, verdicts, historique par logement / résidence / secteur) accélère le traitement plus qu’une recherche web générique à chaque affaire.
+
+| Phase | Comportement attendu |
+|-------|----------------------|
+| **Démarrage** | Peu de cas → plus de questions Lia, latence perçue normale |
+| **Montée en charge** | Reconnaissance de **dossiers proches** → questions plus ciblées, diagnostics plus rapides |
+| **Maturité** | Mémoire métier propre au parc et aux règles du bailleur — **barrière concurrentielle** |
+
+### Architecture IA — trois piliers (auto-recherche dès V1)
+
+Séquence cible : **Organisateur (Lia) → Auto-recherche → Diagnostic** — pas « conversation + diagnostic seul ».
+
+1. **Organisateur (Lia)** — conversation, intake, stratégie de questions, demande photo au bon moment.  
+2. **Auto-recherche (moteur)** — vérifie et enrichit le dossier *avant* le verdict (fiches + historique) ; **anti-hallucination** (Q64).  
+3. **Diagnostic (pathologiste + juriste)** — conclut sur le **dossier complet** enrichi par la recherche, pas sur le seul texte locataire.
+
+**Priorisation (décision Q42)** :
+
+| Version | Contenu |
+|---------|---------|
+| **V1** | Organisateur (intake) + **auto-recherche interne** (fiches métier, AiMemory, tickets similaires) + diagnostic + traçabilité (`AFF-…`, fil unique, dashboard référent) |
+| **V2** | Approfondissement : mémoire riche, clusters résidence / patrimoine, pilotage bailleur, **boucle itérative** diagnostic ↔ recherche, import CSV |
+| **V3** | Sources externes traçables (normes, fabricants) ; recherche web ciblée si cas atypique |
+
+**V1 minimal auto-recherche (à coder)** — cf. Q55 :
+
+- Entrées : **constat réel** (intake + photos), catégorie, titre, description.
+- Sources **synchronisées** : fiches métiers + **historique résolutions** tickets passés (même bailleur / métier / logement si possible).
+- Sorties : bloc « contexte technique » + `AFF-…` similaires → `analyzeTicket`.
+- Pas obligatoire en V1 : recherche web temps réel, boucle multi-tours (→ V2).
+
+**Stratégie modèles IA (Q59)** : agents **spécialisés** (organisateur, recherche, pathologiste, juriste) sur modèles **légers / peu coûteux** ; gros modèles réservés à l’**enrichissement offline** des fiches et de la mémoire — budget porteur au départ.
+
+**Garde-fous** : la recherche **alimente** le juriste IA ; le verdict sensible reste **explicable** et **reprise humaine** possible (référent / bailleur). Pas de diagnostic « boîte noire » sans photo ni sans contexte intake quand le métier l’exige.
+
+### Bénéfices à mettre en avant (sans jargon technique)
+
+| Profil | Bénéfice concret |
+|--------|------------------|
+| **Locataire** | Parcours simple (décrire, répondre, photo) ; moins d’allers-retours incompris |
+| **Référent secteur** | Dossiers structurés (dossier, affaire, métier, retard `+N`) ; un fil par affaire |
+| **Bailleur** | Meilleure répartition charge locataire / bailleur ; traçabilité ; moins de litiges |
+| **Direction** | Pilotage volumes, délais, récurrence par secteur (V2) |
+| **Informatique groupe** | Pas un second ERP : API ciblées, hébergement, pas de paramétrage métier lourd côté bailleur |
+
+### Message court « pourquoi nous, pourquoi maintenant »
+
+> Les réclamations locatives sont répétitives, mais chaque bailleur et chaque parc ont leurs règles. Les solutions génériques ne prennent pas le temps de **nourrir** le système avec le terrain. **LE LOCATAIRE** accepte ce travail progressif : simple pour le locataire, utile pour le référent, pilotable pour le bailleur — et plus performant à mesure que la base interne grandit.
+
+### Formulations à éviter / à privilégier (présentation)
+
+| Éviter | Privilégier |
+|--------|-------------|
+| « Super app IA technique » | « Assistant de qualification des réclamations » |
+| « Le bailleur doit paramétrer l’IA » | « Le bailleur utilise ; le produit s’enrichit avec l’usage » |
+| « Résultat immédiat jour 1 » | « Montée en puissance sur 3–12 mois de dossiers réels » |
+| « Remplace le technicien » | « Réduit les déplacements inutiles et structure le dossier avant intervention » |
+| « Encore une app locataire » | « Qualification amont pour alléger les agents et éviter les déplacements (KM, zones isolées) » |
+| « 4 affaires = 4 fois plus de travail » | « Un dossier locataire, des affaires mieux qualifiées, moins de doublons » |
 
 ---
 
@@ -475,17 +702,19 @@ npm run start:dev
 | ~~D~~ | ~~Dashboard bailleur~~ | **Fait** |
 | ~~F~~ | ~~Lia / LLM (conversation)~~ | **Fait** |
 | ~~G~~ | ~~Pathologiste + juriste~~ | **Fait** — Gemini/Mistral optionnels + simulation |
-| C | **Multilingue + avatar 2D** | Locales + guide UX |
+| C | **Multilingue + avatar 2D + Expert-Compagnon** | Locales + avatar (gestes JSON) + guide photo V1 — **amorce codée** (mai 2026) |
 | E | **YouTube Data API** | Remplacer stub vidéo |
 | G | **Compliance OPS / SLS** | Extension social |
 | H | **Assurances / relances** | Modèles séparés |
-| **V1** | **Dashboard référent secteur** | **En cours** — cf. §4bis |
-| **V2** | Patrimoine, IA clusters, import CSV, pilotage bailleur | Après validation terrain V1 |
+| **V1** | Dashboard référent + parcours Lia + **IA auto-recherche interne** (amorce) | **En cours** — cf. §4bis, Q42 |
+| **V2** | Patrimoine, IA clusters, import CSV, pilotage bailleur, **mémoire / recherche approfondie** (boucle itérative), **ticket technicien procédures annotées** (Q43) | Extension de ce qui a démarré en V1 |
+| **V3** | Sources externes traçables (normes, fabricants) | Cas atypiques, masse critique |
 
 ---
 
 ## 6. Points d’attention techniques
 
+- **Versions outils — ne pas upgrader avant septembre 2026** : le terminal peut proposer **Prisma 7** (projet en **Prisma 5.15**) et **npm 11** (souvent npm 10 en local). Ce ne sont que des avis de mise à jour, pas des erreurs. **Ne pas lancer** `npm i prisma@latest` / `npm i -g npm@latest` avant la **présentation et validation** de septembre : changements majeurs possibles, sans gain pour la démo. Reprendre un upgrade Prisma/npm **après** stabilisation terrain, avec tests complets (`migrate deploy`, `build`, parcours locataire).
 - **Répertoire Prisma** : `mon-backend/backend` (pas `mon-backend` seul).
 - **DTO bailleur (Swagger)** : `AdminUpdateLandlordDto` (admin) et `LandlordUpdateProfileDto` (bailleur `PATCH /me`) — plus de doublon `UpdateLandlordDto`.
 - **Prod notifications** : modèle dans `mon-backend/backend/.env.example` (SMTP + Firebase).
@@ -555,3 +784,13 @@ Ne pas committer `projet.txt` ni les fichiers Office temporaires (`~$*`).
 | 15 mai 2026 | Porteur projet | §0 ajouté : porteur non développeur, explications simples attendues |
 | 16 mai 2026 | Session assistant | Sprint F clôturé : push ticketId, FCM hook Flutter, photo depuis conversation |
 | 16 mai 2026 | Session assistant | Sprint G : pipeline pathologiste + juriste + AiMemory RAG |
+| 17 mai 2026 | Porteur projet + assistant | §4ter : argumentaire dossier de présentation (rareté marché, réclamations répétitives, mémoire interne, 3 piliers IA) |
+| 17 mai 2026 | Porteur projet | §4ter : contexte 2terHabitat (app existante minimale, multi-affaires, coût déplacements Guyane) |
+| 17 mai 2026 | Porteur projet | §4ter : philosophie « mieux vaut bien faire » — peut changer la donne vs ticketing minimal |
+| 17 mai 2026 | Porteur projet | Q42 + §4bis/§4ter/§5 : **IA auto-recherche amorcée en V1** (interne) ; V2 = approfondissement |
+| 17 mai 2026 | Porteur projet | Q43 : ticket technicien — procédures annotées (ex. prise cuisine / DPN / photo / diagnostic IA / urgence) |
+| 17 mai 2026 | Porteur projet | Q44–Q62 : réponses questionnaire (coexistence 2ter, gouvernance, photos, relance IA, rôles proximité, urgence, IA légères, septembre, SaaS) |
+| 17 mai 2026 | Porteur projet + assistant | Q63 : flags qualification par bailleur ; priorité pré-vacances = parcours Lia + photo piloté par flags |
+| 17 mai 2026 | Porteur projet | Q64 : auto-recherche = moteur / anti-hallucination ; défaut `liaAutoResearchEnabled=true` |
+| 17 mai 2026 | Porteur projet | §6 : ne pas upgrader Prisma 7 / npm 11 avant validation septembre |
+| 22 mai 2026 | Porteur + assistant | Boucle rectification expert : `POST /tickets/:id/expert-rectification`, SharedState, Pro Briefing — `MANIFESTE_FINAL.md` |

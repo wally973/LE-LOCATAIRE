@@ -100,6 +100,18 @@ export interface DossierLookupResult {
   totalTickets: number;
 }
 
+/** Info lecture seule (recherche dossier) — pas d’action planning technicien. */
+export interface LandlordInfoEvent {
+  at: string;
+  kind:
+    | 'DIAGNOSTIC_LOCATAIRE'
+    | 'ARTISAN_DECLINED'
+    | 'ARTISAN_REQUESTED'
+    | 'EXPERT_RECTIFIED';
+  label: string;
+  detail: string;
+}
+
 export interface BailleurTicket {
   id: number;
   caseNumber?: string | null;
@@ -124,6 +136,7 @@ export interface BailleurTicket {
     firstName: string;
     lastName: string;
   } | null;
+  landlordInfoEvents?: LandlordInfoEvent[];
 }
 
 export interface BailleurStats {

@@ -22,8 +22,7 @@ export class LiaHostService {
     const prompt = [
       `Tu es Lia, assistante du bailleur social en Guyane (2terHabitat).`,
       `Le locataire ${name} vient de signaler : "${params.title}".`,
-      `Réponds en 2-3 phrases : accueil chaleureux, dis que tu analyses photo et description,`,
-      `qu'il peut fermer l'application et que tu le préviendras par notification.`,
+      `Réponds en 2 phrases : accueil chaleureux, tu vas poser quelques questions avant le diagnostic.`,
       `Français simple. Pas de conseil juridique. Pas de diagnostic technique encore.`,
     ].join('\n');
 
@@ -78,7 +77,20 @@ export class LiaHostService {
     };
   }
 
-  private async chat(userPrompt: string, maxTokens: number): Promise<string | null> {
+  /** Appel Groq avec prompt système personnalisable (Expert-Compagnon, etc.). */
+  async chatStructured(
+    systemPrompt: string,
+    userPrompt: string,
+    maxTokens: number,
+  ): Promise<string | null> {
+    return this.chat(userPrompt, maxTokens, systemPrompt);
+  }
+
+  private async chat(
+    userPrompt: string,
+    maxTokens: number,
+    systemPrompt = 'Tu es Lia, assistante logement en Guyane française. Ton court, humain, rassurant.',
+  ): Promise<string | null> {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey || process.env.LIA_HOST_ENABLED === 'false') {
       return null;
@@ -90,26 +102,36 @@ export class LiaHostService {
       process.env.LIA_HOST_BASE_URL ?? 'https://api.groq.com/openai/v1';
 
     try {
-      const res = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: 'system',
-              content:
-                'Tu es Lia, assistante logement en Guyane française. Ton court, humain, rassurant.',
-            },
-            { role: 'user', content: userPrompt },
-          ],
-          max_tokens: maxTokens,
-          temperature: 0.4,
-        }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12_000);
+      let res: Response;
+      try {
+        res = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: systemPrompt,
+              },
+              { role: 'user', content: userPrompt },
+            ],
+            max_tokens: maxTokens,
+            temperature: 0.35,
+            response_format: systemPrompt.includes('JSON uniquement')
+              ? { type: 'json_object' }
+              : undefined,
+          }),
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!res.ok) {
         this.logger.warn(`Groq hôte HTTP ${res.status}`);

@@ -21,6 +21,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: true,
     proxy: {
       /** Même cible pour tous les préfixes API Nest (dev sans VITE_API_URL). */
       '/admin': {
@@ -56,6 +57,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/landlords': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/agents': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },

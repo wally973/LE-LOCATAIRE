@@ -4,6 +4,7 @@
  *
  * Locataire : demo.locataire@lelocataire.test / DemoLocataire1!
  * Bailleur  : demo.bailleur@lelocataire.test / DemoBailleur1!
+ * Référent  : demo.referent@lelocataire.test / DemoReferent1!
  */
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -14,12 +15,14 @@ const TENANT_EMAIL = 'demo.locataire@lelocataire.test';
 const TENANT_PASSWORD = 'DemoLocataire1!';
 const LANDLORD_EMAIL = 'demo.bailleur@lelocataire.test';
 const LANDLORD_PASSWORD = 'DemoBailleur1!';
+const AGENT_EMAIL = 'demo.referent@lelocataire.test';
+const AGENT_PASSWORD = 'DemoReferent1!';
 
 async function upsertUser(params: {
   email: string;
   phone: string;
   password: string;
-  role: 'BAILLEUR' | 'LOCATAIRE';
+  role: 'BAILLEUR' | 'LOCATAIRE' | 'AGENT';
 }) {
   const hash = await bcrypt.hash(params.password, 10);
   const existing = await prisma.user.findFirst({
@@ -68,6 +71,21 @@ async function main() {
     });
   }
 
+  let agence = await prisma.agence.findFirst({
+    where: { landlordProfileId: landlord.id, name: 'Secteur Cayenne Démo' },
+  });
+  if (!agence) {
+    agence = await prisma.agence.create({
+      data: {
+        name: 'Secteur Cayenne Démo',
+        landlordProfileId: landlord.id,
+        address: 'Zone test référent',
+        postalCode: '97300',
+        city: 'CAYENNE',
+      },
+    });
+  }
+
   let housing = await prisma.housing.findFirst({
     where: { landlordId: landlord.id },
   });
@@ -78,8 +96,14 @@ async function main() {
         city: 'CAYENNE',
         postalCode: '97300',
         landlordId: landlord.id,
+        agenceId: agence.id,
         isValidated: true,
       },
+    });
+  } else if (housing.agenceId !== agence.id) {
+    housing = await prisma.housing.update({
+      where: { id: housing.id },
+      data: { agenceId: agence.id },
     });
   }
 
@@ -90,7 +114,7 @@ async function main() {
     role: 'LOCATAIRE',
   });
 
-  await prisma.tenantProfile.upsert({
+  const tenant = await prisma.tenantProfile.upsert({
     where: { userId: locataireUser.id },
     create: {
       userId: locataireUser.id,
@@ -98,18 +122,100 @@ async function main() {
       lastName: 'Démo',
       housingId: housing.id,
       isOfficialTenant: true,
+      dossierNumber: 'DOS-000001',
     },
     update: {
       housingId: housing.id,
       firstName: 'Marie',
       lastName: 'Démo',
+      dossierNumber: 'DOS-000001',
     },
   });
 
-  console.log('[seed-lia-demo] Prêt pour les tests.');
+  const referentUser = await upsertUser({
+    email: AGENT_EMAIL,
+    phone: '+594691000003',
+    password: AGENT_PASSWORD,
+    role: 'AGENT',
+  });
+
+  await prisma.agentProfile.upsert({
+    where: { userId: referentUser.id },
+    create: {
+      userId: referentUser.id,
+      landlordProfileId: landlord.id,
+      agenceId: agence.id,
+    },
+    update: {
+      landlordProfileId: landlord.id,
+      agenceId: agence.id,
+    },
+  });
+
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const demoTickets = [
+    {
+      title: 'Fuite sous évier cuisine',
+      description: 'Eau au sol sous l’évier.',
+      aiCategory: 'PLUMBING',
+      daysAgo: 5,
+    },
+    {
+      title: 'Prise électrique qui chauffe',
+      description: 'Odeur de brûlé dans le salon.',
+      aiCategory: 'ELECTRICITY',
+      daysAgo: 2,
+    },
+    {
+      title: 'Porte intérieure difficile à fermer',
+      description: 'Porte chambre frotte le sol.',
+      aiCategory: 'CARPENTRY',
+      daysAgo: 0,
+    },
+  ];
+
+  for (const spec of demoTickets) {
+    const existing = await prisma.ticket.findFirst({
+      where: { tenantId: tenant.id, title: spec.title },
+    });
+    if (existing) continue;
+
+    const createdAt = new Date(now - spec.daysAgo * day);
+    const updatedAt = new Date(now - spec.daysAgo * day);
+
+    const ticket = await prisma.ticket.create({
+      data: {
+        title: spec.title,
+        description: spec.description,
+        status: 'OPEN',
+        tenantId: tenant.id,
+        housingId: housing.id,
+        landlordProfileId: landlord.id,
+        responsibility: spec.aiCategory === 'PLUMBING' ? 'LOCATAIRE' : 'BAILLEUR',
+        aiCategory: spec.aiCategory,
+        aiSeverity: 'MEDIUM',
+        aiConfidence: 0.85,
+        createdAt,
+        updatedAt,
+      },
+    });
+
+    const year = createdAt.getFullYear();
+    await prisma.ticket.update({
+      where: { id: ticket.id },
+      data: {
+        caseNumber: `AFF-${year}-${String(ticket.id).padStart(6, '0')}`,
+      },
+    });
+  }
+
+  console.log('[seed-lia-demo] Prêt pour les tests multi-appareils.');
   console.log('[seed-lia-demo] Locataire :', TENANT_EMAIL, '/', TENANT_PASSWORD);
   console.log('[seed-lia-demo] Bailleur  :', LANDLORD_EMAIL, '/', LANDLORD_PASSWORD);
-  console.log('[seed-lia-demo] Logement id :', housing.id);
+  console.log('[seed-lia-demo] Référent  :', AGENT_EMAIL, '/', AGENT_PASSWORD);
+  console.log('[seed-lia-demo] Agence    :', agence.name, '(id', agence.id + ')');
+  console.log('[seed-lia-demo] Logement  :', housing.id);
 }
 
 main()

@@ -6,6 +6,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,6 +21,9 @@ import { CurrentUser } from '../auth/decorators/user.decorator';
 import { TenantService } from './tenant.service';
 import { UpdateTenantProfileDto } from './dto/update-tenant-profile.dto';
 import { AiDiagnosticsService } from '../ai-diagnostics/ai-diagnostics.service';
+import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
+import { DetectClaimsDto } from './dto/detect-claims.dto';
+import { detectMultipleClaims } from '../lia/lia-multi-claim';
 
 @ApiTags('tenant')
 @ApiBearerAuth('bearer')
@@ -29,6 +33,7 @@ export class TenantController {
   constructor(
     private readonly tenantService: TenantService,
     private readonly aiDiagnostics: AiDiagnosticsService,
+    private readonly featureFlags: FeatureFlagsService,
   ) {}
 
   @Get('me')
@@ -36,6 +41,30 @@ export class TenantController {
   @ApiOperation({ summary: 'Profil locataire + logement courant' })
   getMe(@CurrentUser() user: { userId: number }) {
     return this.tenantService.getProfile(user.userId);
+  }
+
+  @Get('me/qualification-settings')
+  @Roles('LOCATAIRE')
+  @ApiOperation({
+    summary: 'Actions de qualification activées par le bailleur (Lia, photo, recherche)',
+  })
+  getQualificationSettings(@CurrentUser() user: { userId: number }) {
+    return this.featureFlags.getQualificationFlagsForTenantUser(user.userId);
+  }
+
+  @Post('me/detect-claims')
+  @Roles('LOCATAIRE')
+  @ApiOperation({
+    summary:
+      'Détecte plusieurs sujets dans une description (un ticket = une réclamation)',
+  })
+  detectClaims(@Body() dto: DetectClaimsDto) {
+    const claims = detectMultipleClaims(dto.description, dto.description);
+    return {
+      count: claims.length,
+      multiple: claims.length > 1,
+      claims,
+    };
   }
 
   @Patch('me')

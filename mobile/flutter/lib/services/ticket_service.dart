@@ -1,7 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config.dart';
+import '../models/companion_state.dart';
+import '../models/detected_claim.dart';
 import '../models/ticket_message.dart';
+
+/// Plusieurs réclamations dans une même description.
+class MultipleClaimsException implements Exception {
+  MultipleClaimsException(this.claims);
+  final List<DetectedClaim> claims;
+}
 import 'auth_service.dart';
 
 class TicketService {
@@ -18,11 +26,25 @@ class TicketService {
 
   String get _baseUrl => getApiEndpoint();
 
+  static const _apiTimeout = Duration(seconds: 20);
+  static const _createTimeout = Duration(seconds: 45);
+
+  Future<http.Response> _get(Uri uri) async {
+    return http.get(uri, headers: await _headers()).timeout(_apiTimeout);
+  }
+
+  Future<http.Response> _post(Uri uri, {Object? body}) async {
+    return http
+        .post(
+          uri,
+          headers: await _headers(),
+          body: body == null ? null : jsonEncode(body),
+        )
+        .timeout(_apiTimeout);
+  }
+
   Future<List<dynamic>> getMyTickets() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/tickets/me'),
-      headers: await _headers(),
-    );
+    final response = await _get(Uri.parse('$_baseUrl/tickets/me'));
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -34,10 +56,7 @@ class TicketService {
   }
 
   Future<Map<String, dynamic>> getTicket(int id) async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/tickets/$id'),
-      headers: await _headers(),
-    );
+    final response = await _get(Uri.parse('$_baseUrl/tickets/$id'));
 
     if (response.statusCode != 200) {
       throw Exception('Ticket introuvable (${response.statusCode})');
@@ -47,10 +66,7 @@ class TicketService {
   }
 
   Future<List<TicketMessage>> getMessages(int ticketId) async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/tickets/$ticketId/messages'),
-      headers: await _headers(),
-    );
+    final response = await _get(Uri.parse('$_baseUrl/tickets/$ticketId/messages'));
 
     if (response.statusCode != 200) {
       throw Exception('Fil de conversation indisponible (${response.statusCode})');
@@ -64,12 +80,11 @@ class TicketService {
 
   /// Demande un artisan partenaire (ticket à charge locataire).
   Future<void> requestArtisan(int ticketId, {String? reason}) async {
-    final response = await http.post(
+    final response = await _post(
       Uri.parse('$_baseUrl/tickets/$ticketId/artisan-request'),
-      headers: await _headers(),
-      body: jsonEncode({
+      body: {
         if (reason != null && reason.isNotEmpty) 'reason': reason,
-      }),
+      },
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
@@ -82,10 +97,9 @@ class TicketService {
   }
 
   Future<List<TicketMessage>> postMessage(int ticketId, String content) async {
-    final response = await http.post(
+    final response = await _post(
       Uri.parse('$_baseUrl/tickets/$ticketId/messages'),
-      headers: await _headers(),
-      body: jsonEncode({'content': content}),
+      body: {'content': content},
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
@@ -104,15 +118,32 @@ class TicketService {
     required String description,
     required int housingId,
   }) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/tickets'),
-      headers: await _headers(),
-      body: jsonEncode({
-        'title': title,
-        'description': description,
-        'housingId': housingId,
-      }),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/tickets'),
+          headers: await _headers(),
+          body: jsonEncode({
+            'title': title,
+            'description': description,
+            'housingId': housingId,
+          }),
+        )
+        .timeout(_createTimeout);
+
+    if (response.statusCode == 400) {
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        if (body['code'] == 'MULTIPLE_CLAIMS') {
+          final raw = body['claims'] as List<dynamic>? ?? [];
+          final claims = raw
+              .map((e) => DetectedClaim.fromJson(e as Map<String, dynamic>))
+              .toList();
+          throw MultipleClaimsException(claims);
+        }
+      } catch (e) {
+        if (e is MultipleClaimsException) rethrow;
+      }
+    }
 
     if (response.statusCode != 201 && response.statusCode != 200) {
       throw Exception(
@@ -136,20 +167,50 @@ class TicketService {
   static bool isLiaAnalyzing(Map<String, dynamic>? ticket) {
     if (ticket == null) return false;
     final status = ticket['status'] as String?;
-    return status == 'LIA_ANALYZING' || status == 'NEW';
+    return status == 'LIA_ANALYZING';
+  }
+
+  /// Lia attend une photo (intake ou reprise après photo floue).
+  static bool isAwaitingTenantPhoto(Map<String, dynamic>? ticket) {
+    if (ticket == null) return false;
+    final status = ticket['status'] as String?;
+    if (status == 'AWAITING_TENANT_PHOTO') return true;
+    final phase = intakePhase(ticket);
+    return phase == 'AWAITING_PHOTO';
+  }
+
+  /// Actions photo (bouton caméra) : phase intake ou flag Expert-Compagnon.
+  static bool shouldOfferPhoto(Map<String, dynamic>? ticket) {
+    if (isAwaitingTenantPhoto(ticket)) return true;
+    if (ticket == null) return false;
+    if (intakePhase(ticket) == 'INTAKE') return false;
+    final companion = CompanionState.fromTicketJson(ticket);
+    return companion?.photoRequested == true;
+  }
+
+  static String? intakePhase(Map<String, dynamic>? ticket) {
+    if (ticket == null) return null;
+    final ai = ticket['aiLastDecision'];
+    if (ai is! Map) return null;
+    final aiMap = Map<String, dynamic>.from(ai as Map);
+    final intake = aiMap['intake'];
+    if (intake is! Map) return null;
+    final intakeMap = Map<String, dynamic>.from(intake as Map);
+    return intakeMap['phase'] as String?;
   }
 
   /// Relance l’analyse IA après envoi d’une nouvelle photo.
   Future<Map<String, dynamic>> redoPhoto(
     int ticketId, {
     String? feedback,
+    String? photoUrl,
   }) async {
-    final response = await http.post(
+    final response = await _post(
       Uri.parse('$_baseUrl/tickets/$ticketId/redo-photo'),
-      headers: await _headers(),
-      body: jsonEncode({
+      body: {
         if (feedback != null && feedback.isNotEmpty) 'feedback': feedback,
-      }),
+        if (photoUrl != null && photoUrl.isNotEmpty) 'photoUrl': photoUrl,
+      },
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
@@ -159,5 +220,79 @@ class TicketService {
     }
 
     return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Message Lia pour le locataire après diagnostic.
+  static String? tenantMessageFromTicket(Map<String, dynamic>? ticket) {
+    if (ticket == null) return null;
+    final ai = ticket['aiLastDecision'];
+    if (ai is Map<String, dynamic>) {
+      final msg = ai['messageForTenant'] as String?;
+      if (msg != null && msg.trim().isNotEmpty) return msg.trim();
+    }
+    return null;
+  }
+
+  static String responsibilityLabel(String? code) {
+    switch (code) {
+      case 'LOCATAIRE':
+        return 'À votre charge';
+      case 'BAILLEUR':
+      case 'ESCALADE_BAILLEUR':
+        return 'Charge bailleur';
+      case 'NON_RECEVABLE':
+        return 'Non recevable';
+      case 'SOCIAL':
+        return 'Accompagnement social';
+      case 'PENDING':
+        return 'Analyse en cours';
+      default:
+        return code ?? '—';
+    }
+  }
+
+  /// Le locataire a déjà accepté ou refusé un artisan (boutons ou message).
+  static bool hasArtisanChoiceInMessages(List<TicketMessage> messages) {
+    for (final m in messages) {
+      if (m.isLiaHost) {
+        final c = m.content.toLowerCase();
+        if (c.contains('transmis votre demande')) return true;
+        if (c.contains('n’ouvrons pas de demande d’artisan') ||
+            c.contains("n'ouvrons pas de demande d'artisan")) {
+          return true;
+        }
+      }
+      if (!m.isTenant) continue;
+      final t = m.content.toLowerCase().trim();
+      if (t.contains('pas de plombier') ||
+          t.contains('sans plombier') ||
+          t.contains('ne souhaite pas') ||
+          t.contains('ne veux pas') ||
+          t.contains('pas besoin de plombier')) {
+        return true;
+      }
+      if (t.contains('souhaite un plombier') ||
+          t.contains('veux un plombier') ||
+          t.contains('voudrais un plombier') ||
+          (t.startsWith('oui') && t.contains('plombier'))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Fil clos après refus d’artisan — nouvelle réclamation via l’accueil.
+  static bool isFollowUpClosed(Map<String, dynamic>? ticket) {
+    if (ticket == null) return false;
+    final ai = ticket['aiLastDecision'];
+    if (ai is! Map) return false;
+    final aiMap = Map<String, dynamic>.from(ai);
+    return aiMap['followUpClosed'] == true;
+  }
+
+  static bool hasFinalDiagnostic(Map<String, dynamic>? ticket) {
+    if (ticket == null) return false;
+    final r = ticket['responsibility'] as String?;
+    return r != null && r != 'PENDING';
   }
 }

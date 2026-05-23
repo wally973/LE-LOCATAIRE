@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { BailleurTicket } from '@/types/bailleur';
 import { TicketStatusBadge } from './TicketStatusBadge';
 import { ResponsibilityBadge } from './ResponsibilityBadge';
+import { LandlordInfoEvents } from './LandlordInfoEvents';
 import './bailleur.css';
 
 interface Props {
@@ -47,6 +48,9 @@ export const TicketList: React.FC<Props> = ({
                 <span className="muted">{t.housing.address}</span>
               ) : null}
             </div>
+            {t.landlordInfoEvents && t.landlordInfoEvents.length > 0 ? (
+              <LandlordInfoEvents events={t.landlordInfoEvents} compact />
+            ) : null}
           </div>
           <Link
             to={`${ticketLinkPrefix}/${t.id}`}

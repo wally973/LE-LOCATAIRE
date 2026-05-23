@@ -1,10 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { AiDiagnosticsModule } from '../ai-diagnostics/ai-diagnostics.module';
 import { VideoLibraryModule } from '../video-library/video-library.module';
 import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
+import { LegalReferencesModule } from '../legal-references/legal-references.module';
+import { LiaModule } from '../lia/lia.module';
 import { AI_PIPELINE } from './ai-pipeline.port';
 import { AiPipelineStubAdapter } from './ai-pipeline-stub.adapter';
 import { AiPipelineLiaAdapter } from './ai-pipeline-lia.adapter';
@@ -38,6 +40,8 @@ function resolvePipelineMode(): 'stub' | 'lia' {
     AiDiagnosticsModule,
     VideoLibraryModule,
     FeatureFlagsModule,
+    LegalReferencesModule,
+    forwardRef(() => LiaModule),
   ],
   controllers: [AiRoutingController],
   providers: [

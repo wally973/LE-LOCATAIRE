@@ -136,12 +136,20 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                           final title = t['title'] as String? ?? 'Demande';
                           final status = t['status'] as String?;
                           final caseNumber = t['caseNumber'] as String?;
+                          final responsibility =
+                              t['responsibility'] as String?;
+                          final respLabel = responsibility != null &&
+                                  responsibility != 'PENDING'
+                              ? TicketService.responsibilityLabel(responsibility)
+                              : null;
                           return ListTile(
                             title: Text(title),
                             subtitle: Text(
-                              caseNumber != null
-                                  ? '$caseNumber · ${_statusLabel(status)}'
-                                  : 'Ticket #$id · ${_statusLabel(status)}',
+                              [
+                                if (caseNumber != null) caseNumber else 'Ticket #$id',
+                                _statusLabel(status),
+                                if (respLabel != null) respLabel,
+                              ].join(' · '),
                             ),
                             trailing: Chip(
                               label: Text(

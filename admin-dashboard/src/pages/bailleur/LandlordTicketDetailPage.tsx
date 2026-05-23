@@ -5,6 +5,10 @@ import { ticketsApi, type TicketStatusUi } from '@services/ticketsApi';
 import { getErrorMessage } from '@services/apiClient';
 import type { BailleurTicket } from '@/types/bailleur';
 import { TicketStatusBadge } from '@components/bailleur/TicketStatusBadge';
+import { ResponsibilityBadge } from '@components/bailleur/ResponsibilityBadge';
+import { LandlordInfoEvents } from '@components/bailleur/LandlordInfoEvents';
+import { ProBriefingPanel } from '@components/bailleur/ProBriefingPanel';
+import { ExpertRectificationForm } from '@components/bailleur/ExpertRectificationForm';
 import '@components/bailleur/bailleur.css';
 
 const STATUS_LABEL: Record<TicketStatusUi, string> = {
@@ -34,6 +38,7 @@ const LandlordTicketDetailPage: React.FC = () => {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [briefingKey, setBriefingKey] = useState(0);
 
   const reload = () => {
     if (!id) return;
@@ -104,6 +109,12 @@ const LandlordTicketDetailPage: React.FC = () => {
           <div className="card">
             <p style={{ marginTop: 0 }}>
               <TicketStatusBadge status={ticket.status} />
+              {ticket.responsibility ? (
+                <>
+                  {' '}
+                  <ResponsibilityBadge responsibility={ticket.responsibility} />
+                </>
+              ) : null}
             </p>
             <p>
               <strong>{ticket.title}</strong>
@@ -116,6 +127,34 @@ const LandlordTicketDetailPage: React.FC = () => {
                 : ''}
             </p>
           </div>
+
+          {ticket.landlordInfoEvents && ticket.landlordInfoEvents.length > 0 ? (
+            <div className="card" style={{ marginTop: 20 }}>
+              <h2 style={{ marginTop: 0 }}>Informations dossier</h2>
+              <p style={{ color: '#64748b', fontSize: 14 }}>
+                Lecture seule — rien n’est envoyé au planning technicien lorsque le
+                locataire refuse un artisan.
+              </p>
+              <LandlordInfoEvents events={ticket.landlordInfoEvents} />
+            </div>
+          ) : null}
+
+          {id ? (
+            <>
+              <ProBriefingPanel
+                key={briefingKey}
+                ticketId={parseInt(id, 10)}
+              />
+              <ExpertRectificationForm
+                ticketId={parseInt(id, 10)}
+                currentResponsibility={ticket.responsibility}
+                onRectified={() => {
+                  setBriefingKey((k) => k + 1);
+                  reload();
+                }}
+              />
+            </>
+          ) : null}
 
           <div className="card" style={{ marginTop: 20 }}>
             <h2 style={{ marginTop: 0 }}>Changer le statut</h2>

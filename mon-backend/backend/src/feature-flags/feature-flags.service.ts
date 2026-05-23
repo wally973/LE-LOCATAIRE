@@ -6,6 +6,11 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateFeatureFlagsDto } from './dto/update-feature-flags.dto';
 import type { LandlordModuleKey } from './feature-flags.types';
+import {
+  DEFAULT_QUALIFICATION_FLAGS,
+  QUALIFICATION_FLAG_KEYS,
+  type QualificationFlags,
+} from './qualification-flags.types';
 
 const DEFAULT_FLAGS = {
   ticketsModule: true,
@@ -17,6 +22,7 @@ const DEFAULT_FLAGS = {
   hlmModule: false,
   contratsModule: true,
   paiementsModule: true,
+  ...DEFAULT_QUALIFICATION_FLAGS,
 } as const;
 
 @Injectable()
@@ -91,6 +97,54 @@ export class FeatureFlagsService {
   }
 
   /** Vérifie le module pour le bailleur du logement du locataire connecté. */
+  /** Paramètres de qualification pour un bailleur (actions Lia / photo / recherche). */
+  async getQualificationFlags(
+    landlordProfileId: number,
+  ): Promise<QualificationFlags> {
+    const flags = await this.getOrCreateForLandlordProfile(landlordProfileId);
+    return this.pickQualificationFlags(flags);
+  }
+
+  async getQualificationFlagsForTenantUser(
+    tenantUserId: number,
+  ): Promise<QualificationFlags> {
+    const tenant = await this.prisma.tenantProfile.findUnique({
+      where: { userId: tenantUserId },
+      select: {
+        housing: { select: { landlordId: true } },
+      },
+    });
+    const landlordProfileId = tenant?.housing?.landlordId;
+    if (!landlordProfileId) {
+      return { ...DEFAULT_QUALIFICATION_FLAGS };
+    }
+    return this.getQualificationFlags(landlordProfileId);
+  }
+
+  async updateQualificationFlags(
+    landlordProfileId: number,
+    partial: Partial<QualificationFlags>,
+  ) {
+    await this.ensureLandlordProfileExists(landlordProfileId);
+    await this.getOrCreateForLandlordProfile(landlordProfileId);
+    return this.prisma.landlordFeatureFlags.update({
+      where: { landlordProfileId },
+      data: partial,
+    });
+  }
+
+  pickQualificationFlags(
+    row: Record<string, boolean | Date | number>,
+  ): QualificationFlags {
+    const out = { ...DEFAULT_QUALIFICATION_FLAGS };
+    for (const key of QUALIFICATION_FLAG_KEYS) {
+      if (typeof row[key] === 'boolean') {
+        out[key] = row[key];
+      }
+    }
+    return out;
+  }
+
   async assertModuleEnabledForTenantUser(
     tenantUserId: number,
     moduleKey: LandlordModuleKey,

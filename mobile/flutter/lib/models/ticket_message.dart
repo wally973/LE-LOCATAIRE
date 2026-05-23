@@ -16,8 +16,8 @@ class TicketMessage {
 
   factory TicketMessage.fromJson(Map<String, dynamic> json) {
     return TicketMessage(
-      id: json['id'] as int,
-      ticketId: json['ticketId'] as int,
+      id: (json['id'] as num).toInt(),
+      ticketId: (json['ticketId'] as num).toInt(),
       role: json['role'] as String,
       content: json['content'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),

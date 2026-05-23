@@ -12,6 +12,10 @@ import { AiDiagnosticsService } from '../ai-diagnostics/ai-diagnostics.service';
 import { VideoLibraryService } from '../video-library/video-library.service';
 import { AI_PIPELINE } from './ai-pipeline.port';
 import type { AiPipelineDecision, AiPipelinePort } from './ai-pipeline.port';
+import {
+  appendIntakeContextToFeedback,
+  parseIntakeState,
+} from '../lia/lia-intake.service';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -21,6 +25,8 @@ const AI_CONFIDENCE_THRESHOLD = 0.75;
 interface AnalyzeOptions {
   /** Si fourni, retentative déclenchée après un re-upload photo ou un feedback. */
   tenantFeedback?: string;
+  /** URL de photo à rattacher au ticket avant analyse. */
+  photoUrl?: string;
   /** Force le ré-appel même si une décision finale a déjà été prise. */
   force?: boolean;
 }
@@ -74,21 +80,64 @@ export class AiRoutingService {
       );
     }
 
-    const attempt = ticket.aiAttempts + 1;
+    const incomingPhotoUrl =
+      opts.photoUrl?.trim() ||
+      this.extractPhotoUrlFromText(opts.tenantFeedback) ||
+      null;
+    if (incomingPhotoUrl) {
+      await this.attachTicketPhoto(ticketId, incomingPhotoUrl);
+    }
 
-    const photoUrls = ticket.documents
+    const ticketWithDocs =
+      incomingPhotoUrl != null
+        ? await this.prisma.ticket.findUnique({
+            where: { id: ticketId },
+            include: {
+              housing: { include: { landlord: { include: { user: true } } } },
+              tenant: { include: { user: true } },
+              documents: true,
+            },
+          })
+        : ticket;
+    if (!ticketWithDocs) throw new NotFoundException('Ticket introuvable');
+
+    const attempt = ticketWithDocs.aiAttempts + 1;
+
+    const photoUrls = ticketWithDocs.documents
       .map((d) => d.url)
       .filter((u): u is string => typeof u === 'string' && u.length > 0);
 
+    const intakeState = parseIntakeState(ticketWithDocs.aiLastDecision);
+    const tenantFeedback = appendIntakeContextToFeedback(
+      ticketWithDocs.aiLastDecision,
+      opts.tenantFeedback,
+    );
+
+    if (intakeState?.phase === 'AWAITING_PHOTO') {
+      await this.prisma.ticketMessage.create({
+        data: {
+          ticketId,
+          role: 'LIA_HOST',
+          content:
+            'Merci pour la photo. Je lance l’analyse complète (charge locataire ou bailleur) — vous serez notifié(e).',
+        },
+      });
+      await this.prisma.ticket.update({
+        where: { id: ticketId },
+        data: { status: 'LIA_ANALYZING' },
+      });
+    }
+
     const decision = await this.pipeline.analyze({
-      title: ticket.title,
-      description: ticket.description,
+      title: ticketWithDocs.title,
+      description: ticketWithDocs.description,
       attempt,
       photoUrls,
-      tenantFeedback: opts.tenantFeedback,
+      tenantFeedback,
       locale: 'fr-FR',
-      landlordProfileId: ticket.landlordProfileId ?? ticket.housing.landlordId,
-      housingId: ticket.housingId,
+      landlordProfileId:
+        ticketWithDocs.landlordProfileId ?? ticketWithDocs.housing.landlordId,
+      housingId: ticketWithDocs.housingId,
     });
 
     // Si la confiance est trop faible, on bascule en needsMorePhoto sauf si on a
@@ -117,26 +166,41 @@ export class AiRoutingService {
       };
     }
 
-    const updated = await this.applyDecision(ticket, effectiveDecision, attempt);
+    const intakeDone =
+      intakeState?.phase === 'AWAITING_PHOTO'
+        ? { ...intakeState, phase: 'DONE' as const }
+        : intakeState ?? undefined;
 
-    await this.recordDiagnostic(ticket.tenant.userId, effectiveDecision, {
-      ticketId: ticket.id,
+    const updated = await this.applyDecision(
+      ticketWithDocs,
+      effectiveDecision,
+      attempt,
+      intakeDone,
+    );
+
+    await this.recordDiagnostic(ticketWithDocs.tenant.userId, effectiveDecision, {
+      ticketId: ticketWithDocs.id,
       attempt,
     });
 
     await this.fireSideEffects(
       {
         ...updated,
-        title: ticket.title,
+        title: ticketWithDocs.title,
         caseNumber: updated.caseNumber,
-        tenant: ticket.tenant,
-        housing: ticket.housing,
+        tenant: ticketWithDocs.tenant,
+        housing: ticketWithDocs.housing,
       },
       effectiveDecision,
     );
 
+    await this.appendDiagnosticMessageToThread(
+      ticketWithDocs.id,
+      effectiveDecision,
+    );
+
     return this.prisma.ticket.findUniqueOrThrow({
-      where: { id: ticket.id },
+      where: { id: ticketWithDocs.id },
       include: {
         housing: true,
         tenant: true,
@@ -192,10 +256,38 @@ export class AiRoutingService {
   // Internes
   // --------------------------------------------------------------------------
 
+  /** Affiche le résultat du diagnostic dans le fil (pas seulement aiLastDecision). */
+  private async appendDiagnosticMessageToThread(
+    ticketId: number,
+    decision: AiPipelineDecision,
+  ): Promise<void> {
+    if (decision.needsMorePhoto || decision.responsibility === 'PENDING') {
+      return;
+    }
+    const text = decision.message?.trim();
+    if (!text) return;
+
+    const last = await this.prisma.ticketMessage.findFirst({
+      where: { ticketId, role: 'LIA_HOST' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (last?.content.trim() === text) return;
+
+    await this.prisma.ticketMessage.create({
+      data: {
+        ticketId,
+        role: 'LIA_HOST',
+        content: text,
+        locale: 'fr-FR',
+      },
+    });
+  }
+
   private async applyDecision(
     ticket: { id: number; aiMaxAttempts: number; housing: { landlordId: number } },
     decision: AiPipelineDecision,
     attempt: number,
+    intakeDone?: ReturnType<typeof parseIntakeState>,
   ) {
     // Round-trip JSON pour obtenir un Prisma.InputJsonValue propre,
     // sinon TS rejette les tableaux d'objets typés (TS2322).
@@ -210,6 +302,7 @@ export class AiRoutingService {
         socialFlag: decision.socialFlag,
         pipelineSteps: decision.pipelineSteps,
         messageForTenant: decision.message,
+        ...(intakeDone ? { intake: intakeDone } : {}),
       }),
     ) as Prisma.InputJsonValue;
 
@@ -438,6 +531,30 @@ export class AiRoutingService {
       default:
         break;
     }
+  }
+
+  private extractPhotoUrlFromText(text?: string): string | null {
+    if (!text?.trim()) return null;
+    const match = text.match(/https?:\/\/\S+|\/uploads\/\S+/i);
+    return match?.[0] ?? null;
+  }
+
+  private async attachTicketPhoto(
+    ticketId: number,
+    photoUrl: string,
+  ): Promise<void> {
+    const url = photoUrl.trim();
+    const existing = await this.prisma.document.findFirst({
+      where: { ticketId, url },
+    });
+    if (existing) return;
+    await this.prisma.document.create({
+      data: {
+        ticketId,
+        type: 'AUTRE',
+        url,
+      },
+    });
   }
 
   private async ensureSocialCase(

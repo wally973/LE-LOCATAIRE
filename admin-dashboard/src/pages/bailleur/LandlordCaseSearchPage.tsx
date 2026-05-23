@@ -4,6 +4,7 @@ import { ticketsApi } from '@services/ticketsApi';
 import { getErrorMessage } from '@services/apiClient';
 import type { DossierLookupResult } from '@/types/bailleur';
 import { TicketList } from '@components/bailleur/TicketList';
+import { LandlordInfoEvents } from '@components/bailleur/LandlordInfoEvents';
 import { ResponsibilityBadge } from '@components/bailleur/ResponsibilityBadge';
 import { TicketStatusBadge } from '@components/bailleur/TicketStatusBadge';
 import '@components/bailleur/bailleur.css';
@@ -126,6 +127,18 @@ const LandlordCaseSearchPage: React.FC = () => {
                   <ResponsibilityBadge responsibility={focusTicket.responsibility} />
                 ) : null}
               </div>
+              {focusTicket.landlordInfoEvents &&
+              focusTicket.landlordInfoEvents.length > 0 ? (
+                <div style={{ marginTop: 12 }}>
+                  <h3 style={{ fontSize: 14, marginBottom: 8 }}>
+                    Informations dossier (lecture seule)
+                  </h3>
+                  <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+                    Aucune action technicien automatique — historique pour le bailleur.
+                  </p>
+                  <LandlordInfoEvents events={focusTicket.landlordInfoEvents} />
+                </div>
+              ) : null}
               <p style={{ marginTop: 12 }}>
                 <Link
                   to={`/bailleur/tickets/${focusTicket.id}`}

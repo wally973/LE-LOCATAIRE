@@ -1,0 +1,454 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-16",
+  "description": "Références locatif (métropole + outre-mer) — sources service-public.gouv.fr et legifrance.gouv.fr. Ne remplace pas un avis juridique.",
+  "entries": [
+    {
+      "slug": "loi-89-462-cadre",
+      "kind": "LOI",
+      "category": "GENERIC",
+      "title": "Loi du 6 juillet 1989 — bail d'habitation",
+      "summary": "Texte de référence pour la location de résidence principale (vide, meublé).",
+      "content": "La loi n° 89-462 du 6 juillet 1989 encadre les baux d'habitation : durée, loyer, charges, état des lieux, logement décent, conciliation. Elle s'applique au secteur privé pour la résidence principale du locataire.",
+      "responsibilityHint": null,
+      "keywords": ["bail", "habitation", "location", "loi", "1989"],
+      "sources": [
+        {
+          "label": "Légifrance — loi 89-462",
+          "url": "https://www.legifrance.gouv.fr/affichTexte.do?cidTexte=JORFTEXT000000509310",
+          "article": null
+        },
+        {
+          "label": "Service Public — bail d'habitation",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N349",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 1
+    },
+    {
+      "slug": "decret-87-712-reparations-locatives",
+      "kind": "DECRET",
+      "category": "GENERIC",
+      "title": "Décret 87-712 — liste des réparations locatives",
+      "summary": "Liste limitative des menues réparations et entretien courant à la charge du locataire.",
+      "content": "Le décret n° 87-712 du 26 août 1987 définit les réparations locatives : entretien courant et menues réparations liées à l'usage normal (peinture, joints, ampoules, dégorgement, entretien jardin privatif, gouttières, etc.). Tout ce qui n'y figure pas relève en principe du bailleur. Exception : vétusté, vice de construction, cas fortuit ou force majeure, faute du bailleur → charge bailleur même si l'acte ressemble à une réparation locative.",
+      "responsibilityHint": "LOCATAIRE",
+      "keywords": ["87-712", "réparations locatives", "menues réparations", "entretien", "décret"],
+      "sources": [
+        {
+          "label": "Service Public — réparations locataire",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31697",
+          "article": "Décret 87-712"
+        }
+      ],
+      "exceptions": [
+        "Vétusté ou force majeure → bailleur",
+        "Faute du bailleur → bailleur"
+      ],
+      "sortOrder": 2
+    },
+    {
+      "slug": "decret-87-713-charges-recuperables",
+      "kind": "DECRET",
+      "category": "CHARGES",
+      "title": "Décret 87-713 — charges récupérables",
+      "summary": "Liste limitative des charges que le bailleur peut récupérer auprès du locataire.",
+      "content": "Le décret n° 87-713 du 26 août 1987 fixe la liste des charges locatives (charges récupérables) : eau froide/chaude collective, chauffage collectif, électricité parties communes, ascenseur (exploitation, menues réparations cabine), entretien parties communes, taxes ordures ménagères, etc. Le bailleur ne peut pas récupérer d'autres postes que ceux listés.",
+      "responsibilityHint": "LOCATAIRE",
+      "keywords": ["charges", "récupérables", "87-713", "provisions", "forfait"],
+      "sources": [
+        {
+          "label": "Service Public — charges locataire",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F947",
+          "article": "Décret 87-713"
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 3
+    },
+    {
+      "slug": "code-civil-1719-bailleur",
+      "kind": "CODE_CIVIL",
+      "category": "GENERIC",
+      "title": "Code civil art. 1719 — obligations du bailleur",
+      "summary": "Le bailleur doit entretenir le logement et le livrer en état de servir à l'usage convenu.",
+      "content": "L'article 1719 du Code civil impose au bailleur de délivrer la chose louée en bon état, d'assurer l'entretien et les grosses réparations pendant toute la durée du bail, sauf convention contraire dans les limites légales.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["1719", "code civil", "bailleur", "entretien", "grosses réparations"],
+      "sources": [
+        {
+          "label": "Légifrance — art. 1719",
+          "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006443034",
+          "article": "1719"
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 4
+    },
+    {
+      "slug": "code-civil-1721-locataire",
+      "kind": "CODE_CIVIL",
+      "category": "GENERIC",
+      "title": "Code civil art. 1721 — réparations locatives",
+      "summary": "Le locataire prend à sa charge les réparations locatives pendant le bail.",
+      "content": "L'article 1721 du Code civil renvoie aux usages et à la loi pour les réparations locatives. En pratique, la liste du décret 87-712 s'applique. Le locataire doit aussi user paisiblement des lieux.",
+      "responsibilityHint": "LOCATAIRE",
+      "keywords": ["1721", "code civil", "locataire", "réparations locatives"],
+      "sources": [
+        {
+          "label": "Légifrance — bail (section)",
+          "url": "https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006070721/LEGISCTA000006150285/",
+          "article": "1721"
+        }
+      ],
+      "exceptions": ["Vétusté, force majeure → bailleur"],
+      "sortOrder": 5
+    },
+    {
+      "slug": "loi-art6-logement-decent",
+      "kind": "LOI",
+      "category": "DECENCE",
+      "title": "Loi 89-462 art. 6 — logement décent",
+      "summary": "Le bailleur doit remettre un logement décent, sans risque manifeste pour la santé ou la sécurité.",
+      "content": "L'article 6 de la loi du 6 juillet 1989 impose au bailleur de remettre un logement décent ne laissant pas apparaître de risques manifestes pour la sécurité physique ou la santé. Un décret précise les critères (surface, équipements, DPE, parasites, etc.). Le locataire peut demander la mise en conformité ; procédure de conciliation puis juge si besoin.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["décence", "décent", "santé", "sécurité", "article 6"],
+      "sources": [
+        {
+          "label": "Service Public — logement décent",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F2042",
+          "article": "6"
+        },
+        {
+          "label": "Légifrance — art. 6",
+          "url": "https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000037670751/",
+          "article": "6"
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 6
+    },
+    {
+      "slug": "fiche-travaux-bailleur",
+      "kind": "FICHE_SP",
+      "category": "GENERIC",
+      "title": "Travaux à la charge du propriétaire",
+      "summary": "Tous les travaux hors réparations locatives (décret 87-712) sont à la charge du bailleur.",
+      "content": "Durant le bail, le propriétaire doit faire : travaux d'amélioration parties communes ou privatives, maintien en l'état normal du logement, performance énergétique, mise en conformité décence, entretien toitures et façades végétalisées. Il doit prévenir le locataire avant les travaux. Le locataire ne peut pas arrêter le loyer : alerte, mise en demeure, commission de conciliation, puis juge.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["travaux", "propriétaire", "bailleur", "grosses réparations"],
+      "sources": [
+        {
+          "label": "Service Public — F31699",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31699",
+          "article": null
+        }
+      ],
+      "exceptions": ["Faute du locataire → peut être à la charge du locataire"],
+      "sortOrder": 10
+    },
+    {
+      "slug": "fiche-reparations-locataire",
+      "kind": "FICHE_SP",
+      "category": "GENERIC",
+      "title": "Réparations locatives — charge locataire",
+      "summary": "Entretien courant et liste du décret 87-712 ; exceptions vétusté et force majeure.",
+      "content": "Le locataire assure l'entretien courant et les réparations du décret 87-712 : peinture, joints robinets, ampoules, dégorgement, entretien jardin privatif, nettoyage gouttières accessibles, vitres cassées par le locataire, etc. Si la réparation est rendue nécessaire par la vétusté ou la force majeure (tempête), elle reste à la charge du bailleur.",
+      "responsibilityHint": "LOCATAIRE",
+      "keywords": ["réparations locatives", "entretien courant", "locataire", "87-712"],
+      "sources": [
+        {
+          "label": "Service Public — F31697",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31697",
+          "article": null
+        }
+      ],
+      "exceptions": ["Vétusté", "Force majeure", "Faute bailleur"],
+      "sortOrder": 11
+    },
+    {
+      "slug": "roof-infiltration-bailleur",
+      "kind": "FICHE_SP",
+      "category": "ROOF",
+      "title": "Infiltration / fuite de toiture",
+      "summary": "En principe charge du bailleur (étanchéité, structure, entretien du bien).",
+      "content": "Une infiltration ou fuite de toiture relève en principe de la charge du bailleur : entretien de la toiture, étanchéité, gros œuvre. En cas de pluie ou tempête (force majeure), la réparation reste au bailleur. Le locataire peut protéger ses affaires (bâche, seaux) en attendant l'intervention. Une photo aide le technicien. Procédure si le bailleur n'agit pas : mise en demeure, commission de conciliation, juge des contentieux de la protection.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["toiture", "infiltration", "fuite", "pluie", "plafond", "eau", "goutte"],
+      "sources": [
+        {
+          "label": "Service Public — travaux bailleur",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31699",
+          "article": null
+        },
+        {
+          "label": "Service Public — dégradations",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F21105",
+          "article": null
+        }
+      ],
+      "exceptions": ["Faute du locataire (ex. objet ayant endommagé la toiture)"],
+      "sortOrder": 20
+    },
+    {
+      "slug": "roof-gouttieres-locataire",
+      "kind": "FICHE_SP",
+      "category": "ROOF",
+      "title": "Entretien des gouttières (réparation locative)",
+      "summary": "Nettoyage / petit entretien des gouttières souvent à la charge du locataire ; structure et étanchéité au bailleur.",
+      "content": "Le nettoyage et l'entretien courant des gouttières et descentes d'eaux pluviales figurent souvent parmi les réparations locatives (décret 87-712). En revanche, le remplacement de la toiture, l'étanchéité structurelle ou une infiltration liée au bâti relèvent du bailleur.",
+      "responsibilityHint": "LOCATAIRE",
+      "keywords": ["gouttière", "gouttières", "descente", "eaux pluviales", "nettoyage"],
+      "sources": [
+        {
+          "label": "Service Public — F31697",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31697",
+          "article": "Décret 87-712"
+        }
+      ],
+      "exceptions": ["Vétusté ou défaut structurel → bailleur"],
+      "sortOrder": 21
+    },
+    {
+      "slug": "plumbing-fuite-evier-locataire",
+      "kind": "FAQ",
+      "category": "PLUMBING",
+      "title": "Fuite sous évier / robinet / siphon",
+      "summary": "En principe charge locataire (réparation locative) si organes accessibles.",
+      "content": "Fuite au siphon, robinet, flexibles ou joints accessibles sous évier ou lavabo : en principe réparation locative (locataire). Fuite sur canalisation encastrée, colonne collective ou impliquant le réseau de l'immeuble : bailleur. Couper l'arrivée d'eau si possible et limiter les dégâts (seau).",
+      "responsibilityHint": "LOCATAIRE",
+      "keywords": ["fuite", "évier", "lavabo", "siphon", "robinet", "plomberie", "eau"],
+      "sources": [
+        {
+          "label": "Service Public — F31697",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31697",
+          "article": null
+        }
+      ],
+      "exceptions": ["Colonne collective", "Canalisation encastrée → bailleur"],
+      "sortOrder": 30
+    },
+    {
+      "slug": "plumbing-colonne-bailleur",
+      "kind": "FAQ",
+      "category": "PLUMBING",
+      "title": "Canalisation collective / colonne",
+      "summary": "Réseaux collectifs et canalisations structurelles : bailleur.",
+      "content": "Les canalisations communes, colonnes d'eau, réseaux collectifs de l'immeuble et fuites liées au gros œuvre relèvent de la charge du bailleur. Le locataire signale et documente (photo) sans intervenir sur les parties communes.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["colonne", "canalisation", "collectif", "immeuble", "parties communes"],
+      "sources": [
+        {
+          "label": "Service Public — parties communes",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31699",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 31
+    },
+    {
+      "slug": "electricity-panne-locataire",
+      "kind": "FAQ",
+      "category": "ELECTRICITY",
+      "title": "Panne électrique — disjoncteur et usage",
+      "summary": "Vérifier disjoncteur et abonnement ; installation endommagée ou tableau → souvent bailleur.",
+      "content": "Le locataire vérifie le disjoncteur, débranche les appareils et contrôle son abonnement fournisseur. Remplacement d'ampoules, interrupteurs, prises : réparations locatives. Panne liée au tableau, câblage fixe, parties communes ou défaut d'installation : bailleur. Ne pas toucher une installation endommagée ou fils dénudés.",
+      "responsibilityHint": "NUANCE",
+      "keywords": ["électricité", "disjoncteur", "panne", "courant", "prise", "tableau"],
+      "sources": [
+        {
+          "label": "Service Public — F31697",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31697",
+          "article": null
+        }
+      ],
+      "exceptions": ["Abonnement impayé locataire", "Appareil personnel locataire"],
+      "sortOrder": 40
+    },
+    {
+      "slug": "humidite-moisissure-nuance",
+      "kind": "FAQ",
+      "category": "GENERIC",
+      "title": "Humidité et moisissures",
+      "summary": "Ventilation/entretien locataire si localisé ; infiltration structurelle → bailleur.",
+      "content": "Moisissure localisée sans atteinte du bâti : souvent ventilation et entretien du locataire. Infiltration par toiture, façade, mur porteur ou défaut d'étanchéité : charge bailleur. En outre-mer, le critère « clos et couvert » et l'étanchéité à l'eau renforcent l'obligation de décence du bailleur.",
+      "responsibilityHint": "NUANCE",
+      "keywords": ["humidité", "moisissure", "moisi", "infiltration", "ventilation"],
+      "sources": [
+        {
+          "label": "Service Public — F31699",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31699",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 50
+    },
+    {
+      "slug": "degradations-responsabilite",
+      "kind": "FICHE_SP",
+      "category": "DAMAGES",
+      "title": "Dégradations pendant le bail",
+      "summary": "Le locataire répond des dégradations qu'il cause ; vétusté et force majeure prises en compte à la sortie.",
+      "content": "Le locataire est responsable des dégradations survenues pendant le bail sauf preuve de force majeure, faute du bailleur ou faute d'un tiers qu'il n'a pas introduit. L'état des lieux d'entrée et de sortie permet de comparer. Usure normale (vétusté) ne doit pas être facturée comme dégradation.",
+      "responsibilityHint": "NUANCE",
+      "keywords": ["dégradation", "casse", "état des lieux", "vétusté", "dépôt de garantie"],
+      "sources": [
+        {
+          "label": "Service Public — F21105",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F21105",
+          "article": "1728 Code civil"
+        },
+        {
+          "label": "Service Public — état des lieux",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31270",
+          "article": null
+        }
+      ],
+      "exceptions": ["Vétusté", "Force majeure"],
+      "sortOrder": 60
+    },
+    {
+      "slug": "assurance-risques-locatifs",
+      "kind": "FICHE_SP",
+      "category": "INSURANCE",
+      "title": "Assurance habitation — risques locatifs",
+      "summary": "Obligation locataire : attestation à la remise des clés puis chaque année.",
+      "content": "Le locataire doit s'assurer contre les risques locatifs (dégâts des eaux, incendie, explosion au minimum) et fournir l'attestation au bailleur. À défaut, le bailleur peut résilier le bail ou souscrire une assurance pour le compte du locataire et lui répercuter la prime.",
+      "responsibilityHint": "LOCATAIRE",
+      "keywords": ["assurance", "risques locatifs", "attestation", "habitation"],
+      "sources": [
+        {
+          "label": "Service Public — F31300",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31300",
+          "article": "1740 Code civil"
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 70
+    },
+    {
+      "slug": "procedure-conciliation",
+      "kind": "FICHE_SP",
+      "category": "PROCEDURE",
+      "title": "Litige — conciliation avant le juge",
+      "summary": "Mise en demeure, puis commission départementale de conciliation (souvent obligatoire).",
+      "content": "En cas de désaccord sur travaux ou loyer : courrier recommandé au bailleur. Si pas d'accord sous 2 mois, saisine de la commission départementale de conciliation (CDC) ou conciliateur de justice. Pour les litiges ≤ 5 000 €, la conciliation est en principe obligatoire avant le juge des contentieux de la protection. Le locataire doit continuer à payer le loyer pendant la procédure.",
+      "responsibilityHint": null,
+      "keywords": ["litige", "conciliation", "mise en demeure", "juge", "recours"],
+      "sources": [
+        {
+          "label": "Service Public — F1216",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1216",
+          "article": "20 loi 89-462"
+        },
+        {
+          "label": "Modèle mise en demeure — R1746",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/R1746",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 80
+    },
+    {
+      "slug": "outre-mer-decence",
+      "kind": "FICHE_SP",
+      "category": "DECENCE",
+      "title": "Logement décent — outre-mer (Guyane)",
+      "summary": "Critères adaptés : clos et couvert, étanchéité, DPE avec calendrier décalé.",
+      "content": "En outre-mer, le logement décent impose notamment clos et couvert, bonne étanchéité à l'eau, équipements conformes (électricité, gaz, eau chaude), aération, absence de nuisibles. Calendrier DPE / passoires thermiques plus tardif qu'en métropole (ex. interdiction location G à partir de 2028 en Guyane selon fiches Service Public).",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["guyane", "outre-mer", "décence", "étanchéité", "clos", "couvert", "DPE"],
+      "sources": [
+        {
+          "label": "Service Public — outre-mer F35978",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F35978/1_1",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 90
+    },
+    {
+      "slug": "metier-fiche-roof",
+      "kind": "FICHE_METIER",
+      "category": "ROOF",
+      "title": "Fiche métier — toiture",
+      "summary": "Localiser la pièce, protéger les biens, photos intérieur (taches, gouttes).",
+      "content": "Toiture : identifier la pièce sous la dalle, noter s'il pleut, protéger les affaires. Photos des taches au plafond, traces d'eau, gouttes. Ne pas monter sur le toit sans consigne du bailleur.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["toiture", "photo", "technicien", "infiltration"],
+      "sources": [],
+      "exceptions": [],
+      "sortOrder": 100
+    },
+    {
+      "slug": "metier-fiche-plumbing",
+      "kind": "FICHE_METIER",
+      "category": "PLUMBING",
+      "title": "Fiche métier — eau / plomberie",
+      "summary": "Couper l'eau si possible, photo du point de fuite, distinguer accessible vs encastré.",
+      "content": "Fuite / eau : couper l'arrivée générale ou le robinet d'arrêt si connu. Photo nette du point de fuite. Préciser si l'eau coule encore. Distinguer fuite accessible (siphon, robinet) et fuite structurelle ou collective.",
+      "responsibilityHint": "NUANCE",
+      "keywords": ["fuite", "eau", "plomberie", "photo", "robinet"],
+      "sources": [],
+      "exceptions": [],
+      "sortOrder": 101
+    },
+    {
+      "slug": "metier-fiche-electricity",
+      "kind": "FICHE_METIER",
+      "category": "ELECTRICITY",
+      "title": "Fiche métier — électricité",
+      "summary": "Couper le circuit (disjoncteur), ne pas toucher fils exposés, photo du tableau si sûr.",
+      "content": "Électricité : couper le disjoncteur du circuit concerné avant toute photo rapprochée. Ne pas toucher fils dénudés. Photo du tableau et de la zone en panne si accessible sans danger.",
+      "responsibilityHint": "NUANCE",
+      "keywords": ["électricité", "disjoncteur", "tableau", "photo", "sécurité"],
+      "sources": [],
+      "exceptions": [],
+      "sortOrder": 102
+    },
+    {
+      "slug": "obligations-bailleur-synthese",
+      "kind": "FICHE_SP",
+      "category": "GENERIC",
+      "title": "Obligations du bailleur — synthèse",
+      "summary": "Logement décent, entretien, grosses réparations, respect du bail.",
+      "content": "Le bailleur doit : délivrer un logement décent, effectuer les travaux hors réparations locatives, remettre les documents obligatoires, respecter la vie privée du locataire (visites sur préavis), ne pas imposer de hausse de loyer hors cadre légal.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["obligations", "bailleur", "propriétaire"],
+      "sources": [
+        {
+          "label": "Service Public — N31059",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N31059",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 12
+    },
+    {
+      "slug": "obligations-locataire-synthese",
+      "kind": "FICHE_SP",
+      "category": "GENERIC",
+      "title": "Obligations du locataire — synthèse",
+      "summary": "Loyer, charges, entretien, assurance, usage paisible des lieux.",
+      "content": "Le locataire doit : payer le loyer et les charges, assurer le logement (risques locatifs), effectuer l'entretien courant et réparations locatives, user paisiblement des lieux, permettre l'accès pour travaux du bailleur (hors week-end sauf urgence).",
+      "responsibilityHint": "LOCATAIRE",
+      "keywords": ["obligations", "locataire", "loyer"],
+      "sources": [
+        {
+          "label": "Service Public — N19424",
+          "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/N19424",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 13
+    }
+  ]
+}

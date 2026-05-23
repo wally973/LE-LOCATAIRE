@@ -18,8 +18,9 @@ export class AiController {
   async handleTicketFlow(@Body() body: Record<string, any>) {
     if (body.description) {
       return {
-        next: 'ASK_PHOTO',
-        message: 'Merci, pouvez-vous envoyer une photo du problème ?',
+        next: 'START_CONVERSATION',
+        message:
+          'Utilisez la création de ticket : Lia vous posera des questions avant la photo et le diagnostic.',
       };
     }
 

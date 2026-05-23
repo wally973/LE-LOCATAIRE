@@ -26,6 +26,7 @@ import {
   LandlordModuleGuard,
   RequiresLandlordModule,
 } from '../feature-flags/landlord-module.guard';
+import { UpdateQualificationFlagsDto } from '../feature-flags/dto/update-qualification-flags.dto';
 
 @ApiTags('landlords')
 @ApiBearerAuth('bearer')
@@ -108,8 +109,24 @@ export class LandlordsController {
 
   @Get('me/feature-flags')
   @Roles('BAILLEUR')
-  @ApiOperation({ summary: 'Modules activés pour mon compte bailleur (lecture seule)' })
+  @ApiOperation({ summary: 'Modules et actions de qualification de mon bailleur' })
   getMyFeatureFlags(@CurrentUser() user: { userId: number }) {
     return this.featureFlags.getByLandlordUserId(user.userId);
+  }
+
+  @Patch('me/qualification-settings')
+  @Roles('BAILLEUR')
+  @ApiOperation({
+    summary: 'Activer / désactiver les actions de qualification (Lia, photo, recherche…)',
+  })
+  async patchMyQualificationSettings(
+    @CurrentUser() user: { userId: number },
+    @Body() dto: UpdateQualificationFlagsDto,
+  ) {
+    const row = await this.featureFlags.getByLandlordUserId(user.userId);
+    return this.featureFlags.updateQualificationFlags(
+      row.landlordProfileId,
+      dto,
+    );
   }
 }

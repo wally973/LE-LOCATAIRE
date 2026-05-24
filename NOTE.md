@@ -1,7 +1,7 @@
 # LE LOCATAIRE — Notes de projet
 
 Document de synthèse regroupant les **résumés de fin de session** (assistant + développement backend).  
-Dernière mise à jour : **21 mai 2026** (décision Q65 — contextes particuliers technicien).
+Dernière mise à jour : **22 mai 2026** (milestone Savoir-Voir + marchés d'entretien).
 
 **Manifeste produit / architecture IA** : voir [`MANIFESTE_FINAL.md`](MANIFESTE_FINAL.md) (rectification expert, Goals + SharedState, mapping stack réelle).
 
@@ -347,6 +347,11 @@ Locataire (app existante)          LE LOCATAIRE (qualification + technicien)
 | `0a2f14ea` | **5** | feat(backend): backoffice volet social — cas, référents, journal (sprint 5) |
 | `79a6bc62` | **6** | feat(backend): notifications réelles SMTP/FCM + feature flags bailleur (sprint 6) |
 | `8afc7698` | **D** | feat: dashboard bailleur IA et escalades (sprint D) |
+| `6d19f42f` | **IA** | feat(ai): phase 3 vision clim — pathologiste, différentiel HVAC |
+| `6385f118` | **IA** | feat(ai): phase 4 unification photo, synthèses capteurs |
+| `f6240454` | **IA** | fix(ai): garde capteurs eau, base légale, détection sociale |
+| `30942af1` | **IA** | feat(ai): expansion Savoir-Voir multi-domaines + urgence électrique |
+| `090cb665` | **IA** | feat(ai): marchés d'entretien — mapping hypothèse → contrat prestataire |
 
 Migrations Prisma associées (dossier `mon-backend/backend/prisma/migrations/`) :
 
@@ -630,6 +635,39 @@ npm run start:dev
 
 ---
 
+## 4quater. 🚀 MILESTONE : EXPANSION GLOBALE SAVOIR-VOIR (LIVRÉE)
+
+**Standard de qualité** — méthode technicien appliquée à l’ensemble du pipeline diagnostic (cf. Q69).
+
+| Pilier | Livrable |
+|--------|----------|
+| **Expertise multi-domaines** | `knowledge/master-diagnostic-rules.json` — Électricité, Menuiserie, VMC, Termites, Parties communes (`master-diagnostic-engine.ts`) |
+| **Rigueur Savoir-Voir** | Protocole systématique : **Observation → Élimination → Hypothèse → Conclusion** (persisté dans `aiLastDecision.diagnostic`) |
+| **Bases légales** | Automatisation des charges : **Charge locative (2)** — Décret 87-712 (entretien courant) ; **Charge bailleur (1)** — Art. 1719 C. civ. (gros entretien / sécurité) — `lia-legal-basis.ts` |
+| **Sécurité critique** | `critical-safety-protocol.ts` — sévérité **`URGENT_CRITIQUE`** pour dangers immédiats (ex. grésillement électrique, arc, odeur de brûlé) |
+| **Standard validé** | `master-electricity-urgent.spec.ts` = **référentiel de logique pure** (tests sans LLM) |
+
+**Commits associés** : `30942af1` (expansion multi-domaines), `f6240454` (garde capteurs + bases légales), `6385f118` / `6d19f42f` (phases 3–4 vision + synthèse).
+
+### Milestone complémentaire — Marchés d'entretien (LIVRÉ)
+
+| Pilier | Livrable |
+|--------|----------|
+| **Catalogue contrats** | `knowledge/maintenance-contracts.json` — PDF marché + BPU par lot, KPI (délai, conformité, coût moyen) |
+| **Mapping diagnostic → prestataire** | `leadingHypothesisId` → `ContractID` (ex. `hyp_common_elevator` → `MP-GUYANE-ASCENSEUR-SCHINDLER-2024`) — `MaintenanceContractMapperService` |
+| **Intégration IA** | Brief chercheur (`LiaResearchService`) + persistance `maintenanceDispatch` dans `aiLastDecision` + `GET /tickets/:id/maintenance-contract` |
+| **Standard validé** | `maintenance-contract-mapper.spec.ts` (ascenseur SCHINDLER, repli électricité) |
+
+**Commit associé** : `090cb665`.
+
+### À FAIRE ENSUITE
+
+- ~~Mapper les domaines techniques avec les **Marchés d'Entretien** (lots de contrats)~~ → **fait** (`090cb665`).
+- Créer le **Dashboard « Service des Marchés »** pour piloter les prestataires (SLA, coûts, récurrence).
+- Enrichir le catalogue contrats (import PDF/BPU bailleur réel, hors dépôt Git — cf. Q57).
+
+---
+
 ## 4ter. Dossier de présentation produit (argumentaire marché & stratégie)
 
 > **Usage** : base pour pitch bailleur, direction, partenaires — langage métier, pas technique.  
@@ -763,7 +801,8 @@ Séquence cible : **Organisateur (Lia) → Auto-recherche → Diagnostic** — p
 | G | **Compliance OPS / SLS** | Extension social |
 | H | **Assurances / relances** | Modèles séparés |
 | **V1** | Dashboard référent + parcours Lia + **IA auto-recherche interne** (amorce) + **IA technicien contextes particuliers (PC/tablette)** — cf. Q65 | **En cours** — cf. §4bis, Q42 |
-| **V2** | Patrimoine, IA clusters, import CSV, pilotage bailleur, **mémoire / recherche approfondie** (boucle itérative), **ticket technicien procédures annotées** (Q43) | Extension de ce qui a démarré en V1 |
+| **V1+** | **Savoir-Voir multi-domaines + marchés d'entretien** | **Livré** — cf. §4quater |
+| **V2** | Patrimoine, IA clusters, import CSV, pilotage bailleur, **Dashboard Service des Marchés** (SLA, coûts), **mémoire / recherche approfondie** (boucle itérative), **ticket technicien procédures annotées** (Q43) | Extension de ce qui a démarré en V1 |
 | **V3** | Sources externes traçables (normes, fabricants) | Cas atypiques, masse critique |
 
 ---
@@ -852,3 +891,4 @@ Ne pas committer `projet.txt` ni les fichiers Office temporaires (`~$*`).
 | 22 mai 2026 | Porteur + assistant | Boucle rectification expert : `POST /tickets/:id/expert-rectification`, SharedState, Pro Briefing — `MANIFESTE_FINAL.md` |
 | 22 mai 2026 | Porteur + assistant | Priorité mobile saisie réclamation ; backlog push prise en charge ; checklist essais + script `test-detect-claims.ts` |
 | 21 mai 2026 | Porteur projet | Q65 : dashboard technicien — IA Lia sur **contextes particuliers** (PC ou tablette) ; rectif. : pas « contestations » |
+| 22 mai 2026 | Session assistant | §4quater : milestone **Expansion Savoir-Voir** (multi-domaines, bases légales, URGENT_CRITIQUE) + marchés d'entretien ; commits `30942af1`–`090cb665` |

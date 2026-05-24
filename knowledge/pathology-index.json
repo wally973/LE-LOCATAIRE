@@ -171,6 +171,51 @@
         "location": ["sous-sol", "rdc", "mur périphérique", "pente"]
       },
       "keywords": ["sous-sol", "nappe", "drainage", "cuvelage", "cyclone", "pluie forte"]
+    },
+    {
+      "id": "hyp_refoulement_eu",
+      "label": "Refoulement eaux usées (réseau d'évacuation collectif)",
+      "category": "HUMIDITY",
+      "responsibilityHint": "BAILLEUR",
+      "danger": "HIGH",
+      "sources": [
+        {
+          "corpus": "AFPOLS",
+          "ref": "C0237",
+          "title": "L'eau et ses pathologies — réseaux et évacuations",
+          "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments"
+        },
+        {
+          "corpus": "AQC",
+          "ref": "FPB-6",
+          "title": "Fiches pathologie — réseaux EU / EP",
+          "url": "https://qualiteconstruction.com/agence-qualite-construction/consolider-bonnes-pratiques-construction-renovation/"
+        }
+      ],
+      "clinicalSigns": {
+        "color": ["eau trouble chargee"],
+        "texture": ["eau savonneuse", "mousseuse", "mousse", "eau savonneuse ou mousseuse"],
+        "odor": ["odeur egout", "odeur d egout"],
+        "pattern": [
+          "apparition a horaire precis",
+          "apparition le soir",
+          "pic usage immeuble",
+          "19h",
+          "entre 19 et 21"
+        ],
+        "location": ["milieu du salon", "sol", "point bas", "plancher", "flaque au sol"]
+      },
+      "keywords": [
+        "refoulement",
+        "savonneuse",
+        "mousseuse",
+        "mousse",
+        "eaux usees",
+        "colonnes",
+        "19h",
+        "soir",
+        "flaque"
+      ]
     }
   ]
 }

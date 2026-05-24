@@ -14,6 +14,10 @@ import {
   prefillEliminatedCauses,
   resolveOrganizerPanne,
 } from './lia-intake-organizer';
+import {
+  extractDiagnosticSensors,
+  isWaterOnFloorReport,
+} from './lia-diagnostic-sensors';
 export type { LiaIntakeOrganizerState } from './lia-intake-organizer';
 
 /** Catégories dérivées du libellé initial (ex. PDF conversation). */
@@ -122,6 +126,32 @@ export const INTAKE_QUESTIONS: Record<IntakeCategory, IntakeQuestion[]> = {
   ],
 };
 
+/**
+ * Eau au sol (flaque, nappe) — l’organisateur doit qualifier aspect et horaires
+ * (Golden REF_EAU_SAVONNEUSE).
+ */
+export const INTAKE_WATER_ON_FLOOR: IntakeQuestion[] = [
+  {
+    id: 'water_aspect',
+    text:
+      'L’eau au sol est-elle plutôt claire, trouble, ou mousseuse / savonneuse ? (décrivez en une phrase)',
+  },
+  {
+    id: 'timing_pattern',
+    text:
+      'Cette eau apparaît-elle à des heures précises (par ex. le soir entre 19 h et 21 h) ? Si oui, indiquez le créneau.',
+  },
+  {
+    id: 'building_floor',
+    text: 'À quel étage êtes-vous dans l’immeuble ? (RDC, R+1, R+2…)',
+  },
+  {
+    id: 'weather_context',
+    text:
+      'En ce moment, pleut-il souvent chez vous ou êtes-vous en saison sèche (peu ou pas de pluie) ?',
+  },
+];
+
 /** Éclairage localisé : ampoule déjà testée → interrupteur, disjoncteur pièce, douille. */
 export const INTAKE_LIGHTING_ELECTRICITY: IntakeQuestion[] = [
   {
@@ -180,12 +210,30 @@ export function isFollowUpClosed(aiLastDecision: unknown): boolean {
   return (aiLastDecision as { followUpClosed?: boolean }).followUpClosed === true;
 }
 
+/** Parcours « eau au sol » (aspect + horaires + étage + météo). */
+export function usesWaterOnFloorPath(state: LiaIntakeState): boolean {
+  return isWaterOnFloorReport(
+    state.intakeTitle ?? '',
+    state.intakeDescription ?? '',
+    state.answers,
+  );
+}
+
 /** Liste de questions active pour cet intake (général vs éclairage localisé). */
 export function getIntakeQuestionsForState(
   state: LiaIntakeState,
 ): IntakeQuestion[] {
   if (usesLightingElectricityPath(state)) {
     return INTAKE_LIGHTING_ELECTRICITY;
+  }
+  if (usesWaterOnFloorPath(state)) {
+    const waterIds = new Set(INTAKE_WATER_ON_FLOOR.map((q) => q.id));
+    const base = INTAKE_QUESTIONS[state.category].filter(
+      (q) =>
+        !waterIds.has(q.id) &&
+        !(state.category === 'PLUMBING' && /siphon|ecoule/i.test(q.text)),
+    );
+    return [...INTAKE_WATER_ON_FLOOR, ...base];
   }
   return INTAKE_QUESTIONS[state.category];
 }
@@ -265,6 +313,28 @@ export function buildIntakeSummary(state: LiaIntakeState): string {
     const hint = buildElectricityJuristHint(state.answers);
     if (hint) signalLines.push(hint);
   }
+  if (usesWaterOnFloorPath(state)) {
+    const sensors = extractDiagnosticSensors({
+      contextText: [
+        state.intakeTitle ?? '',
+        state.intakeDescription ?? '',
+        ...Object.values(state.answers),
+      ].join('\n'),
+      intakeAnswers: state.answers,
+    });
+    if (sensors.water_aspect) {
+      signalLines.push(`Aspect de l’eau (capteur) : ${sensors.water_aspect}.`);
+    }
+    if (sensors.timing_pattern) {
+      signalLines.push(`Horaire d’apparition (capteur) : ${sensors.timing_pattern}.`);
+    }
+    if (sensors.building_floor) {
+      signalLines.push(`Étage (capteur) : ${sensors.building_floor}.`);
+    }
+    if (sensors.weather_context) {
+      signalLines.push(`Contexte météo (capteur) : ${sensors.weather_context}.`);
+    }
+  }
   return [
     '[Contexte recueilli avec Lia avant diagnostic]',
     ...signalLines,
@@ -320,13 +390,16 @@ export class LiaIntakeService {
       description,
     );
     const fullText = `${title} ${description}`;
-    const tree = resolveOrganizerPanne(
-      category,
-      title,
-      description,
-      signals,
-      answers,
-    );
+    const waterFloor = isWaterOnFloorReport(title, description, answers);
+    const tree = waterFloor
+      ? undefined
+      : resolveOrganizerPanne(
+          category,
+          title,
+          description,
+          signals,
+          answers,
+        );
     const organizer = tree
       ? {
           panneId: tree.id,
@@ -406,6 +479,11 @@ export class LiaIntakeService {
     if (state.category === 'PLUMBING' && /fuite|eau|coule|goutte/i.test(text)) {
       messages.push(
         `${name}, j’ai noté un problème d’eau ou de fuite. Si l’eau coule encore, limitez les dégâts (seau, couper l’arrivée d’eau si vous savez le faire).`,
+      );
+    }
+    if (usesWaterOnFloorPath(state)) {
+      messages.push(
+        `${name}, pour une flaque d’eau au sol, je vais vous demander si l’eau est claire, trouble ou mousseuse, et si elle apparaît à des heures précises — c’est indispensable pour le diagnostic.`,
       );
     }
 
@@ -490,6 +568,22 @@ export class LiaIntakeService {
       if (/protég|bâche|bache|seau|déplac/i.test(d)) {
         answers.protect_belongings =
           'Oui, déjà commencé ou prévu (mentionné par le locataire).';
+      }
+    }
+
+    if (isWaterOnFloorReport('', description, answers)) {
+      const sensors = extractDiagnosticSensors({ contextText: description });
+      if (sensors.water_aspect) {
+        answers.water_aspect = `Déjà indiqué : ${sensors.water_aspect}`;
+      }
+      if (sensors.timing_pattern) {
+        answers.timing_pattern = `Déjà indiqué : ${sensors.timing_pattern}`;
+      }
+      if (sensors.building_floor) {
+        answers.building_floor = sensors.building_floor;
+      }
+      if (sensors.weather_context) {
+        answers.weather_context = sensors.weather_context;
       }
     }
 
@@ -669,13 +763,14 @@ export class LiaIntakeService {
     }
     return (
       'Merci pour ces réponses. Pour affiner le diagnostic, pouvez-vous m’envoyer une photo du problème ? ' +
-      'Utilisez le bouton « Prendre une photo » ci-dessous. Ensuite seulement, je lancerai l’analyse complète.'
+      'Utilisez le bouton « Prendre une photo » ci-dessous (ou la galerie). ' +
+      'Si votre appareil photo ne fonctionne pas, écrivez-le dans le fil : je lancerai l’analyse sans photo.'
     );
   }
 
   skipPhotoAck(): string {
     return (
-      'Très bien. Je lance maintenant l’analyse de votre dossier avec les informations recueillies. ' +
+      'Très bien. Je lance l’analyse avec votre description et vos réponses, sans photo. ' +
       'Vous pouvez fermer l’application : je vous préviendrai par notification.'
     );
   }

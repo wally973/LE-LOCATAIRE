@@ -19,9 +19,9 @@ export function isEmbeddedPlumbing(text: string): boolean {
 export function isShowerInaccessibleDrain(text: string): boolean {
   const t = normalize(text);
   const shower =
-    /\b(douche|bac a douche|bac de douche|receveur|cabine de douche|salle de bain|sdb)\b/.test(
-      t,
-    );
+    /\b(douche|bac a douche|bac de douche|receveur|cabine de douche)\b/.test(t) ||
+    (/\bsalle de bain\b/.test(t) &&
+      /\b(siphon|bonde|evacuation|bac a douche|receveur)\b/.test(t));
   const drainIssue =
     /\b(siphon|bonde|evacuation|evacue|bouch|fuite|stagne|ne s.?ecoule|eau qui reste)\b/.test(
       t,

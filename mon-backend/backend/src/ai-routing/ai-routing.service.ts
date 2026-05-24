@@ -16,6 +16,11 @@ import {
   appendIntakeContextToFeedback,
   parseIntakeState,
 } from '../lia/lia-intake.service';
+import {
+  buildTenantCaseContext,
+  splitPipelineFeedback,
+} from '../lia/lia-case-context';
+import { buildTenantDiagnosticMessage } from '../lia/lia-tenant-diagnostic-summary';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -112,6 +117,13 @@ export class AiRoutingService {
       ticketWithDocs.aiLastDecision,
       opts.tenantFeedback,
     );
+    const { tenantSupplement } = splitPipelineFeedback(tenantFeedback);
+    const caseContextForRules = buildTenantCaseContext({
+      title: ticketWithDocs.title,
+      description: ticketWithDocs.description,
+      intake: intakeState,
+      tenantSupplement,
+    });
 
     if (intakeState?.phase === 'AWAITING_PHOTO') {
       await this.prisma.ticketMessage.create({
@@ -128,12 +140,13 @@ export class AiRoutingService {
       });
     }
 
-    const decision = await this.pipeline.analyze({
+    let decision = await this.pipeline.analyze({
       title: ticketWithDocs.title,
       description: ticketWithDocs.description,
       attempt,
       photoUrls,
       tenantFeedback,
+      caseContextForRules,
       locale: 'fr-FR',
       landlordProfileId:
         ticketWithDocs.landlordProfileId ?? ticketWithDocs.housing.landlordId,
@@ -142,6 +155,38 @@ export class AiRoutingService {
 
     // Si la confiance est trop faible, on bascule en needsMorePhoto sauf si on a
     // déjà atteint aiMaxAttempts (auquel cas on escalade).
+    if (
+      !decision.needsMorePhoto &&
+      decision.responsibility !== 'PENDING' &&
+      decision.responsibility !== 'NON_RECEVABLE'
+    ) {
+      const pathoStep = decision.pipelineSteps.find(
+        (s) => s.name === 'pathologist',
+      );
+      const observation =
+        typeof pathoStep?.extra?.observation === 'string'
+          ? pathoStep.extra.observation
+          : undefined;
+      decision = {
+        ...decision,
+        message: buildTenantDiagnosticMessage({
+          decision,
+          pathologist: {
+            category: decision.category,
+            severity: decision.severity,
+            confidence: decision.confidence,
+            needsMorePhoto: decision.needsMorePhoto,
+            observation: observation ?? 'Analyse à partir de votre signalement.',
+            fromLlm: false,
+          },
+          intake: intakeState,
+          title: ticketWithDocs.title,
+          description: ticketWithDocs.description,
+          tenantSupplement,
+        }),
+      };
+    }
+
     let effectiveDecision = decision;
     if (
       decision.responsibility !== 'NON_RECEVABLE' &&

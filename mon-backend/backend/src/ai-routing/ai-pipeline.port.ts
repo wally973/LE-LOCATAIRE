@@ -15,6 +15,8 @@ export interface AiPipelineInput {
   photoUrls: string[];
   /** Indications locataire si re-feedback : "j'ai répondu à la question / je précise". */
   tenantFeedback?: string;
+  /** Titre + description + intake — pour règles métier (sans brief recherche interne). */
+  caseContextForRules?: string;
   /** Locale du locataire (fr-FR par défaut). */
   locale: string;
   /** Bailleur du logement — alimente le RAG juriste (Sprint G). */

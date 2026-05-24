@@ -9,6 +9,7 @@ import {
   LiaIntakeService,
 } from './lia-intake.service';
 import { syncOrganizerFromContext } from './lia-intake-organizer';
+import { isSkipPhotoIntent } from './lia-agent-intents';
 
 /**
  * Intake réactif — analyse chaque réponse locataire avant la question suivante.
@@ -34,6 +35,26 @@ export class LiaIntakeReactiveService {
       return {
         state: params.state,
         acknowledgment: null,
+        nextQuestionText: null,
+      };
+    }
+
+    if (
+      params.state.phase === 'AWAITING_PHOTO' &&
+      isSkipPhotoIntent(msg)
+    ) {
+      const done = this.intake.markDone({
+        ...params.state,
+        answers: {
+          ...params.state.answers,
+          photo_unavailable: msg,
+        },
+      });
+      return {
+        state: done,
+        acknowledgment:
+          'Pas de souci : votre téléphone ne permet pas d’envoyer de photo. ' +
+          'Je lance l’analyse avec votre description et vos réponses.',
         nextQuestionText: null,
       };
     }
@@ -243,6 +264,7 @@ export class LiaIntakeReactiveService {
       'Si le locataire a DÉJÀ changé l’ampoule, ne lui redemande jamais de changer l’ampoule.',
       'Dans ce cas, oriente vers interrupteur de la pièce, disjoncteur du circuit au tableau, état de la douille.',
       'Si le locataire parle d’une ampoule / lumière d’une pièce, ne traite pas comme une coupure générale du logement.',
+      'Si le locataire signale de l’eau au sol (flaque, nappe, sol mouillé), demande systématiquement l’aspect de l’eau (claire, trouble, mousseuse/savonneuse) et si elle apparaît à des heures précises (ex. le soir).',
       'Format JSON :',
       '{',
       '  "acknowledgment": "1-2 phrases bienveillantes en français",',

@@ -1,13 +1,57 @@
 /** Intentions locataire (compréhension légère, sans LLM). */
 
+function normalizeIntentText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+}
+
+/** Le locataire ne peut pas ou ne veut pas envoyer de photo — diagnostic sans image. */
 export function isSkipPhotoIntent(text: string): boolean {
-  const t = text.toLowerCase().trim();
-  return (
+  const t = normalizeIntentText(text);
+  if (!t.trim()) return false;
+
+  const explicitSkip =
     t.includes('pas de photo') ||
     t.includes('sans photo') ||
     t.includes('continuer sans') ||
-    t.includes('je n’ai pas') ||
-    t.includes("je n'ai pas")
+    t.includes('impossible de prendre') ||
+    t.includes('impossible d envoyer') ||
+    t.includes('ne peux pas envoyer') ||
+    t.includes('peux pas envoyer') ||
+    t.includes('pas possible de prendre') ||
+    t.includes('pas possible d envoyer');
+
+  const noCamera =
+    (t.includes('camera') || t.includes('appareil photo') || t.includes('photo')) &&
+    (t.includes('ne fonctionne pas') ||
+      t.includes('ne marche pas') ||
+      t.includes('ne marche plus') ||
+      t.includes('en panne') ||
+      t.includes('casse') ||
+      t.includes('cassee') ||
+      t.includes('hs') ||
+      t.includes('bloque') ||
+      t.includes('bloquee') ||
+      t.includes('defectueux') ||
+      t.includes('defectueuse'));
+
+  const cameraBroken =
+    t.includes('camera') &&
+    (t.includes('mobile') || t.includes('telephone') || t.includes('portable')) &&
+    (t.includes('ne fonctionne') || t.includes('ne marche') || t.includes('panne'));
+
+  const cannotProvide =
+    (t.includes('je n ai pas') || t.includes("je n'ai pas")) &&
+    (t.includes('photo') || t.includes('camera') || t.includes('appareil'));
+
+  const whatToDo =
+    (t.includes('que dois') || t.includes('que faire') || t.includes('comment faire')) &&
+    (t.includes('camera') || t.includes('photo') || t.includes('sans photo'));
+
+  return (
+    explicitSkip || noCamera || cameraBroken || cannotProvide || whatToDo
   );
 }
 

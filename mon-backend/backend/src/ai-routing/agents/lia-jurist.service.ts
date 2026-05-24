@@ -15,6 +15,7 @@ import {
   resolveHumidityCharge,
 } from '../../lia/lia-humidity-rules';
 import { resolvePlumbingCharge } from '../../lia/lia-plumbing-rules';
+import { buildPlumbingBailleurMessage } from '../../lia/lia-plumbing-messages';
 
 interface MistralJuristJson {
   responsibility:
@@ -151,7 +152,8 @@ export class LiaJuristService {
   }): AiPipelineDecision {
     const patho = params.pathologist;
     const text = this.normalizeText(
-      `${params.input.title} ${params.input.description} ${params.input.tenantFeedback ?? ''}`,
+      params.input.caseContextForRules ??
+        `${params.input.title} ${params.input.description} ${params.input.tenantFeedback ?? ''}`,
     );
     const topMemory = params.memories[0];
 
@@ -160,7 +162,11 @@ export class LiaJuristService {
         name: 'pathologist',
         decision: patho.category,
         confidence: patho.confidence,
-        extra: { fromLlm: patho.fromLlm, simulation: !patho.fromLlm },
+        extra: {
+          fromLlm: patho.fromLlm,
+          simulation: !patho.fromLlm,
+          observation: patho.observation,
+        },
       },
     ];
 
@@ -326,10 +332,7 @@ export class LiaJuristService {
           confidence: Math.max(patho.confidence, 0.85),
           needsMorePhoto: false,
           socialFlag: false,
-          message:
-            'Le problème concerne une canalisation encastrée ou une évacuation sous la douche ' +
-            '(siphon ou bonde non accessibles sans trappe). Cette réparation relève du bailleur. ' +
-            'Un agent va vous recontacter.',
+          message: buildPlumbingBailleurMessage(text),
           pipelineSteps: [
             ...steps,
             {

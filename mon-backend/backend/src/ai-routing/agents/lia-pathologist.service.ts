@@ -150,8 +150,12 @@ export class LiaPathologistService {
 
   /** Simulation locale (mots-clés) — même logique métier que le stub historique. */
   private analyzeSimulated(input: AiPipelineInput): PathologistResult {
+    const categoryText = this.normalizeText(
+      `${input.title} ${input.description}`,
+    );
     const text = this.normalizeText(
-      `${input.title} ${input.description} ${input.tenantFeedback ?? ''}`,
+      input.caseContextForRules ??
+        `${input.title} ${input.description} ${input.tenantFeedback ?? ''}`,
     );
 
     const social = ['impay', 'pas payer', 'difficult', 'rsa', 'caf'].some((k) =>
@@ -214,7 +218,7 @@ export class LiaPathologistService {
     ];
 
     for (const b of buckets) {
-      if (b.keywords.some((k) => text.includes(k))) {
+      if (b.keywords.some((k) => categoryText.includes(k))) {
         const hasPhoto = input.photoUrls.length > 0;
         const needsMorePhoto =
           input.attempt === 1 && !hasPhoto && input.description.trim().length < 20;

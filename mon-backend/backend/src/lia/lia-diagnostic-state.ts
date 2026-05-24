@@ -11,6 +11,11 @@ import type {
 } from './lia-diagnostic-state.types';
 import { emptyDiagnosticState } from './lia-diagnostic-state.types';
 import {
+  applySensorHypothesisAdjustments,
+  extractDiagnosticSensors,
+  formatDiagnosticSensorsBrief,
+} from './lia-diagnostic-sensors';
+import {
   indexEntriesForCategory,
   type PathologyIndexEntry,
 } from './knowledge-index.loader';
@@ -53,6 +58,17 @@ const TENANT_PATTERN_HINTS: Array<{ re: RegExp; value: string }> = [
   { re: /quand il pleut|apres la pluie|pendant la pluie/, value: "s'aggrave avec la pluie" },
   { re: /depuis le sol|en partant du sol|plinthes/, value: 'monte depuis le sol / plinthes' },
   { re: /coin fenetre|angle froid|sous la fenetre/, value: 'coin ou angle froid' },
+  {
+    re: /19\s*h|20\s*h|21\s*h|entre\s+\d{1,2}\s*h|le soir|en soiree|uniquement le soir/,
+    value: 'apparition à horaire précis (soir)',
+  },
+];
+
+const TENANT_TEXTURE_SOAP: Array<{ re: RegExp; value: string }> = [
+  {
+    re: /savon|mousseux|mousseuse|mousse|savonnee|savonneuse/,
+    value: 'eau savonneuse ou mousseuse',
+  },
 ];
 
 const TENANT_LOCATION_HINTS: Array<{ re: RegExp; value: string }> = [
@@ -89,6 +105,7 @@ export function extractClinicalSignsFromText(text: string): ClinicalSign[] {
     ...extractFromHints(text, TENANT_ODOR_HINTS, 'odor'),
     ...extractFromHints(text, TENANT_COLOR_HINTS, 'color'),
     ...extractFromHints(text, TENANT_TEXTURE_HINTS, 'texture'),
+    ...extractFromHints(text, TENANT_TEXTURE_SOAP, 'texture'),
     ...extractFromHints(text, TENANT_PATTERN_HINTS, 'pattern'),
     ...extractFromHints(text, TENANT_LOCATION_HINTS, 'location'),
   ];
@@ -182,8 +199,13 @@ export function buildDiagnosticState(params: {
   category: string;
   contextText: string;
   existing?: DiagnosticState | null;
+  intakeAnswers?: Record<string, string>;
 }): DiagnosticState {
   const base = params.existing ?? emptyDiagnosticState();
+  const sensors = extractDiagnosticSensors({
+    contextText: params.contextText,
+    intakeAnswers: params.intakeAnswers,
+  });
   const extracted = extractClinicalSignsFromText(params.contextText);
   const mergedSigns = [...base.clinicalSigns];
   for (const s of extracted) {
@@ -203,9 +225,10 @@ export function buildDiagnosticState(params: {
     .sort((a, b) => b.score - a.score);
 
   const total = scored.reduce((s, x) => s + x.score, 0) || 1;
-  const hypotheses: DifferentialHypothesis[] = scored.map(({ entry, score }) =>
+  let hypotheses: DifferentialHypothesis[] = scored.map(({ entry, score }) =>
     entryToHypothesis(entry, Math.round((score / total) * 1000) / 1000),
   );
+  hypotheses = applySensorHypothesisAdjustments(hypotheses, sensors);
 
   const leading = hypotheses[0]?.id ?? null;
   const researchRefs = collectResearchRefs(hypotheses);
@@ -215,6 +238,7 @@ export function buildDiagnosticState(params: {
     hypotheses,
     leadingHypothesisId: leading,
     researchRefs,
+    sensors: Object.keys(sensors).length ? sensors : base.sensors,
     missingSignChannels: missingChannels(mergedSigns),
     differentialConfidence:
       hypotheses.length > 0 ? hypotheses[0].probability : 0,
@@ -225,6 +249,10 @@ export function buildDiagnosticState(params: {
 /** Résumé texte pour Lia Researcher (bibliothécaire). */
 export function formatDiagnosticStateBrief(state: DiagnosticState): string {
   const lines: string[] = ['=== Logique différentielle ==='];
+  if (state.sensors && Object.keys(state.sensors).length) {
+    const brief = formatDiagnosticSensorsBrief(state.sensors);
+    if (brief) lines.push(brief);
+  }
   if (state.clinicalSigns.length) {
     lines.push(
       'Signes cliniques : ' +

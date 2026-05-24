@@ -304,8 +304,10 @@ export class LiaAgentService {
 
     if (intake.phase === 'AWAITING_PHOTO') {
       if (
-        !state.flags.requirePhotoEvidence &&
-        trigger === 'TENANT_MESSAGE'
+        trigger === 'TENANT_MESSAGE' &&
+        state.lastTenantMessage &&
+        (!state.flags.requirePhotoEvidence ||
+          isSkipPhotoIntent(state.lastTenantMessage))
       ) {
         return this.goalRunDiagnostic({ ...state, intake }, trigger);
       }
@@ -337,6 +339,13 @@ export class LiaAgentService {
     trigger: AgentTrigger,
   ): Promise<GoalExecutionResult> {
     if (!state.intake) return { state, continueLoop: false };
+    if (
+      trigger === 'TENANT_MESSAGE' &&
+      state.lastTenantMessage &&
+      isSkipPhotoIntent(state.lastTenantMessage)
+    ) {
+      return this.goalRunDiagnostic(state, trigger);
+    }
     if (trigger === 'TENANT_MESSAGE' && state.lastTenantMessage) {
       await this.conversation.appendMessage(
         state.ticketId,
@@ -372,7 +381,17 @@ export class LiaAgentService {
           'LIA_ANALYZING',
         );
       } else {
-        intake = this.comprehension.markDone(intake);
+        if (skippingPhoto && state.lastTenantMessage) {
+          intake = this.comprehension.markDone({
+            ...intake,
+            answers: {
+              ...intake.answers,
+              photo_unavailable: state.lastTenantMessage.trim(),
+            },
+          });
+        } else {
+          intake = this.comprehension.markDone(intake);
+        }
         await this.persistIntake(state.ticketId, intake, 'LIA_ANALYZING');
 
         if (skippingPhoto) {

@@ -86,6 +86,7 @@ export class LiaResearchService {
         category: String(category),
         contextText,
         existing,
+        intakeAnswers: intake?.answers,
       });
       librarianBlock = formatDiagnosticStateBrief(diagnostic);
       await this.prisma.ticket.update({

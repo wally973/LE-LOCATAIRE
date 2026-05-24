@@ -53,6 +53,21 @@ export interface DifferentialHypothesis {
 }
 
 /**
+ * Capteurs structurés (signalement + intake) — Golden REF_EAU_SAVONNEUSE.
+ * Équivalent des « tiroirs » du cahier des charges (timing, aspect eau, étage, météo).
+ */
+export interface DiagnosticSensors {
+  /** Créneau horaire d’apparition (ex. "19h-21h"). */
+  timing_pattern?: string;
+  /** Aspect de l’eau (ex. "savonneuse/mousseuse", "claire"). */
+  water_aspect?: string;
+  /** Niveau du logement (ex. "R+1", "RDC"). */
+  building_floor?: string;
+  /** Contexte pluviométrique (ex. "Saison sèche"). */
+  weather_context?: string;
+}
+
+/**
  * État diagnostic partagé — enrichi par Researcher, Pathologiste, intake.
  * Ne remplace pas aiLastDecision.responsibility : prépare et documente le raisonnement.
  */
@@ -61,6 +76,8 @@ export interface DiagnosticState {
   hypotheses: DifferentialHypothesis[];
   leadingHypothesisId: string | null;
   researchRefs: KnowledgeRef[];
+  /** Capteurs pour raisonnement type REF_EAU_SAVONNEUSE. */
+  sensors?: DiagnosticSensors;
   /** Canaux à compléter (ex. odeur non mentionnée, photo floue). */
   missingSignChannels: ClinicalSignChannel[];
   /** Score global de certitude différentielle [0,1]. */
@@ -101,6 +118,10 @@ export function parseDiagnosticState(
     researchRefs: Array.isArray(raw.researchRefs)
       ? (raw.researchRefs as KnowledgeRef[])
       : [],
+    sensors:
+      raw.sensors && typeof raw.sensors === 'object'
+        ? (raw.sensors as DiagnosticSensors)
+        : undefined,
     missingSignChannels: Array.isArray(raw.missingSignChannels)
       ? (raw.missingSignChannels as ClinicalSignChannel[])
       : [],

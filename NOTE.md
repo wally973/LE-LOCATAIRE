@@ -1,7 +1,7 @@
 # LE LOCATAIRE — Notes de projet
 
 Document de synthèse regroupant les **résumés de fin de session** (assistant + développement backend).  
-Dernière mise à jour : **21 mai 2026** (decision Q65 dashboard technicien).
+Dernière mise à jour : **21 mai 2026** (décision Q65 — contextes particuliers technicien).
 
 **Manifeste produit / architecture IA** : voir [`MANIFESTE_FINAL.md`](MANIFESTE_FINAL.md) (rectification expert, Goals + SharedState, mapping stack réelle).
 
@@ -257,7 +257,7 @@ flowchart TD
 | Q62 | **Modèle économique cible** | **Location / déploiement** à grande échelle (SaaS multi-bailleurs), pas « app interne unique » |
 | Q63 | **Actions activables par bailleur** | Chaque bailleur **active ou désactive** certaines actions (conversation, photo). Réglage via `LandlordFeatureFlags` + API bailleur ; admin plateforme peut tout modifier |
 | Q64 | **Auto-recherche = cœur des IA** | Fait partie des **IA en place** pour des réponses fiables : vérifie les faits (métier, historique) **avant** que le pathologiste / juriste ne conclut — **anti-hallucination**. Activée **par défaut** ; ce n’est pas une option marketing mais le fonctionnement normal du produit |
-| Q65 | **IA technicien — contestations** | Sur le **dashboard technicien / référent** (`admin-dashboard`), le professionnel pourra **solliciter Lia** sur des **contestations particulières** (désaccord charge locataire/bailleur, dossier litigieux, cas ambigu) depuis son **PC bureau** ou une **tablette** en mobilité (UI responsive, cf. Q51). Même fil `AFF-…`, accès Pro Briefing + recherche interne + rectification expert — pas une seconde app dédiée en V1 |
+| Q65 | **IA technicien — contextes particuliers** | Sur le **dashboard technicien / référent** (`admin-dashboard`), le professionnel pourra **solliciter Lia** dans des **contextes particuliers** (cas atypique, secteur isolé, pathologie rare, dossier multi-sujets, situation terrain complexe — pas seulement le parcours locataire standard) depuis son **PC bureau** ou une **tablette** en mobilité (UI responsive, cf. Q51). Même fil `AFF-…` : Pro Briefing, recherche interne (`knowledge/`), Q&A contextualisée, rectification expert si besoin — **pas une seconde app** technicien en V1 |
 
 **Actions configurables (Q63)** — champs `LandlordFeatureFlags` :
 
@@ -614,7 +614,7 @@ npm run start:dev
 - Page **`/agent/reclamations`** : liste secteur (agence du référent), colonnes dossier, affaire, métier, jours (`0` normal, `+N` rouge), ouverture détail ticket.
 - API **`GET /agents/me/reclamations`** (rôle `AGENT`, filtre `Housing.agenceId`).
 - Connexion dashboard : rôle JWT `AGENT` → espace référent.
-- **Dashboard technicien — contestations (Q65)** : sur affaire litigieuse ou charge contestée, le technicien / référent pourra **interroger Lia** (Pro Briefing, bibliothèque `knowledge/`, historique) depuis **PC ou tablette** — à coder après socle détail ticket + rectification expert ; pas d’app native technicien obligatoire en V1.
+- **Dashboard technicien — contextes particuliers (Q65)** : le technicien / référent pourra **interroger Lia** sur une affaire **hors routine** (contexte terrain, cas complexe) depuis **PC ou tablette** — Pro Briefing, bibliothèque `knowledge/`, historique ; à coder après socle détail ticket + rectification expert ; pas d’app native technicien obligatoire en V1.
 
 **Reporté V2 (approfondissement, pas « première version » de l’auto-recherche) :** import numéros bailleur, pilotage direction, IA corrélation résidence, dashboard Patrimoine, actions référent avancées (RDV, paiement entreprise), **mémoire interne avancée** (clusters, boucle itérative recherche ↔ diagnostic, sources externes), **vue technicien avec procédures annotées** (cf. Q43 — ex. DPN cuisine + photo prise + notes IA + urgence).
 
@@ -758,7 +758,7 @@ Séquence cible : **Organisateur (Lia) → Auto-recherche → Diagnostic** — p
 | E | **YouTube Data API** | Remplacer stub vidéo |
 | G | **Compliance OPS / SLS** | Extension social |
 | H | **Assurances / relances** | Modèles séparés |
-| **V1** | Dashboard référent + parcours Lia + **IA auto-recherche interne** (amorce) + **IA contestations technicien (PC/tablette)** — cf. Q65 | **En cours** — cf. §4bis, Q42 |
+| **V1** | Dashboard référent + parcours Lia + **IA auto-recherche interne** (amorce) + **IA technicien contextes particuliers (PC/tablette)** — cf. Q65 | **En cours** — cf. §4bis, Q42 |
 | **V2** | Patrimoine, IA clusters, import CSV, pilotage bailleur, **mémoire / recherche approfondie** (boucle itérative), **ticket technicien procédures annotées** (Q43) | Extension de ce qui a démarré en V1 |
 | **V3** | Sources externes traçables (normes, fabricants) | Cas atypiques, masse critique |
 
@@ -847,4 +847,4 @@ Ne pas committer `projet.txt` ni les fichiers Office temporaires (`~$*`).
 | 17 mai 2026 | Porteur projet | §6 : ne pas upgrader Prisma 7 / npm 11 avant validation septembre |
 | 22 mai 2026 | Porteur + assistant | Boucle rectification expert : `POST /tickets/:id/expert-rectification`, SharedState, Pro Briefing — `MANIFESTE_FINAL.md` |
 | 22 mai 2026 | Porteur + assistant | Priorité mobile saisie réclamation ; backlog push prise en charge ; checklist essais + script `test-detect-claims.ts` |
-| 21 mai 2026 | Porteur projet | Q65 : dashboard technicien — IA Lia sur contestations particulières (PC ou tablette) |
+| 21 mai 2026 | Porteur projet | Q65 : dashboard technicien — IA Lia sur **contextes particuliers** (PC ou tablette) ; rectif. : pas « contestations » |

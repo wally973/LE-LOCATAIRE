@@ -16,6 +16,7 @@ import { LiaPathologistService } from './agents/lia-pathologist.service';
 import { LiaJuristService } from './agents/lia-jurist.service';
 import { AiRoutingService } from './ai-routing.service';
 import { AiRoutingController } from './ai-routing.controller';
+import { AiSummarizerService } from '../ai/ai-summarizer.service';
 
 function resolvePipelineMode(): 'stub' | 'lia' {
   const mode = (process.env.AI_PIPELINE_MODE ?? 'lia').toLowerCase();
@@ -62,6 +63,11 @@ function resolvePipelineMode(): 'stub' | 'lia' {
       inject: [AiPipelineLiaAdapter, AiPipelineStubAdapter],
     },
   ],
-  exports: [AiRoutingService, AI_PIPELINE, LiaPathologistService],
+  exports: [
+    AiRoutingService,
+    AI_PIPELINE,
+    LiaPathologistService,
+    AiSummarizerService,
+  ],
 })
 export class AiRoutingModule {}

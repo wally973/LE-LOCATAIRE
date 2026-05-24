@@ -166,6 +166,9 @@ export class LiaJuristService {
           fromLlm: patho.fromLlm,
           simulation: !patho.fromLlm,
           observation: patho.observation,
+          differential: patho.differential,
+          hvacPhoto: patho.hvacPhoto,
+          humidityPhoto: patho.humidityPhoto,
         },
       },
     ];
@@ -316,6 +319,44 @@ export class LiaJuristService {
               name: 'jurist_simulation',
               decision: 'LOCATAIRE',
               extra: { rule: 'electricity_tenant_minor', memoryId: topMemory?.id },
+            },
+          ],
+        };
+      }
+    }
+
+    if (patho.category === 'HEATING' && patho.differential?.leadingHypothesisId) {
+      const hint =
+        patho.differential?.hypotheses.find(
+          (h) => h.id === patho.differential?.leadingHypothesisId,
+        )?.label ?? patho.observation;
+      const isTenant =
+        patho.differential?.leadingHypothesisId === 'hyp_hvac_condensate_blocked';
+      const isBailleur =
+        patho.differential?.leadingHypothesisId === 'hyp_hvac_refrigerant_leak';
+      if (isTenant || isBailleur) {
+        const responsibility = isTenant ? 'LOCATAIRE' : 'BAILLEUR';
+        return {
+          responsibility,
+          category: patho.category,
+          severity: patho.severity,
+          confidence: Math.max(patho.confidence, 0.82),
+          needsMorePhoto: false,
+          socialFlag: false,
+          suggestedArtisanType: isBailleur ? 'HEATING_TECH' : undefined,
+          message: isTenant
+            ? 'Climatisation : l’eau provient très probablement des condensats (bac ou évacuation). Entretien à votre charge — videz et nettoyez le bac, vérifiez le tuyau d’évacuation.'
+            : 'Climatisation : orientation fuite frigorifique ou installation — charge bailleur. Un technicien frigoriste sera organisé.',
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: responsibility,
+              extra: {
+                rule: 'hvac_differential',
+                hypothesis: patho.differential?.leadingHypothesisId,
+                hint,
+              },
             },
           ],
         };

@@ -90,9 +90,9 @@ export class AiInsuranceService {
           `Créneau horaire signalé : ${ctx.sensors.timing_pattern} — cohérent avec un pic de charge sur le réseau EU de l’immeuble.`,
         );
       }
-      if (ctx.sensors.weather_context?.trim()) {
-        notes.push(`Contexte météo : ${ctx.sensors.weather_context}.`);
-      }
+    }
+    if (ctx.sensors.weather_context?.trim()) {
+      notes.push(`Contexte météo retenu : ${ctx.sensors.weather_context}.`);
     }
 
     return {

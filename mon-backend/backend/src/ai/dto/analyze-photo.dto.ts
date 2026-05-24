@@ -1,5 +1,5 @@
-import { IsString, IsUrl } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, IsOptional, IsString, IsUrl } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AnalyzePhotoDto {
   @ApiProperty({
@@ -9,4 +9,19 @@ export class AnalyzePhotoDto {
   @IsString()
   @IsUrl()
   url: string;
+
+  @ApiPropertyOptional({ description: 'Ticket lié (capteurs depuis DiagnosticContextService)' })
+  @IsOptional()
+  @IsInt()
+  ticketId?: number;
+
+  @ApiPropertyOptional({ description: 'Titre du signalement (extraction capteurs sans ticket)' })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiPropertyOptional({ description: 'Description du signalement' })
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

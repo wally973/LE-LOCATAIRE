@@ -6,7 +6,9 @@ import { AiLegalService } from './ai-legal.service';
 import { AiInsuranceService } from './ai-insurance.service';
 import { AiSupportService } from './ai-support.service';
 import { AiService } from './ai.service';
+import { AiPhotoService } from './ai-photo.service';
 import { AiController } from './ai.controller';
+import { AiRoutingModule } from '../ai-routing/ai-routing.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
@@ -20,10 +22,12 @@ import { LegalReferencesModule } from '../legal-references/legal-references.modu
     NotificationsModule,
     AgentsSharedModule,
     LegalReferencesModule,
+    AiRoutingModule,
   ],
   controllers: [AiController],
   providers: [
     AiService,
+    AiPhotoService,
     AiTicketService,
     AiDispatchService,
     AiQualityService,
@@ -38,6 +42,7 @@ import { LegalReferencesModule } from '../legal-references/legal-references.modu
     AiLegalService,
     AiInsuranceService,
     AiSupportService,
+    AiRoutingModule,
   ],
 })
 export class AiModule {}

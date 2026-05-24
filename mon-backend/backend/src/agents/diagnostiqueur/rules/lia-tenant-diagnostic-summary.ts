@@ -6,6 +6,11 @@ import type { PathologistResult } from '../../../ai-routing/agents/pathologist.t
 import type { LiaIntakeState } from '../../orchestrateur/intake/lia-intake.service';
 import { parseElectricitySignals, resolveElectricityCharge } from './lia-electricity-rules';
 import { buildTenantCaseContext } from '../../shared/lia-case-context';
+import type { DiagnosticSensors } from '../../shared/lia-diagnostic-state.types';
+import {
+  formatDiagnosticModeHeader,
+  formatSensorDetailLines,
+} from '../../shared/diagnostic-sensor-summary';
 
 const PATHO_CATEGORY_LABELS: Record<string, string> = {
   PLUMBING: 'Plomberie',
@@ -68,8 +73,9 @@ export function buildTenantDiagnosticMessage(params: {
   title: string;
   description: string;
   tenantSupplement?: string;
+  sensors?: DiagnosticSensors;
 }): string {
-  const { decision, pathologist, intake, title, description, tenantSupplement } =
+  const { decision, pathologist, intake, title, description, tenantSupplement, sensors } =
     params;
   const caseContext = buildTenantCaseContext({
     title,
@@ -100,10 +106,19 @@ export function buildTenantDiagnosticMessage(params: {
     }
   }
 
-  const blocks: string[] = [
-    'Synthèse de l’analyse',
-    `• Sujet : ${pathoCategoryLabel(pathologist.category)}`,
-  ];
+  const blocks: string[] = [];
+  const modeHeader = formatDiagnosticModeHeader(sensors);
+  if (modeHeader) {
+    blocks.push(modeHeader);
+  }
+  const sensorLines = formatSensorDetailLines(sensors);
+  if (sensorLines.length > 0) {
+    blocks.push('Capteurs retenus :');
+    blocks.push(...sensorLines);
+    blocks.push('');
+  }
+  blocks.push('Synthèse de l’analyse');
+  blocks.push(`• Sujet : ${pathoCategoryLabel(pathologist.category)}`);
   if (pathologist.observation?.trim()) {
     blocks.push(`• Constat technique : ${pathologist.observation.trim()}`);
   }

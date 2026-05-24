@@ -20,8 +20,9 @@ import {
   buildTenantCaseContext,
   splitPipelineFeedback,
 } from '../lia/lia-case-context';
-import { buildTenantDiagnosticMessage } from '../lia/lia-tenant-diagnostic-summary';
 import { DiagnosticContextService } from '../agents/shared/diagnostic-context.service';
+import { AiSummarizerService } from '../ai/ai-summarizer.service';
+import type { PathologistResult } from './agents/pathologist.types';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -54,6 +55,7 @@ export class AiRoutingService {
     private readonly aiDiagnostics: AiDiagnosticsService,
     @Inject(AI_PIPELINE) private readonly pipeline: AiPipelinePort,
     private readonly diagnosticContext: DiagnosticContextService,
+    private readonly summarizer: AiSummarizerService,
     /**
      * Sprint 4 : suggestion de tutoriels vidéos quand la décision est
      * LOCATAIRE. Injection optionnelle pour rester déployable même sans
@@ -178,21 +180,29 @@ export class AiRoutingService {
         typeof pathoStep?.extra?.observation === 'string'
           ? pathoStep.extra.observation
           : undefined;
+      const pathologist: PathologistResult = {
+        category: decision.category,
+        severity: decision.severity,
+        confidence: decision.confidence,
+        needsMorePhoto: decision.needsMorePhoto,
+        observation: observation ?? 'Analyse à partir de votre signalement.',
+        fromLlm: Boolean(pathoStep?.extra?.fromLlm),
+        differential: pathoStep?.extra?.differential as PathologistResult['differential'],
+        hvacPhoto: pathoStep?.extra?.hvacPhoto as PathologistResult['hvacPhoto'],
+        humidityPhoto: pathoStep?.extra?.humidityPhoto as PathologistResult['humidityPhoto'],
+      };
       decision = {
         ...decision,
-        message: buildTenantDiagnosticMessage({
-          decision,
-          pathologist: {
-            category: decision.category,
-            severity: decision.severity,
-            confidence: decision.confidence,
-            needsMorePhoto: decision.needsMorePhoto,
-            observation: observation ?? 'Analyse à partir de votre signalement.',
-            fromLlm: false,
+        message: this.summarizer.buildTenantFinalSummary({
+          ticket: {
+            id: ticketId,
+            title: ticketWithDocs.title,
+            description: ticketWithDocs.description,
           },
+          decision,
+          pathologist,
+          sensors: dxContext.sensors,
           intake: intakeState,
-          title: ticketWithDocs.title,
-          description: ticketWithDocs.description,
           tenantSupplement,
         }),
       };

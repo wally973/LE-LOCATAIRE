@@ -68,7 +68,10 @@ export class LiaCompanionService {
       if (parsed) return parsed;
     }
 
-    return this.fallbackRules(params);
+    return this.fallbackRules({
+      ...params,
+      tenantMessage: params.tenantMessage,
+    });
   }
 
   private parseCompanionJson(raw: string): CompanionResponse | null {
@@ -103,9 +106,28 @@ export class LiaCompanionService {
     description: string;
     category: IntakeCategory;
     tenantFirstName?: string;
+    tenantMessage?: string;
   }): CompanionResponse {
-    const text = `${params.title} ${params.description}`.toLowerCase();
+    const text = `${params.title} ${params.description} ${params.tenantMessage ?? ''}`.toLowerCase();
     const name = params.tenantFirstName?.trim() || 'Bonjour';
+
+    const solo = (params.tenantMessage ?? '').trim();
+    if (
+      /^(bonjou|bonswa|alo)\b[!?.]*$/i.test(solo) ||
+      (/^(bonjou|bonswa|alo)\b/i.test(solo) && solo.length < 40 && !/clim|fuite|eau/i.test(text))
+    ) {
+      return {
+        speech: `Bonjou ${name} ! Mwen ka edé aw — rakonté mwen sa ki pa bon anndan logement-la.`,
+        language: 'gcf',
+        avatar_action: 'GESTURE:wave',
+        avatar_position: 'center',
+        search_trigger: null,
+        safety_level: 'green',
+        photo_requested: false,
+        landlord_hint: null,
+        photo_guidance_steps: [],
+      };
+    }
 
     let safety_level: CompanionSafetyLevel = 'green';
     let avatar_action = 'GESTURE:nod';
@@ -163,6 +185,23 @@ export class LiaCompanionService {
         photo_requested: true,
         landlord_hint: 'NUANCE',
         photo_guidance_steps,
+      };
+    }
+
+    if (/clim|climatisation|split|condensat/i.test(text)) {
+      return {
+        speech: `${name}, an saison sèch, séki souvent condensats ou fuite frigo — pa toiture. Fè yon foto anba split-la.`,
+        language: 'gcf',
+        avatar_action: 'GESTURE:point_at_camera',
+        avatar_position: 'bottom_right',
+        search_trigger: null,
+        safety_level: 'yellow',
+        photo_requested: true,
+        landlord_hint: 'NUANCE',
+        photo_guidance_steps: [
+          'Cadrez l’eau sous l’unité intérieure',
+          'Montrez le bac à condensats si visible',
+        ],
       };
     }
 

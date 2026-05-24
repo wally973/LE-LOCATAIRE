@@ -22,7 +22,7 @@ Synthèse affichée : *« Suite à l’expertise terrain de [Nom]… »*.
 |--------|-------------|------|
 | Mobile locataire | **Flutter** | Signalement, fil Lia, photo |
 | Backend | **NestJS** + Prisma | `LiaAgentService` (objectifs + **SharedState**), pathologiste, juriste |
-| Référent / technicien | **admin-dashboard** | Réclamations, détail affaire, **Pro Briefing**, rectification expert |
+| Référent / technicien | **admin-dashboard** | Réclamations, détail affaire, **Pro Briefing**, rectification expert ; **IA sur contestations** (charge litigieuse) depuis **PC ou tablette** (Q65) |
 | Ancien prototype web locataire | `admin-dashboard` hooks `useOrchestratorAI` | Bride front — **pas** le fil production Flutter |
 
 **Ne pas confondre** avec `ticket_manager.py` ou pipelines Python : tout passe par `mon-backend/backend/src/lia/`.

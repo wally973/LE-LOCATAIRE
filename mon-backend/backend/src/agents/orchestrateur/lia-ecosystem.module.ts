@@ -21,6 +21,8 @@ import { LiaHousingWarrantyService } from '../chercheur/research/lia-housing-war
 import { LiaDiagnosticCapabilityService } from '../diagnostiqueur/capability/lia-diagnostic-capability.service';
 import { LiaProBriefingService } from '../diagnostiqueur/briefing/lia-pro-briefing.service';
 import { LiaExpertRectificationService } from '../diagnostiqueur/briefing/lia-expert-rectification.service';
+import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-marches.module';
+import { MaintenanceContractMapperService } from '../chercheur/marches/maintenance-contract-mapper.service';
 
 /** Écosystème Lia — orchestrateur + chercheur + diagnostiqueur (ex-src/lia). */
 @Module({
@@ -33,6 +35,7 @@ import { LiaExpertRectificationService } from '../diagnostiqueur/briefing/lia-ex
     ArtisanRequestsModule,
     FeatureFlagsModule,
     LegalReferencesModule,
+    MaintenanceMarchesModule,
   ],
   providers: [
     LiaHostService,
@@ -57,6 +60,7 @@ import { LiaExpertRectificationService } from '../diagnostiqueur/briefing/lia-ex
     LiaProBriefingService,
     LiaExpertRectificationService,
     LiaSharedStateService,
+    MaintenanceContractMapperService,
   ],
 })
 export class LiaModule {}

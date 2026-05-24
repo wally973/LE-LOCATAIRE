@@ -40,6 +40,8 @@ import {
   applyUrgentCriticalOverlay,
   isUrgentCriticalSeverity,
 } from '../agents/shared/critical-safety-protocol';
+import { MaintenanceContractMapperService } from '../agents/chercheur/marches/maintenance-contract-mapper.service';
+import type { MaintenanceContractMatch } from '../agents/chercheur/marches/maintenance-contracts.types';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -79,6 +81,7 @@ export class AiRoutingService {
      * le module video-library (tests, environnements minimaux).
      */
     @Optional() private readonly videoLibrary?: VideoLibraryService,
+    @Optional() private readonly maintenanceMapper?: MaintenanceContractMapperService,
   ) {}
 
   /**
@@ -330,7 +333,13 @@ export class AiRoutingService {
         : intakeState ?? undefined;
 
     const updated = await this.applyDecision(
-      ticketWithDocs,
+      {
+        id: ticketWithDocs.id,
+        aiMaxAttempts: ticketWithDocs.aiMaxAttempts,
+        housing: ticketWithDocs.housing,
+        title: ticketWithDocs.title,
+        description: ticketWithDocs.description,
+      },
       effectiveDecision,
       attempt,
       intakeDone,
@@ -646,13 +655,69 @@ export class AiRoutingService {
     return state;
   }
 
+  /** Persiste le lien hypothèse → contrat marché dans aiLastDecision. */
+  private buildMaintenanceDispatch(
+    decision: AiPipelineDecision,
+    diagnosticState: DiagnosticState | undefined,
+    title?: string,
+    description?: string,
+  ): Record<string, unknown> | null {
+    if (!this.maintenanceMapper) return null;
+    const urgent = isUrgentCriticalSeverity(decision.severity);
+    const aiDecision = {
+      diagnostic: diagnosticState,
+      pipelineSteps: decision.pipelineSteps,
+    };
+    const match = this.maintenanceMapper.resolveForTicketAiDecision(aiDecision, {
+      category: decision.category,
+      contextText: `${title ?? ''} ${description ?? ''}`.trim(),
+      urgent,
+    });
+    if (!match) return null;
+    return this.serializeMaintenanceDispatch(match);
+  }
+
+  private serializeMaintenanceDispatch(
+    match: MaintenanceContractMatch,
+  ): Record<string, unknown> {
+    const k = match.contract.kpi;
+    const delay = match.urgent
+      ? k.interventionDelayHoursUrgent
+      : k.interventionDelayHoursStandard;
+    return {
+      leadingHypothesisId: match.leadingHypothesisId,
+      contractId: match.contractId,
+      lot: match.contract.lot,
+      supplier: match.contract.supplier,
+      label: match.contract.label,
+      interventionDelayHours: delay,
+      technicalCompliance: k.technicalCompliance,
+      averageCostEur: k.averageCostEur,
+      sourceDocuments: match.contract.sourceDocuments,
+      urgent: match.urgent,
+    };
+  }
+
   private async applyDecision(
-    ticket: { id: number; aiMaxAttempts: number; housing: { landlordId: number } },
+    ticket: {
+      id: number;
+      aiMaxAttempts: number;
+      housing: { landlordId: number };
+      title?: string;
+      description?: string;
+    },
     decision: AiPipelineDecision,
     attempt: number,
     intakeDone?: ReturnType<typeof parseIntakeState>,
     diagnosticState?: DiagnosticState,
   ) {
+    const maintenanceDispatch = this.buildMaintenanceDispatch(
+      decision,
+      diagnosticState,
+      ticket.title,
+      ticket.description,
+    );
+
     // Round-trip JSON pour obtenir un Prisma.InputJsonValue propre,
     // sinon TS rejette les tableaux d'objets typés (TS2322).
     const decisionJson = JSON.parse(
@@ -668,6 +733,7 @@ export class AiRoutingService {
         messageForTenant: decision.message,
         ...(intakeDone ? { intake: intakeDone } : {}),
         ...(diagnosticState ? { diagnostic: diagnosticState } : {}),
+        ...(maintenanceDispatch ? { maintenanceDispatch } : {}),
       }),
     ) as Prisma.InputJsonValue;
 

@@ -18,6 +18,8 @@ import {
 } from '../knowledge/lia-occupancy-context';
 import { LiaHousingWarrantyService } from './lia-housing-warranty';
 import { formatInstallationsBrief } from '../knowledge/installations-charges.loader';
+import { MaintenanceContractMapperService } from '../marches/maintenance-contract-mapper.service';
+import { isUrgentCriticalSeverity } from '../../shared/critical-safety-protocol';
 
 /** Auto-recherche interne V1 — bibliothécaire AFPOLS/AQC + tickets similaires (Q42, Q55). */
 @Injectable()
@@ -25,6 +27,7 @@ export class LiaResearchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly housingWarranty: LiaHousingWarrantyService,
+    private readonly maintenanceMapper: MaintenanceContractMapperService,
   ) {}
 
   private static readonly FICHES: Record<string, string> = {
@@ -136,6 +139,13 @@ export class LiaResearchService {
             )
             .join('\n');
 
+    const maintenanceBlock = this.buildMaintenanceBlock(
+      ticket.aiLastDecision,
+      contextText,
+      String(category),
+      ticket.aiSeverity,
+    );
+
     return [
       '=== Recherche interne (V1) — bibliothécaire ===',
       `Fiche métier (${category}) : ${fiche}`,
@@ -144,9 +154,59 @@ export class LiaResearchService {
       occupancyBlock,
       installationsBlock,
       librarianBlock,
+      maintenanceBlock,
       `Affaires proches :\n${similarLines}`,
     ]
       .filter(Boolean)
       .join('\n');
+  }
+
+  /** Mapping hypothèse → contrat marché (API / briefing). */
+  mapMaintenanceForTicket(ticketId: number) {
+    return this.prisma.ticket
+      .findUnique({ where: { id: ticketId } })
+      .then((ticket) => {
+        if (!ticket) return null;
+        const contextText = `${ticket.title} ${ticket.description}`;
+        const urgent = isUrgentCriticalSeverity(ticket.aiSeverity ?? '');
+        const match = this.maintenanceMapper.resolveForTicketAiDecision(
+          ticket.aiLastDecision,
+          {
+            category: ticket.aiCategory ?? undefined,
+            contextText,
+            urgent,
+          },
+        );
+        if (!match) return null;
+        return {
+          leadingHypothesisId: match.leadingHypothesisId,
+          contractId: match.contractId,
+          lot: match.contract.lot,
+          supplier: match.contract.supplier,
+          label: match.contract.label,
+          kpi: match.contract.kpi,
+          bpuSamples: match.contract.bpuSamples,
+          sourceDocuments: match.contract.sourceDocuments,
+          urgent: match.urgent,
+          brief: this.maintenanceMapper.formatBrief(match),
+        };
+      });
+  }
+
+  private buildMaintenanceBlock(
+    aiLastDecision: unknown,
+    contextText: string,
+    category: string,
+    aiSeverity: string | null,
+  ): string {
+    const urgent = isUrgentCriticalSeverity(aiSeverity ?? '');
+    const match = this.maintenanceMapper.resolveForTicketAiDecision(
+      aiLastDecision,
+      { category, contextText, urgent },
+    );
+    if (!match) {
+      return 'Marchés d’entretien : aucun contrat mappé pour l’hypothèse retenue (vérifier leadingHypothesisId).';
+    }
+    return this.maintenanceMapper.formatBrief(match);
   }
 }

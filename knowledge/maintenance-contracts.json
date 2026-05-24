@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-22",
+  "description": "Marchés publics d'entretien — mapping leadingHypothesisId → ContractID (sources PDF marché + BPU)",
+  "contracts": [
+    {
+      "contractId": "MP-GUYANE-ASCENSEUR-SCHINDLER-2024",
+      "label": "Maintenance préventive et corrective ascenseurs",
+      "supplier": "SCHINDLER Guyane",
+      "lot": "LOT-07-ASCENSEUR",
+      "sourceDocuments": {
+        "marchePdf": "MP_ascenseur_schindler_2024.pdf",
+        "bpuPdf": "BPU_LOT07_ASCENSEUR_v2.pdf"
+      },
+      "kpi": {
+        "interventionDelayHoursUrgent": 4,
+        "interventionDelayHoursStandard": 48,
+        "technicalCompliance": "EN 81-80 / arrêté du 8 août 2000",
+        "averageCostEur": {
+          "deplacement": 185,
+          "heureTechnicien": 98,
+          "forfaitP1Annuel": 11800
+        }
+      },
+      "bpuSamples": [
+        { "code": "ASC-DEP", "label": "Déplacement technicien ascensoriste", "unit": "forfait", "priceEur": 185 },
+        { "code": "ASC-H01", "label": "Heure intervention sur site", "unit": "heure", "priceEur": 98 },
+        { "code": "ASC-P1", "label": "Visite entretien P1 (trimestriel)", "unit": "visite", "priceEur": 420 }
+      ],
+      "hypothesisIds": ["hyp_common_elevator"],
+      "categories": ["COMMON_AREAS"],
+      "keywords": ["ascenseur", "ascenceur", "cabine", "niveau bloque"]
+    },
+    {
+      "contractId": "MP-GUYANE-ELECTRICITE-EDF-SOLAIRE-2023",
+      "label": "Maintenance installations électriques collectives et ER",
+      "supplier": "Bureau électricité agréé — marché cadre",
+      "lot": "LOT-03-ELECTRICITE",
+      "sourceDocuments": {
+        "marchePdf": "MP_electricite_collectif_2023.pdf",
+        "bpuPdf": "BPU_LOT03_ELECTRICITE_v1.pdf"
+      },
+      "kpi": {
+        "interventionDelayHoursUrgent": 6,
+        "interventionDelayHoursStandard": 72,
+        "technicalCompliance": "NF C 15-100 / consuel parties communes",
+        "averageCostEur": {
+          "deplacement": 95,
+          "heureTechnicien": 72,
+          "forfaitDiagnostic": 160
+        }
+      },
+      "bpuSamples": [
+        { "code": "ELEC-DEP", "label": "Déplacement électricien", "unit": "forfait", "priceEur": 95 },
+        { "code": "ELEC-H01", "label": "Heure main d'œuvre qualifiée", "unit": "heure", "priceEur": 72 },
+        { "code": "ELEC-URG", "label": "Majoration urgence sécurité (odeur brûlé, arc)", "unit": "forfait", "priceEur": 140 }
+      ],
+      "hypothesisIds": [
+        "hyp_elec_installation_defect",
+        "hyp_elec_tenant_socket"
+      ],
+      "categories": ["ELECTRICITY"],
+      "keywords": ["tableau", "parties communes", "coffret", "prise", "grésill", "brul"]
+    },
+    {
+      "contractId": "MP-GUYANE-MENUISERIE-SERRURERIE-2024",
+      "label": "Menuiserie / serrurerie logements et parties communes",
+      "supplier": "Menuiserie tropicale — marché groupement",
+      "lot": "LOT-05-MENUISERIE",
+      "sourceDocuments": {
+        "marchePdf": "MP_menuiserie_2024.pdf",
+        "bpuPdf": "BPU_LOT05_MENUISERIE_v3.pdf"
+      },
+      "kpi": {
+        "interventionDelayHoursUrgent": 24,
+        "interventionDelayHoursStandard": 120,
+        "technicalCompliance": "DTU 36.5 / normes serrures A2P",
+        "averageCostEur": {
+          "deplacement": 75,
+          "heureTechnicien": 58,
+          "remplacementSerrure": 220
+        }
+      },
+      "bpuSamples": [
+        { "code": "MEN-DEP", "label": "Déplacement menuisier", "unit": "forfait", "priceEur": 75 },
+        { "code": "MEN-H01", "label": "Heure menuiserie", "unit": "heure", "priceEur": 58 },
+        { "code": "MEN-PORTE", "label": "Réglage porte palière", "unit": "unité", "priceEur": 95 }
+      ],
+      "hypothesisIds": ["hyp_carp_frame_structure", "hyp_carp_tenant_adjust"],
+      "categories": ["CARPENTRY", "LOCK"],
+      "keywords": ["porte", "fenetre", "fenêtre", "volet", "serrure", "gond"]
+    },
+    {
+      "contractId": "MP-GUYANE-VMC-VENTIL-2024",
+      "label": "Entretien VMC collective et extraction",
+      "supplier": "Ventilation Guyane SAS",
+      "lot": "LOT-09-VMC",
+      "sourceDocuments": {
+        "marchePdf": "MP_vmc_2024.pdf",
+        "bpuPdf": "BPU_LOT09_VMC_v1.pdf"
+      },
+      "kpi": {
+        "interventionDelayHoursUrgent": 12,
+        "interventionDelayHoursStandard": 96,
+        "technicalCompliance": "Arrêté 24 juin 1982 modifié / débit mini cuisine SDB",
+        "averageCostEur": {
+          "deplacement": 110,
+          "heureTechnicien": 65,
+          "forfaitCurage": 280
+        }
+      },
+      "bpuSamples": [
+        { "code": "VMC-DEP", "label": "Déplacement technicien ventilation", "unit": "forfait", "priceEur": 110 },
+        { "code": "VMC-CUR", "label": "Curage réseau / bouche", "unit": "forfait", "priceEur": 280 },
+        { "code": "VMC-MOT", "label": "Contrôle moteur extraction", "unit": "visite", "priceEur": 195 }
+      ],
+      "hypothesisIds": ["hyp_vmc_motor_collective", "hyp_vmc_duct_block"],
+      "categories": ["VMC"],
+      "keywords": ["vmc", "ventilation", "extracteur", "hotte"]
+    },
+    {
+      "contractId": "MP-GUYANE-TERMITE-TRAIT-2024",
+      "label": "Traitement curatif xylophages / termites",
+      "supplier": "Désinsectisation tropicale certifiée",
+      "lot": "LOT-11-XYLOPHAGES",
+      "sourceDocuments": {
+        "marchePdf": "MP_termites_2024.pdf",
+        "bpuPdf": "BPU_LOT11_XYLO_v1.pdf"
+      },
+      "kpi": {
+        "interventionDelayHoursUrgent": 48,
+        "interventionDelayHoursStandard": 240,
+        "technicalCompliance": "Certibiocide / protocole LNP",
+        "averageCostEur": {
+          "deplacement": 120,
+          "diagnosticBiologique": 350,
+          "traitementForfait": 890
+        }
+      },
+      "bpuSamples": [
+        { "code": "XYL-DIAG", "label": "Diagnostic biologique sur site", "unit": "forfait", "priceEur": 350 },
+        { "code": "XYL-TRT", "label": "Traitement localisé charpente", "unit": "forfait", "priceEur": 890 },
+        { "code": "XYL-SUI", "label": "Visite suivi à 6 mois", "unit": "visite", "priceEur": 180 }
+      ],
+      "hypothesisIds": ["hyp_term_structure", "hyp_term_surface"],
+      "categories": ["TERMITES"],
+      "keywords": ["termite", "capricorne", "vrillette", "sciure", "xylophage"]
+    },
+    {
+      "contractId": "MP-GUYANE-PC-COLLECTIF-2024",
+      "label": "Entretien parties communes (halls, réseaux, toitures communes)",
+      "supplier": "2terHabitat — lot multitechnique",
+      "lot": "LOT-01-PARTIES-COMMUNES",
+      "sourceDocuments": {
+        "marchePdf": "MP_parties_communes_2024.pdf",
+        "bpuPdf": "BPU_LOT01_PC_v2.pdf"
+      },
+      "kpi": {
+        "interventionDelayHoursUrgent": 8,
+        "interventionDelayHoursStandard": 72,
+        "technicalCompliance": "Règlement copropriété / normes accessibilité",
+        "averageCostEur": {
+          "deplacement": 90,
+          "heureTechnicien": 68,
+          "forfaitHall": 240
+        }
+      },
+      "bpuSamples": [
+        { "code": "PC-DEP", "label": "Déplacement équipe PC", "unit": "forfait", "priceEur": 90 },
+        { "code": "PC-H01", "label": "Heure intervention PC", "unit": "heure", "priceEur": 68 },
+        { "code": "PC-HALL", "label": "Intervention hall / cage", "unit": "forfait", "priceEur": 240 }
+      ],
+      "hypothesisIds": ["hyp_common_leak", "hyp_common_cleaning"],
+      "categories": ["COMMON_AREAS"],
+      "keywords": ["hall", "parties communes", "cage", "parking collectif"]
+    }
+  ],
+  "hypothesisMappings": [
+    {
+      "leadingHypothesisId": "hyp_common_elevator",
+      "contractId": "MP-GUYANE-ASCENSEUR-SCHINDLER-2024",
+      "lot": "LOT-07-ASCENSEUR",
+      "priority": 1
+    },
+    {
+      "leadingHypothesisId": "hyp_elec_installation_defect",
+      "contractId": "MP-GUYANE-ELECTRICITE-EDF-SOLAIRE-2023",
+      "lot": "LOT-03-ELECTRICITE",
+      "priority": 1
+    },
+    {
+      "leadingHypothesisId": "hyp_carp_frame_structure",
+      "contractId": "MP-GUYANE-MENUISERIE-SERRURERIE-2024",
+      "lot": "LOT-05-MENUISERIE",
+      "priority": 1
+    },
+    {
+      "leadingHypothesisId": "hyp_vmc_motor_collective",
+      "contractId": "MP-GUYANE-VMC-VENTIL-2024",
+      "lot": "LOT-09-VMC",
+      "priority": 1
+    },
+    {
+      "leadingHypothesisId": "hyp_term_structure",
+      "contractId": "MP-GUYANE-TERMITE-TRAIT-2024",
+      "lot": "LOT-11-XYLOPHAGES",
+      "priority": 1
+    },
+    {
+      "leadingHypothesisId": "hyp_common_leak",
+      "contractId": "MP-GUYANE-PC-COLLECTIF-2024",
+      "lot": "LOT-01-PARTIES-COMMUNES",
+      "priority": 1
+    }
+  ]
+}

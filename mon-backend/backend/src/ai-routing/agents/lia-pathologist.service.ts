@@ -3,8 +3,20 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import type { AiPipelineInput } from '../ai-pipeline.port';
 import { parseJsonFromLlm } from '../utils/llm-json.util';
-import type { HumidityPhotoAssessment, PathologistResult } from './pathologist.types';
-import { inferHumidityPhotoFromText } from '../../lia/lia-humidity-rules';
+import type {
+  HvacPhotoAssessment,
+  HumidityPhotoAssessment,
+  PathologistResult,
+} from './pathologist.types';
+import { inferHumidityPhotoFromText } from '../../agents/diagnostiqueur/rules/lia-humidity-rules';
+import {
+  inferHvacPhotoCuesFromText,
+  isHvacSignalement,
+  runHvacDifferential,
+  type HvacPhotoCues,
+} from '../../agents/diagnostiqueur/rules/lia-hvac-pathology';
+import { DiagnosticContextService } from '../../agents/shared/diagnostic-context.service';
+import type { DiagnosticSensors } from '../../agents/shared/lia-diagnostic-state.types';
 
 interface GeminiPathologistJson {
   category: string;
@@ -16,34 +28,80 @@ interface GeminiPathologistJson {
   structuralDegradationVisible?: boolean;
   tenantSurfaceNeglectOnly?: boolean;
   humidityIndicators?: string[];
+  darkHaloVisible?: boolean;
+  condensateOverflowVisible?: boolean;
+  refrigerantOilResidue?: boolean;
+  stainUnderIndoorUnit?: boolean;
+  hvacIndicators?: string[];
 }
 
 /**
- * Agent pathologiste — analyse photo + description (Gemini Vision).
- * Sans clé API : simulation déterministe pour les tests locaux.
+ * Agent pathologiste — vision + DiagnosticContextService (plus de stub photo séparé).
  */
 @Injectable()
 export class LiaPathologistService {
   private readonly logger = new Logger(LiaPathologistService.name);
 
+  constructor(private readonly diagnosticContext: DiagnosticContextService) {}
+
   async analyze(input: AiPipelineInput): Promise<PathologistResult> {
+    const enriched = await this.enrichInput(input);
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && process.env.LIA_PATHOLOGIST_ENABLED !== 'false') {
       try {
-        return await this.analyzeWithGemini(input, apiKey);
+        return await this.analyzeWithGemini(enriched, apiKey);
       } catch (e) {
         this.logger.warn('Gemini pathologiste indisponible, fallback simulation', e);
       }
     }
-    return this.analyzeSimulated(input);
+    return this.analyzeSimulated(enriched);
+  }
+
+  /**
+   * Analyse d’une photo pour un ticket (ex-ai-photo.service) — contexte capteurs inclus.
+   */
+  async analyzePhotoForTicket(
+    ticketId: number,
+    photoUrl: string,
+    extraUrls: string[] = [],
+  ): Promise<PathologistResult> {
+    const ctx = await this.diagnosticContext.fromTicket(ticketId);
+    return this.analyze({
+      title: ctx.title,
+      description: ctx.description,
+      attempt: 1,
+      photoUrls: [photoUrl, ...extraUrls].filter(Boolean),
+      caseContextForRules: ctx.caseContext,
+      diagnosticSensors: ctx.sensors,
+      ticketId,
+      locale: 'fr-FR',
+    });
+  }
+
+  private async enrichInput(input: AiPipelineInput): Promise<AiPipelineInput> {
+    if (input.diagnosticSensors && Object.keys(input.diagnosticSensors).length > 0) {
+      return input;
+    }
+    if (input.ticketId) {
+      const ctx = await this.diagnosticContext.fromTicket(input.ticketId);
+      return {
+        ...input,
+        diagnosticSensors: ctx.sensors,
+        caseContextForRules: input.caseContextForRules ?? ctx.caseContext,
+      };
+    }
+    return {
+      ...input,
+      diagnosticSensors: {},
+    };
   }
 
   private async analyzeWithGemini(
     input: AiPipelineInput,
     apiKey: string,
   ): Promise<PathologistResult> {
-    const model =
-      process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+    const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+    const sensors = input.diagnosticSensors ?? {};
     const parts: Array<Record<string, unknown>> = [
       {
         text: [
@@ -52,14 +110,17 @@ export class LiaPathologistService {
           `Titre: ${input.title}`,
           `Description: ${input.description}`,
           input.tenantFeedback ? `Précision locataire: ${input.tenantFeedback}` : '',
+          sensors.weather_context
+            ? `Contexte météo capteur: ${sensors.weather_context}`
+            : '',
           `Tentative n°${input.attempt}.`,
-          'Éclairage localisé (ampoule, SDB) sans coupure générale → ELECTRICITY.',
           'Réponds UNIQUEMENT en JSON valide avec les clés:',
-          'category (PLUMBING|ELECTRICITY|HUMIDITY|LOCK|HEATING|WATER_DAMAGE|SOCIAL_SIGNAL|OTHER),',
+          'category (PLUMBING|ELECTRICITY|HUMIDITY|HEATING|LOCK|WATER_DAMAGE|SOCIAL_SIGNAL|OTHER),',
           'severity (LOW|MEDIUM|HIGH), confidence (0-1), needsMorePhoto (boolean),',
           'observation (phrase courte en français), suggestedArtisanType (PLUMBER|ELECTRICIAN|LOCKSMITH|HEATING_TECH ou null).',
-          'Si HUMIDITY et photo : structuralDegradationVisible (fissure, infiltration, salpêtre, cloques étendues, remontée capillaire),',
-          'tenantSurfaceNeglectOnly (moisissure localisée/condensation sans atteinte structure), humidityIndicators (mots-clés courts).',
+          'Si HUMIDITY : structuralDegradationVisible, tenantSurfaceNeglectOnly, humidityIndicators[].',
+          'Si climatisation / HEATING : darkHaloVisible, condensateOverflowVisible, refrigerantOilResidue, stainUnderIndoorUnit, hvacIndicators[].',
+          'Auréole sombre au plafond en saison sèche ≠ infiltration toiture — chercher fuite interne clim/condensats.',
         ]
           .filter(Boolean)
           .join('\n'),
@@ -101,12 +162,7 @@ export class LiaPathologistService {
     if (!text) throw new Error('Réponse Gemini vide');
 
     const parsed = parseJsonFromLlm<GeminiPathologistJson>(text);
-    const base = this.buildPathologistResult(
-      parsed,
-      input,
-      true,
-    );
-    return base;
+    return this.buildPathologistResult(parsed, input, true);
   }
 
   private buildPathologistResult(
@@ -114,9 +170,15 @@ export class LiaPathologistService {
     input: AiPipelineInput,
     fromLlm: boolean,
   ): PathologistResult {
-    const category = parsed.category ?? 'OTHER';
+    let category = parsed.category ?? 'OTHER';
     const hasPhoto = input.photoUrls.length > 0;
     const contextText = `${input.title} ${input.description} ${input.tenantFeedback ?? ''}`;
+    const sensors = input.diagnosticSensors ?? {};
+
+    if (category === 'OTHER' && isHvacSignalement(contextText)) {
+      category = 'HEATING';
+    }
+
     let humidityPhoto: HumidityPhotoAssessment | undefined;
     if (category === 'HUMIDITY' && hasPhoto) {
       if (
@@ -136,7 +198,8 @@ export class LiaPathologistService {
         humidityPhoto = inferHumidityPhotoFromText(contextText, true);
       }
     }
-    return {
+
+    let base: PathologistResult = {
       category,
       severity: parsed.severity ?? 'MEDIUM',
       confidence: Math.min(1, Math.max(0, Number(parsed.confidence) || 0.5)),
@@ -146,9 +209,76 @@ export class LiaPathologistService {
       fromLlm,
       humidityPhoto,
     };
+
+    if (category === 'HEATING' || isHvacSignalement(contextText)) {
+      base = this.applyHvacDifferential(base, input, {
+        darkHaloVisible: Boolean(parsed.darkHaloVisible),
+        condensateOverflowVisible: Boolean(parsed.condensateOverflowVisible),
+        refrigerantOilResidue: Boolean(parsed.refrigerantOilResidue),
+        stainUnderIndoorUnit: Boolean(parsed.stainUnderIndoorUnit),
+      });
+    }
+
+    return base;
   }
 
-  /** Simulation locale (mots-clés) — même logique métier que le stub historique. */
+  private applyHvacDifferential(
+    base: PathologistResult,
+    input: AiPipelineInput,
+    photoCues: HvacPhotoCues,
+  ): PathologistResult {
+    const contextText = `${input.title} ${input.description} ${input.tenantFeedback ?? ''}`;
+    const diff = runHvacDifferential({
+      contextText,
+      sensors: input.diagnosticSensors ?? {},
+      photo: photoCues,
+    });
+
+    const hvacPhoto = this.toHvacPhotoAssessment(photoCues, diff);
+
+    return {
+      ...base,
+      category: 'HEATING',
+      observation: diff.observation,
+      suggestedArtisanType:
+        diff.responsibilityHint === 'BAILLEUR' ? 'HEATING_TECH' : undefined,
+      confidence: Math.max(base.confidence, diff.hypotheses[0]?.probability ?? 0.5),
+      hvacPhoto,
+      differential: {
+        leadingHypothesisId: diff.leadingHypothesisId,
+        hypotheses: diff.hypotheses.map((h) => ({
+          id: h.id,
+          label: h.label,
+          probability: h.probability,
+          eliminated: h.eliminated,
+          eliminationReason: h.eliminationReason,
+        })),
+        roofInfiltrationExcluded: diff.roofInfiltrationExcluded,
+      },
+    };
+  }
+
+  private toHvacPhotoAssessment(
+    cues: HvacPhotoCues,
+    diff: ReturnType<typeof runHvacDifferential>,
+  ): HvacPhotoAssessment {
+    const indicators: string[] = [];
+    if (cues.darkHaloVisible) indicators.push('auréole sombre');
+    if (cues.condensateOverflowVisible) indicators.push('condensats');
+    if (cues.refrigerantOilResidue) indicators.push('fuite frigorifique');
+    if (cues.stainUnderIndoorUnit) indicators.push('eau sous unité');
+    if (diff.roofInfiltrationExcluded) {
+      indicators.push('infiltration toiture écartée');
+    }
+    return {
+      darkHaloVisible: Boolean(cues.darkHaloVisible),
+      condensateOverflowVisible: Boolean(cues.condensateOverflowVisible),
+      refrigerantOilResidue: Boolean(cues.refrigerantOilResidue),
+      stainUnderIndoorUnit: Boolean(cues.stainUnderIndoorUnit),
+      indicators,
+    };
+  }
+
   private analyzeSimulated(input: AiPipelineInput): PathologistResult {
     const categoryText = this.normalizeText(
       `${input.title} ${input.description}`,
@@ -170,6 +300,23 @@ export class LiaPathologistService {
         observation: 'Signal de difficulté sociale détecté dans le texte.',
         fromLlm: false,
       };
+    }
+
+    if (isHvacSignalement(categoryText) || isHvacSignalement(text)) {
+      const hasPhoto = input.photoUrls.length > 0;
+      const photoCues = inferHvacPhotoCuesFromText(
+        `${text} ${input.tenantFeedback ?? ''}`,
+      );
+      const base: PathologistResult = {
+        category: 'HEATING',
+        severity: 'MEDIUM',
+        confidence: hasPhoto ? 0.84 : 0.7,
+        needsMorePhoto: !hasPhoto && input.attempt < 2,
+        observation: 'Signalement climatisation (simulation).',
+        suggestedArtisanType: 'HEATING_TECH',
+        fromLlm: false,
+      };
+      return this.applyHvacDifferential(base, input, photoCues);
     }
 
     const buckets: Array<{

@@ -7,6 +7,7 @@ import { VideoLibraryModule } from '../video-library/video-library.module';
 import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { LegalReferencesModule } from '../legal-references/legal-references.module';
 import { LiaModule } from '../lia/lia.module';
+import { AgentsSharedModule } from '../agents/shared/agents-shared.module';
 import { AI_PIPELINE } from './ai-pipeline.port';
 import { AiPipelineStubAdapter } from './ai-pipeline-stub.adapter';
 import { AiPipelineLiaAdapter } from './ai-pipeline-lia.adapter';
@@ -42,6 +43,7 @@ function resolvePipelineMode(): 'stub' | 'lia' {
     FeatureFlagsModule,
     LegalReferencesModule,
     forwardRef(() => LiaModule),
+    AgentsSharedModule,
   ],
   controllers: [AiRoutingController],
   providers: [
@@ -60,6 +62,6 @@ function resolvePipelineMode(): 'stub' | 'lia' {
       inject: [AiPipelineLiaAdapter, AiPipelineStubAdapter],
     },
   ],
-  exports: [AiRoutingService, AI_PIPELINE],
+  exports: [AiRoutingService, AI_PIPELINE, LiaPathologistService],
 })
 export class AiRoutingModule {}

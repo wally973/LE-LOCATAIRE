@@ -21,6 +21,7 @@ import {
   splitPipelineFeedback,
 } from '../lia/lia-case-context';
 import { buildTenantDiagnosticMessage } from '../lia/lia-tenant-diagnostic-summary';
+import { DiagnosticContextService } from '../agents/shared/diagnostic-context.service';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -52,6 +53,7 @@ export class AiRoutingService {
     private readonly notifications: NotificationsService,
     private readonly aiDiagnostics: AiDiagnosticsService,
     @Inject(AI_PIPELINE) private readonly pipeline: AiPipelinePort,
+    private readonly diagnosticContext: DiagnosticContextService,
     /**
      * Sprint 4 : suggestion de tutoriels vidéos quand la décision est
      * LOCATAIRE. Injection optionnelle pour rester déployable même sans
@@ -124,6 +126,13 @@ export class AiRoutingService {
       intake: intakeState,
       tenantSupplement,
     });
+    const dxContext = this.diagnosticContext.fromParts({
+      ticketId,
+      title: ticketWithDocs.title,
+      description: ticketWithDocs.description,
+      aiLastDecision: ticketWithDocs.aiLastDecision,
+      tenantFeedback: opts.tenantFeedback,
+    });
 
     if (intakeState?.phase === 'AWAITING_PHOTO') {
       await this.prisma.ticketMessage.create({
@@ -147,6 +156,8 @@ export class AiRoutingService {
       photoUrls,
       tenantFeedback,
       caseContextForRules,
+      diagnosticSensors: dxContext.sensors,
+      ticketId,
       locale: 'fr-FR',
       landlordProfileId:
         ticketWithDocs.landlordProfileId ?? ticketWithDocs.housing.landlordId,

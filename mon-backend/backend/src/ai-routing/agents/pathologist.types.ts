@@ -7,6 +7,24 @@ export interface HumidityPhotoAssessment {
   indicators: string[];
 }
 
+/** Indices photo climatisation (Guyane). */
+export interface HvacPhotoAssessment {
+  darkHaloVisible: boolean;
+  condensateOverflowVisible: boolean;
+  refrigerantOilResidue: boolean;
+  stainUnderIndoorUnit: boolean;
+  indicators: string[];
+}
+
+/** Hypothèse différentielle (Savoir-Voir). */
+export interface PathologistDifferentialHypothesis {
+  id: string;
+  label: string;
+  probability: number;
+  eliminated?: boolean;
+  eliminationReason?: string;
+}
+
 /** Résultat de l'agent pathologiste (vision + texte). */
 export interface PathologistResult {
   category: string;
@@ -19,4 +37,12 @@ export interface PathologistResult {
   fromLlm: boolean;
   /** Présent si category HUMIDITY et photo analysée (ou heuristique). */
   humidityPhoto?: HumidityPhotoAssessment;
+  /** Présent si category HEATING / climatisation. */
+  hvacPhoto?: HvacPhotoAssessment;
+  /** Logique différentielle (élimination avant conclusion). */
+  differential?: {
+    leadingHypothesisId: string;
+    hypotheses: PathologistDifferentialHypothesis[];
+    roofInfiltrationExcluded?: boolean;
+  };
 }

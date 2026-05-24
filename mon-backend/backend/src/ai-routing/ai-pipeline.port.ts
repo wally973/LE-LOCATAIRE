@@ -1,4 +1,5 @@
 import { NonRecevableReason, TicketResponsibility } from '@prisma/client';
+import type { DiagnosticSensors } from '../agents/shared/lia-diagnostic-state.types';
 
 /**
  * Contexte fourni au pipeline IA pour qu'il prenne une décision.
@@ -23,6 +24,10 @@ export interface AiPipelineInput {
   landlordProfileId?: number;
   /** Logement concerné — mémoires spécifiques résidence (Sprint G). */
   housingId?: number;
+  /** Ticket source — charge capteurs via DiagnosticContextService si besoin. */
+  ticketId?: number;
+  /** Capteurs REF (aspect eau, étage, météo, horaire). */
+  diagnosticSensors?: DiagnosticSensors;
 }
 
 /**

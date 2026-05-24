@@ -3,7 +3,7 @@ import {
   extractClinicalSignsFromText,
   normalizeClinicalText,
 } from './lia-diagnostic-state';
-import { loadPathologyIndex } from './knowledge-index.loader';
+import { loadPathologyIndex } from '../chercheur/research/knowledge-index.loader';
 
 describe('lia-diagnostic-state', () => {
   beforeAll(() => {

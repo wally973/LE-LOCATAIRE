@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, TicketStatus } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import type { BailleurScope } from '../auth/scope/bailleur-scope.types';
+import { PrismaService } from '../../prisma/prisma.service';
+import type { BailleurScope } from '../../auth/scope/bailleur-scope.types';
 
 const CLOSED_STATUSES: TicketStatus[] = ['RESOLVED', 'CANCELLED', 'AUTO_CLOSED'];
 

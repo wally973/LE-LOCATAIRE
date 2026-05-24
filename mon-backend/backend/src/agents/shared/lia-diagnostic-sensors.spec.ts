@@ -1,5 +1,5 @@
 import { buildDiagnosticState } from './lia-diagnostic-state';
-import { loadPathologyIndex } from './knowledge-index.loader';
+import { loadPathologyIndex } from '../chercheur/research/knowledge-index.loader';
 import {
   extractDiagnosticSensors,
   isWaterOnFloorReport,
@@ -8,7 +8,7 @@ import {
   getIntakeQuestionsForState,
   usesWaterOnFloorPath,
   type LiaIntakeState,
-} from './lia-intake.service';
+} from '../orchestrateur/intake/lia-intake.service';
 
 /** Texte Golden REF_EAU_SAVONNEUSE (docs/tests/REF_EAU_SAVONNEUSE.md). */
 const REF_TEXT = `

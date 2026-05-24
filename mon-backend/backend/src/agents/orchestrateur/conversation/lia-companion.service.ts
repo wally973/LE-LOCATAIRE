@@ -1,8 +1,8 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
-import { LegalReferencesService } from '../legal-references/legal-references.service';
-import { EXPERT_COMPAGNON_SYSTEM_PROMPT } from './prompts/expert-compagnon.prompt';
+import { LegalReferencesService } from '../../../legal-references/legal-references.service';
+import { EXPERT_COMPAGNON_SYSTEM_PROMPT } from '../prompts/expert-compagnon.prompt';
 import { LiaHostService } from './lia-host.service';
-import type { IntakeCategory } from './lia-intake.service';
+import type { IntakeCategory } from '../intake/lia-intake.service';
 import {
   type CompanionLanguage,
   type CompanionResponse,

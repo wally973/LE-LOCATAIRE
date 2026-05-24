@@ -5,7 +5,7 @@
 import {
   isPostHandoverBailleurDefect,
   parseOccupancyContext,
-} from './lia-occupancy-context';
+} from '../../chercheur/knowledge/lia-occupancy-context';
 
 export function normalizeForElectricityRules(raw: string): string {
   return raw

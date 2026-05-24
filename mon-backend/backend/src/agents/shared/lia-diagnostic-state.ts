@@ -18,7 +18,7 @@ import {
 import {
   indexEntriesForCategory,
   type PathologyIndexEntry,
-} from './knowledge-index.loader';
+} from '../chercheur/research/knowledge-index.loader';
 
 const ALL_CHANNELS: ClinicalSignChannel[] = [
   'color',

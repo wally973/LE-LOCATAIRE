@@ -60,7 +60,7 @@ import {
   resolveElectricityCharge,
 } from './lia-electricity-rules';
 import { isTenantBricolageContext } from './lia-humidity-rules';
-import type { HumidityPhotoAssessment } from '../ai-routing/agents/pathologist.types';
+import type { HumidityPhotoAssessment } from '../../../ai-routing/agents/pathologist.types';
 
 const PLUMBER_CTA =
   'Utilisez les boutons Oui / Non ci-dessous pour une mise en relation avec un plombier partenaire (devis), ou continuez sans artisan.';

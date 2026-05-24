@@ -2,7 +2,7 @@
  * Détection de plusieurs réclamations dans un même texte — un ticket = un sujet.
  */
 
-import type { IntakeCategory } from './lia-intake.service';
+import type { IntakeCategory } from '../../orchestrateur/intake/lia-intake.service';
 
 export interface DetectedClaim {
   id: string;

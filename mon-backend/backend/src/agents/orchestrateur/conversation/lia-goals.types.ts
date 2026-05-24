@@ -3,11 +3,13 @@
  */
 
 import type { TicketResponsibility, TicketStatus } from '@prisma/client';
-import type { QualificationFlags } from '../feature-flags/qualification-flags.types';
-import type { LiaIntakeState } from './lia-intake.service';
+import type { QualificationFlags } from '../../../feature-flags/qualification-flags.types';
+import type { LiaIntakeState } from '../intake/lia-intake.service';
 import type { CompanionUiState } from './lia-companion.types';
-import type { ExpertRectificationStored } from './lia-expert-rectification.types';
-import type { DiagnosticState } from './lia-diagnostic-state.types';
+import type { ExpertRectificationStored } from '../../diagnostiqueur/briefing/lia-expert-rectification.types';
+import type { DiagnosticState } from '../../shared/lia-diagnostic-state.types';
+import type { DiagnosticSensors } from '../../shared/lia-diagnostic-state.types';
+import type { SavoirVoirPhase } from '../../shared/savoir-voir.types';
 
 /** Objectifs métier : l’agent choisit le prochain selon le SharedState. */
 export type LiaGoal =
@@ -56,6 +58,12 @@ export interface LiaSharedState {
   diagnosticAuthority: 'AI_PROPOSED' | 'EXPERT_VALIDATED';
   /** Logique différentielle — signes cliniques + hypothèses (AFPOLS/AQC). */
   diagnostic: DiagnosticState | null;
+  /** Capteurs structurés (REF_EAU_SAVONNEUSE) — toujours défini. */
+  sensors: DiagnosticSensors;
+  /** Phase Savoir-Voir courante. */
+  savoirVoirPhase: SavoirVoirPhase;
+  /** Contexte locataire sans brief interne (règles déterministes). */
+  caseContext: string;
   /** Dernier message locataire (déclencheur réactif). */
   lastTenantMessage?: string;
 }

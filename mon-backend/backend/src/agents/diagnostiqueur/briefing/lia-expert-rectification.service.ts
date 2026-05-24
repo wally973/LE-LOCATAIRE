@@ -4,11 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { TicketResponsibility, TicketStatus } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { BailleurScopeService } from '../auth/scope/bailleur-scope.service';
-import { LiaConversationService } from './lia-conversation.service';
-import { LiaHostService } from './lia-host.service';
-import { mergeAiLastDecision } from './lia-intake.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { BailleurScopeService } from '../../../auth/scope/bailleur-scope.service';
+import { LiaConversationService } from '../../orchestrateur/conversation/lia-conversation.service';
+import { LiaHostService } from '../../orchestrateur/conversation/lia-host.service';
+import { mergeAiLastDecision } from '../../orchestrateur/intake/lia-intake.service';
 import {
   type ExpertRectifyInput,
   type ExpertRectifyResult,

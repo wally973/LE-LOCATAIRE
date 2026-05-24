@@ -1,23 +1,23 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import {
   parseIntakeState,
   buildIntakeSummary,
   mergeAiLastDecision,
-} from './lia-intake.service';
-import { parseCompanionState } from './lia-companion.types';
+} from '../../orchestrateur/intake/lia-intake.service';
+import { parseCompanionState } from '../../orchestrateur/conversation/lia-companion.types';
 import { loadPathologyIndex } from './knowledge-index.loader';
 import {
   buildDiagnosticState,
   formatDiagnosticStateBrief,
-} from './lia-diagnostic-state';
-import { parseDiagnosticState } from './lia-diagnostic-state.types';
+} from '../../shared/lia-diagnostic-state';
+import { parseDiagnosticState } from '../../shared/lia-diagnostic-state.types';
 import {
   formatOccupancyContextBrief,
   parseOccupancyContext,
-} from './lia-occupancy-context';
+} from '../knowledge/lia-occupancy-context';
 import { LiaHousingWarrantyService } from './lia-housing-warranty';
-import { formatInstallationsBrief } from './installations-charges.loader';
+import { formatInstallationsBrief } from '../knowledge/installations-charges.loader';
 
 /** Auto-recherche interne V1 — bibliothécaire AFPOLS/AQC + tickets similaires (Q42, Q55). */
 @Injectable()

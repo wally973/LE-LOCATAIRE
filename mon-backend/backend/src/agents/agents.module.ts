@@ -1,14 +1,11 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
-import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
-import { PrismaService } from '../prisma/prisma.service';
-import { AgentsController } from './agents.controller';
-import { AgentsReclamationsService } from './agents-reclamations.service';
+import { AgentsSharedModule } from './shared/agents-shared.module';
+import { ReferentAgentsModule } from './referent/referent-agents.module';
+import { LiaModule } from './orchestrateur/lia-ecosystem.module';
 
+/** Module racine agents : référents terrain + écosystème IA Lia. */
 @Module({
-  imports: [AuthModule, FeatureFlagsModule],
-  controllers: [AgentsController],
-  providers: [AgentsReclamationsService, PrismaService],
-  exports: [AgentsReclamationsService],
+  imports: [AgentsSharedModule, ReferentAgentsModule, LiaModule],
+  exports: [AgentsSharedModule, ReferentAgentsModule, LiaModule],
 })
 export class AgentsModule {}

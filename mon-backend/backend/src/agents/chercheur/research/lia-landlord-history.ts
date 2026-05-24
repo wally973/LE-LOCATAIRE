@@ -2,9 +2,9 @@
  * Événements informatifs pour la recherche dossier bailleur (pas d’action technicien).
  */
 
-import { isSinkBlockageScenario } from './lia-tenant-explanation';
-import { parseIntakeState, buildIntakeSummary } from './lia-intake.service';
-import { parseExpertRectification } from './lia-expert-rectification.types';
+import { isSinkBlockageScenario } from '../../diagnostiqueur/rules/lia-tenant-explanation';
+import { parseIntakeState, buildIntakeSummary } from '../../orchestrateur/intake/lia-intake.service';
+import { parseExpertRectification } from '../../diagnostiqueur/briefing/lia-expert-rectification.types';
 
 export type LandlordInfoEventKind =
   | 'DIAGNOSTIC_LOCATAIRE'

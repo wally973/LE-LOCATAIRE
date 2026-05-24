@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { CompanionUiState } from './lia-companion.types';
-import { buildElectricityJuristHint } from './lia-electricity-rules';
+import type { CompanionUiState } from '../conversation/lia-companion.types';
+import { buildElectricityJuristHint } from '../../diagnostiqueur/rules/lia-electricity-rules';
 import type { LiaIntakeOrganizerState } from './lia-intake-organizer';
 import {
   applyOrganizerAnswer,
@@ -17,7 +17,7 @@ import {
 import {
   extractDiagnosticSensors,
   isWaterOnFloorReport,
-} from './lia-diagnostic-sensors';
+} from '../../shared/lia-diagnostic-sensors';
 export type { LiaIntakeOrganizerState } from './lia-intake-organizer';
 
 /** Catégories dérivées du libellé initial (ex. PDF conversation). */

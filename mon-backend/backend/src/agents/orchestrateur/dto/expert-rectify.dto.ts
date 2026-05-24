@@ -8,7 +8,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { TicketResponsibility } from '@prisma/client';
-import type { ExpertSpecialHandling } from '../lia-expert-rectification.types';
+import type { ExpertSpecialHandling } from '../../diagnostiqueur/briefing/lia-expert-rectification.types';
 
 const SPECIAL_HANDLING_VALUES = [
   'STRUCTURAL_INFILTRATION',

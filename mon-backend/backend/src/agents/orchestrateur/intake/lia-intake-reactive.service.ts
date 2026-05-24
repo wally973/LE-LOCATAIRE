@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { LiaHostService } from './lia-host.service';
+import { LiaHostService } from '../conversation/lia-host.service';
 import {
   getIntakeQuestionsForState,
   isLightingOnlyScope,
@@ -9,7 +9,7 @@ import {
   LiaIntakeService,
 } from './lia-intake.service';
 import { syncOrganizerFromContext } from './lia-intake-organizer';
-import { isSkipPhotoIntent } from './lia-agent-intents';
+import { isSkipPhotoIntent } from '../conversation/lia-agent-intents';
 
 /**
  * Intake réactif — analyse chaque réponse locataire avant la question suivante.

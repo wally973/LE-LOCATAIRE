@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { GPA_STANDARD_DURATION_MONTHS } from './lia-occupancy-context';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { GPA_STANDARD_DURATION_MONTHS } from '../knowledge/lia-occupancy-context';
 
 /** Dates GPA / garanties résidence pour le brief bibliothécaire. */
 @Injectable()

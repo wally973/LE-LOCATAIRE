@@ -2,15 +2,15 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { NotificationsService } from '../../../notifications/notifications.service';
 import { LiaConversationService } from './lia-conversation.service';
-import { LiaIntakeService } from './lia-intake.service';
-import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
-import type { QualificationFlags } from '../feature-flags/qualification-flags.types';
+import { LiaIntakeService } from '../intake/lia-intake.service';
+import { FeatureFlagsService } from '../../../feature-flags/feature-flags.service';
+import type { QualificationFlags } from '../../../feature-flags/qualification-flags.types';
 import { LiaAgentService } from './lia-agent.service';
 import { LiaSharedStateService } from './lia-shared-state.service';
-import { LiaDiagnosticCapabilityService } from './lia-diagnostic-capability.service';
+import { LiaDiagnosticCapabilityService } from '../../diagnostiqueur/capability/lia-diagnostic-capability.service';
 
 /**
  * Chef d'orchestre LIA — shell synchrone minimal, pilotage 100 % agent (Goals + SharedState).

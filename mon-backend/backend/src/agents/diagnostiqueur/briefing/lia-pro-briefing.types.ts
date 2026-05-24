@@ -25,7 +25,7 @@ export interface ProBriefingResearch {
   pipelineTrace: string[];
 }
 
-import type { SavoirVoirMethodBrief } from './lia-savoir-voir-method';
+import type { SavoirVoirMethodBrief } from '../../chercheur/knowledge/lia-savoir-voir-method';
 
 /** Briefing technique complet. */
 export interface ProBriefing {

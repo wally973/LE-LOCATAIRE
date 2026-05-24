@@ -1,29 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import type { TicketResponsibility, TicketStatus } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
-import type { QualificationFlags } from '../feature-flags/qualification-flags.types';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { FeatureFlagsService } from '../../../feature-flags/feature-flags.service';
+import type { QualificationFlags } from '../../../feature-flags/qualification-flags.types';
 import {
   isFollowUpClosed,
   buildIntakePayload,
   mergeAiLastDecision,
   parseIntakeState,
   type LiaIntakeState,
-} from './lia-intake.service';
+} from '../intake/lia-intake.service';
 import { parseCompanionState } from './lia-companion.types';
 import {
   type AgentMemory,
   type LiaSharedState,
   parseAgentMemory,
 } from './lia-goals.types';
-import { parseExpertRectification } from './lia-expert-rectification.types';
-import { parseDiagnosticState } from './lia-diagnostic-state.types';
+import { parseExpertRectification } from '../../diagnostiqueur/briefing/lia-expert-rectification.types';
+import { DiagnosticContextService } from '../../shared/diagnostic-context.service';
 
 @Injectable()
 export class LiaSharedStateService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly featureFlags: FeatureFlagsService,
+    private readonly diagnosticContext: DiagnosticContextService,
   ) {}
 
   async load(
@@ -49,6 +50,13 @@ export class LiaSharedStateService {
       (ai as { artisanDeclined?: boolean }).artisanDeclined === true;
 
     const expertRectification = parseExpertRectification(ai);
+    const dx = this.diagnosticContext.fromParts({
+      ticketId,
+      title: ticket.title,
+      description: ticket.description,
+      aiLastDecision: ai,
+      tenantFeedback: opts?.lastTenantMessage,
+    });
 
     return {
       ticketId,
@@ -70,7 +78,10 @@ export class LiaSharedStateService {
       diagnosticAuthority: expertRectification
         ? 'EXPERT_VALIDATED'
         : 'AI_PROPOSED',
-      diagnostic: parseDiagnosticState(ai),
+      diagnostic: dx.diagnostic,
+      sensors: dx.sensors,
+      savoirVoirPhase: dx.savoirVoirPhase,
+      caseContext: dx.caseContext,
       lastTenantMessage: opts?.lastTenantMessage,
     };
   }

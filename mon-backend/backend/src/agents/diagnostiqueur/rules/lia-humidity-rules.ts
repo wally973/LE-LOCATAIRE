@@ -3,7 +3,7 @@
  * Principe : entretien locatif / essais locataire → LOCATAIRE si la photo n’expose pas
  * de dégradation structurelle manifeste ; sinon BAILLEUR.
  */
-import type { PathologistResult } from '../ai-routing/agents/pathologist.types';
+import type { PathologistResult } from '../../../ai-routing/agents/pathologist.types';
 
 export function normalizeHumidityText(raw: string): string {
   return raw

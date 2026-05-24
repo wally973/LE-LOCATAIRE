@@ -3,10 +3,10 @@ import {
   LiaIntakeService,
   type IntakeReactiveTurn,
   type LiaIntakeState,
-} from './lia-intake.service';
-import { LiaIntakeReactiveService } from './lia-intake-reactive.service';
+} from '../intake/lia-intake.service';
+import { LiaIntakeReactiveService } from '../intake/lia-intake-reactive.service';
 import { LiaConversationService } from './lia-conversation.service';
-import { categoryLabel, isDifferentClaimTopic } from './lia-multi-claim';
+import { categoryLabel, isDifferentClaimTopic } from '../../chercheur/knowledge/lia-multi-claim';
 
 /**
  * Capacité « compréhension » — intake, cadrage, multi-sujet (40 jours de logique métier).

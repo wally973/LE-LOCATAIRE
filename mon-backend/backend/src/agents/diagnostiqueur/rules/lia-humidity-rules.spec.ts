@@ -2,7 +2,7 @@ import {
   parseHumidityChargeSignals,
   resolveHumidityCharge,
 } from './lia-humidity-rules';
-import type { PathologistResult } from '../ai-routing/agents/pathologist.types';
+import type { PathologistResult } from '../../../ai-routing/agents/pathologist.types';
 
 function patho(partial: Partial<PathologistResult>): PathologistResult {
   return {

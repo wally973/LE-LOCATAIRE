@@ -1,11 +1,11 @@
 /**
  * Synthèse lisible pour le locataire après diagnostic (Savoir-Voir).
  */
-import type { AiPipelineDecision } from '../ai-routing/ai-pipeline.port';
-import type { PathologistResult } from '../ai-routing/agents/pathologist.types';
-import type { LiaIntakeState } from './lia-intake.service';
+import type { AiPipelineDecision } from '../../../ai-routing/ai-pipeline.port';
+import type { PathologistResult } from '../../../ai-routing/agents/pathologist.types';
+import type { LiaIntakeState } from '../../orchestrateur/intake/lia-intake.service';
 import { parseElectricitySignals, resolveElectricityCharge } from './lia-electricity-rules';
-import { buildTenantCaseContext } from './lia-case-context';
+import { buildTenantCaseContext } from '../../shared/lia-case-context';
 
 const PATHO_CATEGORY_LABELS: Record<string, string> = {
   PLUMBING: 'Plomberie',

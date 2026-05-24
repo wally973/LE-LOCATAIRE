@@ -3,13 +3,13 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { ArtisanRequestsService } from '../artisan-requests/artisan-requests.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { ArtisanRequestsService } from '../../../artisan-requests/artisan-requests.service';
+import { NotificationsService } from '../../../notifications/notifications.service';
 import { LiaHostService } from './lia-host.service';
 import { LiaConversationService } from './lia-conversation.service';
 import { LiaComprehensionService } from './lia-comprehension.service';
-import { LiaDiagnosticCapabilityService } from './lia-diagnostic-capability.service';
+import { LiaDiagnosticCapabilityService } from '../../diagnostiqueur/capability/lia-diagnostic-capability.service';
 import { LiaSharedStateService } from './lia-shared-state.service';
 import { LiaCompanionService } from './lia-companion.service';
 import {
@@ -17,9 +17,9 @@ import {
   mergeAiLastDecision,
   parseIntakeState,
   type LiaIntakeState,
-} from './lia-intake.service';
+} from '../intake/lia-intake.service';
 import { parseCompanionState, toCompanionUiState } from './lia-companion.types';
-import { buildArtisanDeclinedLandlordNote } from './lia-landlord-history';
+import { buildArtisanDeclinedLandlordNote } from '../../chercheur/research/lia-landlord-history';
 import {
   isArtisanIntent,
   isDeclineArtisanIntent,

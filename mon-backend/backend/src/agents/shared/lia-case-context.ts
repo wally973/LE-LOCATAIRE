@@ -1,7 +1,7 @@
 /**
  * Contexte « dossier locataire » pour les règles métier — sans le brief interne recherche.
  */
-import { buildIntakeSummary, type LiaIntakeState } from './lia-intake.service';
+import { buildIntakeSummary, type LiaIntakeState } from '../orchestrateur/intake/lia-intake.service';
 
 const INTERNAL_BRIEF_MARKER = '=== Recherche interne';
 

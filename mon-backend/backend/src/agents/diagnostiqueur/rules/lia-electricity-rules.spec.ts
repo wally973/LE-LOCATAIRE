@@ -3,7 +3,7 @@ import {
   resolveElectricityCharge,
   buildElectricityJuristHint,
 } from './lia-electricity-rules';
-import { buildIntakeSummary, type LiaIntakeState } from './lia-intake.service';
+import { buildIntakeSummary, type LiaIntakeState } from '../../orchestrateur/intake/lia-intake.service';
 
 describe('parseElectricitySignals / resolveElectricityCharge', () => {
   it('coupure générale → bailleur', () => {

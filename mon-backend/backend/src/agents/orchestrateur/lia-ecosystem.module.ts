@@ -1,29 +1,31 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { PrismaModule } from '../prisma/prisma.module';
-import { NotificationsModule } from '../notifications/notifications.module';
-import { AiRoutingModule } from '../ai-routing/ai-routing.module';
-import { ArtisanRequestsModule } from '../artisan-requests/artisan-requests.module';
-import { AuthModule } from '../auth/auth.module';
-import { LiaHostService } from './lia-host.service';
-import { LiaConversationService } from './lia-conversation.service';
-import { LiaOrchestratorService } from './lia-orchestrator.service';
-import { LiaIntakeService } from './lia-intake.service';
-import { LiaResearchService } from './lia-research.service';
-import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
-import { LegalReferencesModule } from '../legal-references/legal-references.module';
-import { LiaCompanionService } from './lia-companion.service';
-import { LiaSharedStateService } from './lia-shared-state.service';
-import { LiaComprehensionService } from './lia-comprehension.service';
-import { LiaDiagnosticCapabilityService } from './lia-diagnostic-capability.service';
-import { LiaAgentService } from './lia-agent.service';
-import { LiaProBriefingService } from './lia-pro-briefing.service';
-import { LiaExpertRectificationService } from './lia-expert-rectification.service';
-import { LiaIntakeReactiveService } from './lia-intake-reactive.service';
-import { LiaHousingWarrantyService } from './lia-housing-warranty';
+import { PrismaModule } from '../../prisma/prisma.module';
+import { NotificationsModule } from '../../notifications/notifications.module';
+import { AiRoutingModule } from '../../ai-routing/ai-routing.module';
+import { ArtisanRequestsModule } from '../../artisan-requests/artisan-requests.module';
+import { AuthModule } from '../../auth/auth.module';
+import { FeatureFlagsModule } from '../../feature-flags/feature-flags.module';
+import { LegalReferencesModule } from '../../legal-references/legal-references.module';
+import { AgentsSharedModule } from '../shared/agents-shared.module';
+import { LiaHostService } from './conversation/lia-host.service';
+import { LiaConversationService } from './conversation/lia-conversation.service';
+import { LiaOrchestratorService } from './conversation/lia-orchestrator.service';
+import { LiaCompanionService } from './conversation/lia-companion.service';
+import { LiaSharedStateService } from './conversation/lia-shared-state.service';
+import { LiaComprehensionService } from './conversation/lia-comprehension.service';
+import { LiaAgentService } from './conversation/lia-agent.service';
+import { LiaIntakeService } from './intake/lia-intake.service';
+import { LiaIntakeReactiveService } from './intake/lia-intake-reactive.service';
+import { LiaResearchService } from '../chercheur/research/lia-research.service';
+import { LiaHousingWarrantyService } from '../chercheur/research/lia-housing-warranty';
+import { LiaDiagnosticCapabilityService } from '../diagnostiqueur/capability/lia-diagnostic-capability.service';
+import { LiaProBriefingService } from '../diagnostiqueur/briefing/lia-pro-briefing.service';
+import { LiaExpertRectificationService } from '../diagnostiqueur/briefing/lia-expert-rectification.service';
 
-/** Sprint F — conversation Lia (hôte + agent réactif par objectifs). */
+/** Écosystème Lia — orchestrateur + chercheur + diagnostiqueur (ex-src/lia). */
 @Module({
   imports: [
+    AgentsSharedModule,
     PrismaModule,
     NotificationsModule,
     AuthModule,
@@ -54,6 +56,7 @@ import { LiaHousingWarrantyService } from './lia-housing-warranty';
     LiaIntakeService,
     LiaProBriefingService,
     LiaExpertRectificationService,
+    LiaSharedStateService,
   ],
 })
 export class LiaModule {}

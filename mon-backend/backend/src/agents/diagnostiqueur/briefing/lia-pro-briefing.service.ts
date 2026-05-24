@@ -3,16 +3,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { BailleurScopeService } from '../auth/scope/bailleur-scope.service';
-import { LiaSharedStateService } from './lia-shared-state.service';
-import { LiaResearchService } from './lia-research.service';
-import { LiaHostService } from './lia-host.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { BailleurScopeService } from '../../../auth/scope/bailleur-scope.service';
+import { LiaSharedStateService } from '../../orchestrateur/conversation/lia-shared-state.service';
+import { LiaResearchService } from '../../chercheur/research/lia-research.service';
+import { LiaHostService } from '../../orchestrateur/conversation/lia-host.service';
 import {
   buildIntakeSummary,
   parseIntakeState,
-} from './lia-intake.service';
-import { parseCompanionState } from './lia-companion.types';
+} from '../../orchestrateur/intake/lia-intake.service';
+import { parseCompanionState } from '../../orchestrateur/conversation/lia-companion.types';
 import { parseExpertRectification } from './lia-expert-rectification.types';
 import type {
   ProBriefing,
@@ -20,7 +20,7 @@ import type {
   ProBriefingCritical,
   ProBriefingResearch,
 } from './lia-pro-briefing.types';
-import { getSavoirVoirMethodBrief } from './lia-savoir-voir-method';
+import { getSavoirVoirMethodBrief } from '../../chercheur/knowledge/lia-savoir-voir-method';
 
 const CATEGORY_LABELS: Record<string, string> = {
   PLUMBING: 'Plomberie',

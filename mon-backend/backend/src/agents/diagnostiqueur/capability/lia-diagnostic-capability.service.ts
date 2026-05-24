@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { AiRoutingService } from '../ai-routing/ai-routing.service';
-import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
-import { LiaConversationService } from './lia-conversation.service';
-import { LiaResearchService } from './lia-research.service';
-import { isExpertValidated } from './lia-expert-rectification.types';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { AiRoutingService } from '../../../ai-routing/ai-routing.service';
+import { FeatureFlagsService } from '../../../feature-flags/feature-flags.service';
+import { LiaConversationService } from '../../orchestrateur/conversation/lia-conversation.service';
+import { LiaResearchService } from '../../chercheur/research/lia-research.service';
+import { isExpertValidated } from '../briefing/lia-expert-rectification.types';
 
 /**
  * Capacité « diagnostic » — pathologiste + juriste (pipeline existant).

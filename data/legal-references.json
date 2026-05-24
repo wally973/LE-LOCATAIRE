@@ -217,7 +217,7 @@
       "category": "PLUMBING",
       "title": "Fuite sous évier / robinet / siphon",
       "summary": "En principe charge locataire (réparation locative) si organes accessibles.",
-      "content": "Fuite au siphon, robinet, flexibles ou joints accessibles sous évier ou lavabo : en principe réparation locative (locataire). Fuite sur canalisation encastrée, colonne collective ou impliquant le réseau de l'immeuble : bailleur. Couper l'arrivée d'eau si possible et limiter les dégâts (seau).",
+      "content": "Fuite au siphon, robinet, flexibles ou joints accessibles sous évier ou lavabo : en principe réparation locative (locataire). Fuite sur canalisation encastrée, colonne collective ou réseau de l'immeuble : bailleur. Siphon ou évacuation sous bac à douche / receveur sans trappe de visite (non accessible) : bailleur. Couper l'arrivée d'eau si possible et limiter les dégâts (seau).",
       "responsibilityHint": "LOCATAIRE",
       "keywords": ["fuite", "évier", "lavabo", "siphon", "robinet", "plomberie", "eau"],
       "sources": [
@@ -227,7 +227,7 @@
           "article": null
         }
       ],
-      "exceptions": ["Colonne collective", "Canalisation encastrée → bailleur"],
+      "exceptions": ["Colonne collective", "Canalisation encastrée → bailleur", "Siphon douche sans accès → bailleur"],
       "sortOrder": 30
     },
     {
@@ -274,7 +274,7 @@
       "category": "ELECTRICITY",
       "title": "Éclairage localisé — ampoule, interrupteur, circuit",
       "summary": "Ampoule et interrupteur souvent locataire ; disjoncteur circuit ou câblage fixe → bailleur.",
-      "content": "Une panne d'éclairage dans une seule pièce (salle de bain, chambre) après remplacement d'ampoule par le locataire : vérifier interrupteur et disjoncteur du circuit au tableau. Interrupteur ou douille/support usé : réparations locatives (décret 87-712). Disjoncteur qui ne tient pas en position, odeur, fils visibles, tableau ou câblage encastré : charge bailleur. Coupure sur tout le logement : vérifier disjoncteur général et abonnement, puis bailleur si l'installation est en cause.",
+      "content": "Une panne d'éclairage dans une seule pièce (salle de bain, chambre) après remplacement d'ampoule : vérifier interrupteur et disjoncteur du circuit au tableau. Interrupteur ou douille/support accessibles et usés : réparations locatives (décret 87-712). Si ampoule, interrupteur et disjoncteur du circuit sont corrects mais la lumière ne fonctionne toujours pas : câblage encastré ou point lumineux fixe → bailleur. Disjoncteur qui ne tient pas, odeur, fils visibles, tableau : bailleur. Coupure sur tout le logement : vérifier disjoncteur général et abonnement, puis bailleur si l'installation est en cause.",
       "responsibilityHint": "NUANCE",
       "keywords": ["ampoule", "lumière", "éclairage", "interrupteur", "salle de bain", "disjoncteur", "douille", "circuit"],
       "sources": [

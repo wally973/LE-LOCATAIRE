@@ -124,7 +124,16 @@ Le juriste reçoit le brief bibliothécaire + `DiagnosticState.leadingHypothesis
 
 ---
 
-## 6. État `DiagnosticState` (backend)
+## 6. Entrée locataire, 6 mois, GPA
+
+| Règle | Détail |
+|-------|--------|
+| Comparaison | Toujours par rapport à l’**entrée** et à la **remise en état**, pas l’ancienneté seule |
+| **6 mois** | Menues réparations non bien faites à la remise en état → charge **bailleur** |
+| **GPA** | Remise en état **neuve** : garantie de parfait achèvement ≈ **1 an** (`HlmResidence.gpaEndDate` en base si lien patrimoine) |
+| Code | `lia-occupancy-context.ts`, `lia-housing-warranty.ts`, enrichit `LiaResearchService` |
+
+## 7. État `DiagnosticState` (backend)
 
 Type : `mon-backend/backend/src/lia/lia-diagnostic-state.types.ts`
 

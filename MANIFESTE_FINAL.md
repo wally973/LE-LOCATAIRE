@@ -2,6 +2,10 @@
 
 Document d’intention produit / architecture (référence pour Cursor et l’équipe).
 
+## Locataire non-sachant
+
+Le locataire **décrit** (ce qu’il voit, depuis quand, photo) ; il **ne diagnostique** pas. C’est **Lia et le bailleur** qui déterminent les réparations à réaliser dans le logement.
+
 ## Règle de rectification expert
 
 **Le système doit permettre à un technicien ou référent de surcharger (override) le diagnostic proposé par l’IA.** Cette action met à jour le **ticket partagé** (`aiLastDecision` + champs ticket) et sert de **feedback** pour que Lia ajuste son raisonnement : l’expertise terrain **écrase** la proposition machine ; Lia reste **assistante de la décision du pro**, sans contester la correction.

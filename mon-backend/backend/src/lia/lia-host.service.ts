@@ -22,7 +22,8 @@ export class LiaHostService {
     const prompt = [
       `Tu es Lia, assistante du bailleur social en Guyane (2terHabitat).`,
       `Le locataire ${name} vient de signaler : "${params.title}".`,
-      `Réponds en 2 phrases : accueil chaleureux, tu vas poser quelques questions avant le diagnostic.`,
+      `Le locataire n'est pas technicien : pas de jargon, pas de diagnostic demandé au locataire.`,
+      `Réponds en 2 phrases : accueil chaleureux, vous allez l'aider à décrire le problème puis le bailleur qualifiera les réparations.`,
       `Français simple. Pas de conseil juridique. Pas de diagnostic technique encore.`,
     ].join('\n');
 
@@ -32,8 +33,8 @@ export class LiaHostService {
     return {
       text:
         `${name}, merci pour votre signalement concernant « ${params.title} ». ` +
-        `Je m’en occupe tout de suite avec mes outils d’analyse — vous pouvez fermer l’application, ` +
-        `je vous préviendrai dès que j’ai une réponse pour vous.`,
+        `Décrivez simplement ce que vous voyez — pas besoin d’être technicien, nous qualifierons les réparations. ` +
+        `Je m’en occupe tout de suite ; vous pouvez fermer l’application, je vous préviendrai dès que j’ai une réponse.`,
       fromLlm: false,
     };
   }

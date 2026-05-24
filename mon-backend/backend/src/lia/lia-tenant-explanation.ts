@@ -45,6 +45,9 @@ function isUnderFixturePlumbing(text: string): boolean {
     'canalisation encastr',
     'reseau collectif',
     'mur porteur',
+    'douche',
+    'receveur',
+    'bac a douche',
   ];
   return (
     keywords.some((k) => t.includes(k)) && !collective.some((k) => t.includes(k))
@@ -52,6 +55,7 @@ function isUnderFixturePlumbing(text: string): boolean {
 }
 
 import {
+  isHandoverElectricalDefect,
   parseElectricitySignals,
   resolveElectricityCharge,
 } from './lia-electricity-rules';
@@ -110,52 +114,55 @@ export function buildLocataireChargeMessage(params: {
       (photoOk
         ? 'La photo confirme une atteinte de surface plutôt que du gros œuvre : le bailleur n’est pas tenu de reprendre ce type d’entretien.\n\n'
         : '') +
-      'Vous pouvez poursuivre aération quotidienne et traitement adapté ; un artisan reste possible à vos frais si besoin.'
+      'Vous pouvez poursuivre aération quotidienne et traitement adapté ; un artisan reste possible à vos frais si besoin.',
     );
   }
 
   if (category === 'ELECTRICITY') {
     const signals = parseElectricitySignals(contextText);
-    const charge = resolveElectricityCharge(signals);
+    const charge = resolveElectricityCharge(signals, contextText);
     if (charge === 'BAILLEUR') {
+      if (isHandoverElectricalDefect(signals, contextText)) {
+        return (
+          'Diagnostic : vous êtes entré récemment dans le logement (souvent dans les 6 premiers mois) ' +
+          'et le problème d’éclairage est présent depuis votre emménagement ou lié à la remise en état.\n\n' +
+          'Pourquoi charge bailleur ? Les menues réparations mal faites à la remise en état, ou une douille ' +
+          'posée sans test (chantier sans électricité), relèvent du bailleur — pas de l’entretien locatif après ' +
+          'longue occupation. Sur une remise en état neuve, la GPA (garantie de parfait achèvement, environ 1 an) ' +
+          'peut aussi s’appliquer.\n\n' +
+          'Un agent va vous recontacter. Ne manipulez pas une douille qui sent le brûlé ou qui grésille.',
+        );
+      }
       return (
         'Diagnostic : le problème concerne l’installation électrique du logement ' +
-        '(tableau, circuit qui ne tient pas, ou coupure générale), pas une simple menue réparation.\n\n' +
+        '(tableau, circuit, câblage encastré ou point lumineux fixe), pas une simple menue réparation accessible.\n\n' +
         'Cette intervention relève du bailleur. Un agent va vous recontacter pour organiser la suite.\n\n' +
-        'En attendant, ne touchez pas à des fils dénudés ni à une installation qui sent le brûlé — coupez le disjoncteur si c’est sans danger.'
+        'En attendant, ne touchez pas à des fils dénudés ni à une installation qui sent le brûlé — coupez le disjoncteur si c’est sans danger.',
       );
     }
     if (signals.localizedLighting && signals.bulbAlreadyChanged) {
       if (signals.switchWorks === false) {
         return (
           'Diagnostic : l’ampoule a déjà été changée mais l’interrupteur de la pièce ne fonctionne pas correctement.\n\n' +
-          'Pourquoi à votre charge ? Le remplacement d’un interrupteur ou l’entretien d’un point lumineux accessible ' +
-          'relève des menues réparations (décret 87-712), comme l’ampoule.\n\n' +
-          ELECTRICIAN_CTA
+          'Pourquoi à votre charge ? Le remplacement d’un interrupteur accessible relève des menues réparations (décret 87-712).\n\n' +
+          ELECTRICIAN_CTA,
         );
       }
       if (signals.douilleWear === true) {
         return (
-          'Diagnostic : l’ampoule a été changée ; le support ou la douille présente des signes d’usure.\n\n' +
-          'Pourquoi à votre charge ? L’entretien du support d’ampoule accessible est une réparation locative courante. ' +
-          'Si le disjoncteur du circuit ne tient pas en position, contactez le bailleur (installation fixe).\n\n' +
-          ELECTRICIAN_CTA
+          'Diagnostic : l’ampoule a été changée ; le support ou la douille accessible présente des signes d’usure.\n\n' +
+          'Pourquoi à votre charge ? L’entretien d’un support d’ampoule accessible est une réparation locative courante. ' +
+          'Si le disjoncteur du circuit ne tient pas en position, le bailleur reprend la charge (installation fixe).\n\n' +
+          ELECTRICIAN_CTA,
         );
       }
-      return (
-        'Diagnostic : éclairage localisé dans une pièce, ampoule déjà remplacée ; interrupteur et disjoncteur du circuit semblent corrects.\n\n' +
-        'Pourquoi à votre charge ? Tant qu’il s’agit d’éléments accessibles (ampoule, interrupteur, douille), ' +
-        'c’est de l’entretien locatif. Si un électricien constate un défaut sur le câblage encastré, le bailleur reprendra la charge.\n\n' +
-        ELECTRICIAN_CTA
-      );
     }
     if (signals.localizedLighting && !signals.bulbAlreadyChanged) {
       return (
         'Diagnostic : panne d’éclairage dans une seule pièce.\n\n' +
-        'Pourquoi à votre charge ? Le remplacement d’ampoules et l’entretien courant des points lumineux ' +
-        'sont des réparations locatives (décret 87-712). Commencez par une ampoule neuve adaptée ; ' +
-        'si le problème persiste après contrôle de l’interrupteur et du disjoncteur du circuit, précisez-le dans le fil.\n\n' +
-        ELECTRICIAN_CTA
+        'Nous allons vous guider pas à pas (ampoule, interrupteur, tableau). ' +
+        'Commencez par une ampoule neuve adaptée ; si le problème persiste, précisez-le dans le fil.\n\n' +
+        ELECTRICIAN_CTA,
       );
     }
   }
@@ -164,13 +171,13 @@ export function buildLocataireChargeMessage(params: {
     return (
       'Diagnostic : ce type d’intervention relève de l’entretien locatif (à votre charge), pas du bailleur.\n\n' +
       'Vous pouvez faire intervenir un électricien à vos frais si nécessaire. ' +
-      ELECTRICIAN_CTA
+      ELECTRICIAN_CTA,
     );
   }
 
   return (
     'Diagnostic : ce type d’intervention relève de l’entretien locatif (à votre charge), pas du bailleur.\n\n' +
     'Vous pouvez faire intervenir un artisan à vos frais si nécessaire. ' +
-    PLUMBER_CTA
+    PLUMBER_CTA,
   );
 }

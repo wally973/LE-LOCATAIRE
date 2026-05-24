@@ -2,6 +2,10 @@
  * Règles métier électricité / éclairage (intake + texte signalement).
  * Utilisé par le juriste et les messages locataire.
  */
+import {
+  isPostHandoverBailleurDefect,
+  parseOccupancyContext,
+} from './lia-occupancy-context';
 
 export function normalizeForElectricityRules(raw: string): string {
   return raw
@@ -18,6 +22,12 @@ export interface ElectricitySignals {
   roomBreakerOk: boolean | null;
   douilleWear: boolean | null;
   bailleurInstallation: boolean;
+  /** Entrée récente dans le logement (ex. « depuis 1 mois », « depuis mon emménagement »). */
+  recentMoveIn: boolean;
+  /** Défaut lié à remise en état / travaux avant entrée (douille posée sans test, pas d’électricité sur chantier). */
+  remiseEnEtatHandover: boolean;
+  /** Panne présente depuis l’entrée, pas une dégradation d’usage locatif. */
+  problemSinceMoveIn: boolean;
 }
 
 function triStateFromAnswer(fragment: string): boolean | null {
@@ -100,6 +110,24 @@ export function parseElectricitySignals(text: string): ElectricitySignals {
     (roomBreakerOk === false &&
       /\b(ne tient pas|resaute|reste declench)\b/.test(t));
 
+  const recentMoveIn =
+    /\b(depuis (1|un|deux|2|trois|3) (mois|semaine)|depuis mon entree|depuis l.?emménagement|depuis que j.?ai emmenage|entree dans le logement|ca fait (1|un) mois)\b/.test(
+      t,
+    );
+
+  const remiseEnEtatHandover =
+    /\b(remise en etat|travaux (avant|lors)|entreprise (de )?travaux)\b/.test(t) &&
+    (/\b(sans (lumiere|electricite)|pas d.?electricite|pas de lumiere)\b/.test(t) ||
+      /\b(douille|support|plafonnier).*(pose|monte|installe|mal fix)\b/.test(t) ||
+      /\b(sans (faire )?test|pas teste)\b/.test(t));
+
+  const problemSinceMoveIn =
+    recentMoveIn &&
+    (/\b(depuis (mon entree|l.?emménagement|que je suis|que j.?ai emmenage)|des l.?entree|ne marche pas depuis|panne depuis)\b/.test(
+      t,
+    ) ||
+      /\b(ca fait|depuis) (1|un) mois\b/.test(t));
+
   return {
     localizedLighting,
     bulbAlreadyChanged,
@@ -108,7 +136,30 @@ export function parseElectricitySignals(text: string): ElectricitySignals {
     roomBreakerOk,
     douilleWear,
     bailleurInstallation,
+    recentMoveIn,
+    remiseEnEtatHandover,
+    problemSinceMoveIn,
   };
+}
+
+/** Défaut d’installation / remise en état (fenêtre 6 mois post-entrée, cf. Q66–Q67). */
+export function isHandoverElectricalDefect(
+  signals: ElectricitySignals,
+  contextText = '',
+): boolean {
+  const occ = parseOccupancyContext(contextText);
+  if (isPostHandoverBailleurDefect(occ)) {
+    return true;
+  }
+  return (
+    signals.remiseEnEtatHandover ||
+    (signals.recentMoveIn &&
+      signals.problemSinceMoveIn &&
+      (signals.localizedLighting || signals.bailleurInstallation)) ||
+    (occ.withinSixMonthsOfMoveIn &&
+      signals.localizedLighting &&
+      (signals.problemSinceMoveIn || signals.bulbAlreadyChanged))
+  );
 }
 
 export type ElectricityCharge = 'BAILLEUR' | 'LOCATAIRE' | 'ESCALADE_BAILLEUR';
@@ -116,8 +167,13 @@ export type ElectricityCharge = 'BAILLEUR' | 'LOCATAIRE' | 'ESCALADE_BAILLEUR';
 /** Tranche la responsabilité électricité ; null = laisser les règles génériques. */
 export function resolveElectricityCharge(
   signals: ElectricitySignals,
+  contextText = '',
 ): ElectricityCharge | null {
   if (signals.bailleurInstallation || signals.generalOutage) {
+    return 'BAILLEUR';
+  }
+
+  if (isHandoverElectricalDefect(signals, contextText)) {
     return 'BAILLEUR';
   }
 
@@ -130,6 +186,13 @@ export function resolveElectricityCharge(
   }
 
   if (signals.bulbAlreadyChanged) {
+    if (
+      signals.recentMoveIn &&
+      signals.problemSinceMoveIn &&
+      (signals.douilleWear === true || signals.remiseEnEtatHandover)
+    ) {
+      return 'BAILLEUR';
+    }
     if (signals.switchWorks === false) {
       return 'LOCATAIRE';
     }
@@ -137,7 +200,7 @@ export function resolveElectricityCharge(
       return 'LOCATAIRE';
     }
     if (signals.switchWorks === true && signals.roomBreakerOk === true) {
-      return 'ESCALADE_BAILLEUR';
+      return 'BAILLEUR';
     }
   }
 
@@ -166,6 +229,9 @@ export function parseElectricitySignalsFromAnswers(
     roomBreakerOk: triStateFromAnswer(answers.room_breaker ?? ''),
     douilleWear: triStateFromAnswer(answers.socket_check ?? ''),
     bailleurInstallation: triStateFromAnswer(answers.room_breaker ?? '') === false,
+    recentMoveIn: false,
+    remiseEnEtatHandover: false,
+    problemSinceMoveIn: false,
   };
 }
 
@@ -189,10 +255,20 @@ export function buildElectricityJuristHint(answers: Record<string, string>): str
   }
   if (parts.length === 0) return '';
   const signals = parseElectricitySignalsFromAnswers(answers);
-  const charge = resolveElectricityCharge(signals);
+  const fullText = parts.join(' ');
+  const charge = resolveElectricityCharge(signals, fullText);
+  const handover = isHandoverElectricalDefect(signals, parts.join(' '));
+  const embeddedLighting =
+    signals.bulbAlreadyChanged &&
+    signals.switchWorks === true &&
+    signals.roomBreakerOk === true;
   const orient =
     charge === 'BAILLEUR'
-      ? 'charge bailleur probable'
+      ? handover
+        ? 'charge bailleur — remise en état / entrée récente'
+        : embeddedLighting
+          ? 'charge bailleur — installation fixe / câblage encastré'
+          : 'charge bailleur probable'
       : charge === 'LOCATAIRE'
         ? 'réparation locative probable'
         : charge === 'ESCALADE_BAILLEUR'

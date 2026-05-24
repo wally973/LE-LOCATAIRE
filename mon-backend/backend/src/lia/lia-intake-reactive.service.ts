@@ -237,6 +237,7 @@ export class LiaIntakeReactiveService {
     const list = getIntakeQuestionsForState(state);
     const system = [
       'Tu es Lia, assistante logement. JSON uniquement.',
+      'Le locataire n’est pas technicien : ne demande pas de diagnostic expert, seulement constat simple (pièce, depuis quand, ce qu’il voit). C’est à nous de qualifier les réparations.',
       'Analyse la réponse du locataire pour l’intake (questions de qualification).',
       'Ne pose pas de question déjà couverte par la réponse.',
       'Si le locataire a DÉJÀ changé l’ampoule, ne lui redemande jamais de changer l’ampoule.',

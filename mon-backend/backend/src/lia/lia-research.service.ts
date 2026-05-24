@@ -12,11 +12,19 @@ import {
   formatDiagnosticStateBrief,
 } from './lia-diagnostic-state';
 import { parseDiagnosticState } from './lia-diagnostic-state.types';
+import {
+  formatOccupancyContextBrief,
+  parseOccupancyContext,
+} from './lia-occupancy-context';
+import { LiaHousingWarrantyService } from './lia-housing-warranty';
 
 /** Auto-recherche interne V1 — bibliothécaire AFPOLS/AQC + tickets similaires (Q42, Q55). */
 @Injectable()
 export class LiaResearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly housingWarranty: LiaHousingWarrantyService,
+  ) {}
 
   private static readonly FICHES: Record<string, string> = {
     PLUMBING:
@@ -52,6 +60,20 @@ export class LiaResearchService {
     ]
       .filter(Boolean)
       .join('\n');
+
+    const occupancyCtx = parseOccupancyContext(contextText);
+    let warrantyBlock = '';
+    try {
+      warrantyBlock = await this.housingWarranty.buildWarrantyBlock(
+        ticket.housingId,
+      );
+    } catch {
+      warrantyBlock = '';
+    }
+    const occupancyBlock = formatOccupancyContextBrief(
+      occupancyCtx,
+      warrantyBlock,
+    );
 
     let librarianBlock = '';
     try {
@@ -115,6 +137,7 @@ export class LiaResearchService {
       `Fiche métier (${category}) : ${fiche}`,
       intakeSummary ? `Constat intake : ${intakeSummary}` : '',
       searchLine,
+      occupancyBlock,
       librarianBlock,
       `Affaires proches :\n${similarLines}`,
     ]

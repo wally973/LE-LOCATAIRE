@@ -14,6 +14,7 @@ import {
   parseHumidityChargeSignals,
   resolveHumidityCharge,
 } from '../../lia/lia-humidity-rules';
+import { resolvePlumbingCharge } from '../../lia/lia-plumbing-rules';
 
 interface MistralJuristJson {
   responsibility:
@@ -249,7 +250,7 @@ export class LiaJuristService {
 
     if (patho.category === 'ELECTRICITY') {
       const elSignals = parseElectricitySignals(text);
-      const elCharge = resolveElectricityCharge(elSignals);
+      const elCharge = resolveElectricityCharge(elSignals, text);
       if (elCharge === 'BAILLEUR') {
         return {
           responsibility: 'BAILLEUR',
@@ -309,6 +310,32 @@ export class LiaJuristService {
               name: 'jurist_simulation',
               decision: 'LOCATAIRE',
               extra: { rule: 'electricity_tenant_minor', memoryId: topMemory?.id },
+            },
+          ],
+        };
+      }
+    }
+
+    if (patho.category === 'PLUMBING') {
+      const plumbingCharge = resolvePlumbingCharge(text);
+      if (plumbingCharge === 'BAILLEUR') {
+        return {
+          responsibility: 'BAILLEUR',
+          category: patho.category,
+          severity: patho.severity,
+          confidence: Math.max(patho.confidence, 0.85),
+          needsMorePhoto: false,
+          socialFlag: false,
+          message:
+            'Le problème concerne une canalisation encastrée ou une évacuation sous la douche ' +
+            '(siphon ou bonde non accessibles sans trappe). Cette réparation relève du bailleur. ' +
+            'Un agent va vous recontacter.',
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: 'BAILLEUR',
+              extra: { rule: 'plumbing_embedded_or_shower_drain' },
             },
           ],
         };

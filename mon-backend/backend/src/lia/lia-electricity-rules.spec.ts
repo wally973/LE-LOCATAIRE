@@ -37,7 +37,7 @@ describe('parseElectricitySignals / resolveElectricityCharge', () => {
     expect(resolveElectricityCharge(s)).toBe('BAILLEUR');
   });
 
-  it('ampoule changée, interrupteur et disjoncteur OK, pas de douille → escalade', () => {
+  it('ampoule changée, interrupteur et disjoncteur OK → bailleur (câblage encastré)', () => {
     const text = normalize(`
       lumiere salle de bain
       ampoule changee
@@ -46,7 +46,40 @@ describe('parseElectricitySignals / resolveElectricityCharge', () => {
       douille → non pas d usure
     `);
     const s = parseElectricitySignals(text);
-    expect(resolveElectricityCharge(s)).toBe('ESCALADE_BAILLEUR');
+    expect(resolveElectricityCharge(s)).toBe('BAILLEUR');
+  });
+
+  it('entrée récente + remise en état douille sans test → bailleur', () => {
+    const text = normalize(`
+      lumiere salle de bain ne marche pas depuis mon entree il y a 1 mois
+      remise en etat avant mon emmenagement
+      l entreprise a pose la douille sans electricite sur le chantier sans faire de test
+      ampoule deja changee
+      interrupteur → oui
+      disjoncteur → oui
+    `);
+    const s = parseElectricitySignals(text);
+    expect(s.recentMoveIn).toBe(true);
+    expect(s.remiseEnEtatHandover).toBe(true);
+    expect(resolveElectricityCharge(s)).toBe('BAILLEUR');
+  });
+
+  it('depuis 4 mois (fenêtre 6) + remise en état → bailleur', () => {
+    const text = normalize(`
+      lumiere cuisine depuis 4 mois depuis mon entree
+      remise en etat menues reparations pas bien faites
+    `);
+    const s = parseElectricitySignals(text);
+    expect(resolveElectricityCharge(s, text)).toBe('BAILLEUR');
+  });
+
+  it('depuis 1 mois + douille usée mais pas entretien locatif → bailleur', () => {
+    const text = normalize(`
+      eclairage localise chambre depuis 1 mois depuis que j ai emmenage
+      ampoule remplacee douille brunissement jeu
+    `);
+    const s = parseElectricitySignals(text);
+    expect(resolveElectricityCharge(s)).toBe('BAILLEUR');
   });
 
   it('éclairage localisé sans ampoule changée → locataire (menue réparation)', () => {

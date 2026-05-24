@@ -19,6 +19,7 @@ import { LiaAgentService } from './lia-agent.service';
 import { LiaProBriefingService } from './lia-pro-briefing.service';
 import { LiaExpertRectificationService } from './lia-expert-rectification.service';
 import { LiaIntakeReactiveService } from './lia-intake-reactive.service';
+import { LiaHousingWarrantyService } from './lia-housing-warranty';
 
 /** Sprint F — conversation Lia (hôte + agent réactif par objectifs). */
 @Module({
@@ -36,6 +37,7 @@ import { LiaIntakeReactiveService } from './lia-intake-reactive.service';
     LiaConversationService,
     LiaIntakeService,
     LiaResearchService,
+    LiaHousingWarrantyService,
     LiaCompanionService,
     LiaSharedStateService,
     LiaComprehensionService,

@@ -10,9 +10,17 @@ import { AiController } from './ai.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
+import { AgentsSharedModule } from '../agents/shared/agents-shared.module';
+import { LegalReferencesModule } from '../legal-references/legal-references.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, NotificationsModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    NotificationsModule,
+    AgentsSharedModule,
+    LegalReferencesModule,
+  ],
   controllers: [AiController],
   providers: [
     AiService,

@@ -8,3 +8,9 @@ export {
   type TicketDiagnosticContext,
 } from './diagnostic-context.service';
 export { AgentsSharedModule } from './agents-shared.module';
+export {
+  isSavonneuseR1RefoulementSensors,
+  INSURANCE_REFOULEMENT_EU_NOTE,
+  LEGAL_REFOULEMENT_EU_SUMMARY,
+  LEGAL_REFOULEMENT_EU_SLUGS,
+} from './refoulement-eu-context';

@@ -223,10 +223,10 @@ export class LiaPathologistService {
         let humidityPhoto: HumidityPhotoAssessment | undefined;
         if (b.category === 'HUMIDITY' && hasPhoto) {
           humidityPhoto = inferHumidityPhotoFromText(contextText, true);
-          if (humidityPhoto.structuralDegradationVisible) {
+          if (humidityPhoto?.structuralDegradationVisible) {
             observation =
               'Photo / texte : signes compatibles avec atteinte du bâti (infiltration ou structure).';
-          } else if (humidityPhoto.tenantSurfaceNeglectOnly) {
+          } else if (humidityPhoto?.tenantSurfaceNeglectOnly) {
             observation =
               'Photo / texte : moisissure de surface localisée, sans dégradation structurelle manifeste.';
           }

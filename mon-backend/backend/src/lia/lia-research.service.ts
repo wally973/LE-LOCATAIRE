@@ -17,6 +17,7 @@ import {
   parseOccupancyContext,
 } from './lia-occupancy-context';
 import { LiaHousingWarrantyService } from './lia-housing-warranty';
+import { formatInstallationsBrief } from './installations-charges.loader';
 
 /** Auto-recherche interne V1 — bibliothécaire AFPOLS/AQC + tickets similaires (Q42, Q55). */
 @Injectable()
@@ -74,6 +75,8 @@ export class LiaResearchService {
       occupancyCtx,
       warrantyBlock,
     );
+
+    const installationsBlock = formatInstallationsBrief(contextText);
 
     let librarianBlock = '';
     try {
@@ -138,6 +141,7 @@ export class LiaResearchService {
       intakeSummary ? `Constat intake : ${intakeSummary}` : '',
       searchLine,
       occupancyBlock,
+      installationsBlock,
       librarianBlock,
       `Affaires proches :\n${similarLines}`,
     ]

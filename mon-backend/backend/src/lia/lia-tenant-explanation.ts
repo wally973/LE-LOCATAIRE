@@ -114,7 +114,7 @@ export function buildLocataireChargeMessage(params: {
       (photoOk
         ? 'La photo confirme une atteinte de surface plutôt que du gros œuvre : le bailleur n’est pas tenu de reprendre ce type d’entretien.\n\n'
         : '') +
-      'Vous pouvez poursuivre aération quotidienne et traitement adapté ; un artisan reste possible à vos frais si besoin.',
+      'Vous pouvez poursuivre aération quotidienne et traitement adapté ; un artisan reste possible à vos frais si besoin.'
     );
   }
 
@@ -130,14 +130,14 @@ export function buildLocataireChargeMessage(params: {
           'posée sans test (chantier sans électricité), relèvent du bailleur — pas de l’entretien locatif après ' +
           'longue occupation. Sur une remise en état neuve, la GPA (garantie de parfait achèvement, environ 1 an) ' +
           'peut aussi s’appliquer.\n\n' +
-          'Un agent va vous recontacter. Ne manipulez pas une douille qui sent le brûlé ou qui grésille.',
+          'Un agent va vous recontacter. Ne manipulez pas une douille qui sent le brûlé ou qui grésille.'
         );
       }
       return (
         'Diagnostic : le problème concerne l’installation électrique du logement ' +
         '(tableau, circuit, câblage encastré ou point lumineux fixe), pas une simple menue réparation accessible.\n\n' +
         'Cette intervention relève du bailleur. Un agent va vous recontacter pour organiser la suite.\n\n' +
-        'En attendant, ne touchez pas à des fils dénudés ni à une installation qui sent le brûlé — coupez le disjoncteur si c’est sans danger.',
+        'En attendant, ne touchez pas à des fils dénudés ni à une installation qui sent le brûlé — coupez le disjoncteur si c’est sans danger.'
       );
     }
     if (signals.localizedLighting && signals.bulbAlreadyChanged) {
@@ -145,7 +145,7 @@ export function buildLocataireChargeMessage(params: {
         return (
           'Diagnostic : l’ampoule a déjà été changée mais l’interrupteur de la pièce ne fonctionne pas correctement.\n\n' +
           'Pourquoi à votre charge ? Le remplacement d’un interrupteur accessible relève des menues réparations (décret 87-712).\n\n' +
-          ELECTRICIAN_CTA,
+          ELECTRICIAN_CTA
         );
       }
       if (signals.douilleWear === true) {
@@ -153,7 +153,7 @@ export function buildLocataireChargeMessage(params: {
           'Diagnostic : l’ampoule a été changée ; le support ou la douille accessible présente des signes d’usure.\n\n' +
           'Pourquoi à votre charge ? L’entretien d’un support d’ampoule accessible est une réparation locative courante. ' +
           'Si le disjoncteur du circuit ne tient pas en position, le bailleur reprend la charge (installation fixe).\n\n' +
-          ELECTRICIAN_CTA,
+          ELECTRICIAN_CTA
         );
       }
     }
@@ -162,7 +162,7 @@ export function buildLocataireChargeMessage(params: {
         'Diagnostic : panne d’éclairage dans une seule pièce.\n\n' +
         'Nous allons vous guider pas à pas (ampoule, interrupteur, tableau). ' +
         'Commencez par une ampoule neuve adaptée ; si le problème persiste, précisez-le dans le fil.\n\n' +
-        ELECTRICIAN_CTA,
+        ELECTRICIAN_CTA
       );
     }
   }
@@ -171,13 +171,13 @@ export function buildLocataireChargeMessage(params: {
     return (
       'Diagnostic : ce type d’intervention relève de l’entretien locatif (à votre charge), pas du bailleur.\n\n' +
       'Vous pouvez faire intervenir un électricien à vos frais si nécessaire. ' +
-      ELECTRICIAN_CTA,
+      ELECTRICIAN_CTA
     );
   }
 
   return (
     'Diagnostic : ce type d’intervention relève de l’entretien locatif (à votre charge), pas du bailleur.\n\n' +
     'Vous pouvez faire intervenir un artisan à vos frais si nécessaire. ' +
-    PLUMBER_CTA,
+    PLUMBER_CTA
   );
 }

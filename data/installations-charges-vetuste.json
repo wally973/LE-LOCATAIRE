@@ -349,7 +349,7 @@
     }
   ],
   "liaUsage": {
-    "loader": "À brancher : mon-backend/backend/src/legal-references/ ou knowledge-index.loader.ts",
+    "loader": "mon-backend/backend/src/lia/installations-charges.loader.ts → LiaResearchService.buildInternalBrief",
     "researchBrief": [
       "Identifier installation.id depuis mots-clés + catégorie pathologiste.",
       "Citer chargePendantBail et exceptions (vetuste, encastre, GPA, 6 mois).",

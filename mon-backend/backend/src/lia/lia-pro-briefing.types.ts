@@ -25,6 +25,8 @@ export interface ProBriefingResearch {
   pipelineTrace: string[];
 }
 
+import type { SavoirVoirMethodBrief } from './lia-savoir-voir-method';
+
 /** Briefing technique complet. */
 export interface ProBriefing {
   ticketId: number;
@@ -52,6 +54,8 @@ export interface ProBriefing {
     takeCharge: boolean;
   } | null;
   fromLlm: boolean;
+  /** Méthode Savoir-Voir — rappel pour technicien / référent. */
+  savoirVoir: SavoirVoirMethodBrief;
 }
 
 export interface ProBriefingAskResult {

@@ -20,6 +20,7 @@ import type {
   ProBriefingCritical,
   ProBriefingResearch,
 } from './lia-pro-briefing.types';
+import { getSavoirVoirMethodBrief } from './lia-savoir-voir-method';
 
 const CATEGORY_LABELS: Record<string, string> = {
   PLUMBING: 'Plomberie',
@@ -114,6 +115,7 @@ export class LiaProBriefingService {
           }
         : null,
       fromLlm,
+      savoirVoir: getSavoirVoirMethodBrief(),
     };
   }
 
@@ -173,6 +175,7 @@ export class LiaProBriefingService {
 
     const systemPrompt = [
       'Tu es un assistant technique pour techniciens et référents bailleur (logement social, Guyane).',
+      'Le dossier suit la méthode Savoir-Voir : description locataire → intake → recherche interne (Savoir) → hypothèses (Voir) → conclusion avec règles métier — pas de diagnostic au feeling.',
       'Réponds à la question en te basant UNIQUEMENT sur le contexte dossier fourni.',
       'Si une rectification expert est présente, elle ÉCRASE le diagnostic IA : ne la conteste jamais, reste humble (assistante du pro).',
       'Si l’information manque, dis-le clairement et indique ce qu’il faudrait vérifier sur place.',

@@ -16,12 +16,22 @@ Avant toute modification significative, **lire** (ou se remémorer) :
 - **Référent** : `admin-dashboard/`
 - Ne pas confondre avec `admin-dashboard-old/` ni `mon-backend/dashboard/` (prototypes)
 
+## Savoir-Voir (fin du bricolage)
+
+| Pilier | Rôle |
+|--------|------|
+| **Savoir** | Textes, fiches, catalogue pannes, règles déterministes, matrice installations |
+| **Voir** | Description locataire + intake + photo → signes cliniques, hypothèses différentielles |
+| **Conclure** | Pathologiste + juriste **après** recherche — pas de verdict « de tête » |
+
+La **description** saisie sur mobile est la source primaire : tout le pipeline la relit (`title` + `description` + fil messages).
+
 ## Les trois « tiroirs » (mapping réel)
 
 | Tiroir | Emplacement |
 |--------|-------------|
 | **Intelligence** | `mon-backend/backend/src/lia/` + `src/ai-routing/agents/` |
-| **Savoir** | `knowledge/` (AFPOLS/AQC, logique différentielle), `data/legal-references.json`, `data/panne-diagnostic-logique.json`, `data/reclamations-locataires.json` |
+| **Savoir** | `knowledge/`, `data/legal-references.json`, `data/panne-diagnostic-logique.json`, `data/installations-charges-vetuste.json`, `data/reclamations-locataires.json` |
 | **Mémoire** | AiMemory, tickets passés, seeds (`scripts/seed-ai-memory.ts`, `seed-legal-references.ts`) |
 
 ## Séquence IA obligatoire (V1)

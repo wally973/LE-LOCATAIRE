@@ -15,6 +15,21 @@ export interface ProBriefingCritical {
   intakePhase: string | null;
 }
 
+export interface SavoirVoirStep {
+  order: number;
+  name: string;
+  what: string;
+  technicianRole: string;
+}
+
+export interface SavoirVoirMethodBrief {
+  title: string;
+  tagline: string;
+  steps: SavoirVoirStep[];
+  commitments: string[];
+  references: string[];
+}
+
 export interface ProBriefingResearch {
   tradeFiche: string;
   searchTrigger: string | null;
@@ -49,6 +64,7 @@ export interface ProBriefing {
     takeCharge: boolean;
   } | null;
   fromLlm: boolean;
+  savoirVoir: SavoirVoirMethodBrief;
 }
 
 export interface ProBriefingAskResult {

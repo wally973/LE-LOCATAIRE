@@ -6,7 +6,8 @@ import '../services/ticket_service.dart';
 import 'multi_claim_screen.dart';
 import 'ticket_conversation_screen.dart';
 
-/// Première saisie du problème → conversation Lia (questions) avant photo / diagnostic.
+/// Savoir-Voir : la description locataire est lue en premier ; Lia pose des questions,
+/// consulte le savoir interne (règles, hypothèses) puis diagnostique.
 class DescriptionScreen extends StatefulWidget {
   final QualificationSettings settings;
 
@@ -61,7 +62,7 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
 
     setState(() {
       _loading = true;
-      _loadingLabel = 'Analyse de votre description…';
+      _loadingLabel = 'Lia lit votre description…';
       _error = null;
     });
 
@@ -127,9 +128,11 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
   Widget build(BuildContext context) {
     final conv = widget.settings.liaConversationEnabled;
     final subtitle = conv
-        ? 'Lia vous posera quelques questions, puis pourra demander une photo '
+        ? 'Décrivez ce que vous voyez : Lia lit votre texte, pose des questions ciblées, '
+            's’appuie sur les règles métier (pas sur du bricolage), puis peut demander une photo '
             'avant le diagnostic.'
-        : 'Lia pourra vous demander une photo puis lancer le diagnostic.';
+        : 'Lia lit votre description, consulte le savoir interne, puis peut demander une photo '
+            'avant le diagnostic.';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Décrire le problème')),
@@ -140,13 +143,13 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'En une phrase, quel est le problème ?',
+              'Décrivez le problème avec vos mots',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Un seul sujet par demande (ex. WC, ou électricité, pas les deux en même temps). '
-              'Vous pourrez ouvrir d’autres dossiers ensuite.',
+              'Pièce, depuis quand, ce que vous avez constaté ou essayé — pas besoin d’être technicien. '
+              'Un seul sujet par dossier (ex. électricité ou plomberie, pas les deux).',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.deepOrange,

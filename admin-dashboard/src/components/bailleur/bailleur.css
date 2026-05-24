@@ -474,6 +474,69 @@
 }
 
 /* Pro Briefing technicien */
+.pro-briefing__method {
+  margin-top: 16px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #f5f7ff;
+  overflow: hidden;
+}
+
+.pro-briefing__method-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.pro-briefing__method-body {
+  padding: 0 14px 14px;
+  border-top: 1px solid #e0e7ff;
+}
+
+.pro-briefing__method-tagline {
+  margin: 12px 0;
+  color: #1e293b;
+  line-height: 1.45;
+}
+
+.pro-briefing__method-steps {
+  margin: 0 0 12px;
+  padding-left: 1.25rem;
+}
+
+.pro-briefing__method-steps li {
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.pro-briefing__method-steps li span {
+  display: block;
+  margin-top: 4px;
+  color: #334155;
+}
+
+.pro-briefing__method-steps li em {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #4338ca;
+  font-style: normal;
+}
+
+.pro-briefing__method-commitments {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 14px;
+  color: #475569;
+}
+
 .pro-briefing__header {
   display: flex;
   align-items: center;

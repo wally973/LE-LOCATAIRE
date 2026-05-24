@@ -27,6 +27,7 @@ export const ProBriefingPanel: React.FC<ProBriefingPanelProps> = ({
   const [question, setQuestion] = useState('');
   const [asking, setAsking] = useState(false);
   const [chat, setChat] = useState<ProBriefingChatEntry[]>([]);
+  const [methodOpen, setMethodOpen] = useState(true);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -82,7 +83,7 @@ export const ProBriefingPanel: React.FC<ProBriefingPanelProps> = ({
 
   if (!briefing) return null;
 
-  const { critical, research } = briefing;
+  const { critical, research, savoirVoir } = briefing;
 
   return (
     <div className="card pro-briefing" style={{ marginTop: 20 }}>
@@ -125,6 +126,41 @@ export const ProBriefingPanel: React.FC<ProBriefingPanelProps> = ({
         Résumé technique pour préparer l’intervention — interrogez le dossier en
         langage naturel.
       </p>
+
+      {savoirVoir ? (
+        <div className="pro-briefing__method">
+          <button
+            type="button"
+            className="pro-briefing__method-toggle"
+            onClick={() => setMethodOpen((o) => !o)}
+            aria-expanded={methodOpen}
+          >
+            <strong>{savoirVoir.title}</strong>
+            <span className="muted">{methodOpen ? 'Masquer' : 'Afficher'}</span>
+          </button>
+          {methodOpen ? (
+            <div className="pro-briefing__method-body">
+              <p className="pro-briefing__method-tagline">{savoirVoir.tagline}</p>
+              <ol className="pro-briefing__method-steps">
+                {savoirVoir.steps.map((step) => (
+                  <li key={step.order}>
+                    <strong>
+                      {step.order}. {step.name}
+                    </strong>
+                    <span>{step.what}</span>
+                    <em>Votre rôle : {step.technicianRole}</em>
+                  </li>
+                ))}
+              </ol>
+              <ul className="pro-briefing__method-commitments">
+                {savoirVoir.commitments.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {err ? <div className="alert error">{err}</div> : null}
 

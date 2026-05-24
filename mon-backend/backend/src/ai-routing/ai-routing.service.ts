@@ -30,6 +30,16 @@ import { buildDiagnosticState } from '../agents/shared/lia-diagnostic-state';
 import type { DiagnosticState } from '../agents/shared/lia-diagnostic-state.types';
 import { AiSummarizerService } from '../ai/ai-summarizer.service';
 import type { PathologistResult } from './agents/pathologist.types';
+import {
+  detectMasterDomain,
+  getMissingMasterCriticalSensors,
+  mergeMasterSensors,
+  runMasterDifferential,
+} from '../agents/diagnostiqueur/rules/master-diagnostic-engine';
+import {
+  applyUrgentCriticalOverlay,
+  isUrgentCriticalSeverity,
+} from '../agents/shared/critical-safety-protocol';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -160,18 +170,34 @@ export class AiRoutingService {
       });
     }
 
-    const missingCritical = getMissingCriticalSensors({
+    const missingWater = getMissingCriticalSensors({
       title: ticketWithDocs.title,
       description: ticketWithDocs.description,
       sensors: dxContext.sensors,
       intakeAnswers: intakeState?.answers,
     });
+    const masterDomain = detectMasterDomain(signalementText);
+    const mergedMasterSensors = masterDomain
+      ? mergeMasterSensors(
+          masterDomain,
+          signalementText,
+          dxContext.sensors as Record<string, string | undefined>,
+        )
+      : {};
+    const missingMaster = masterDomain
+      ? getMissingMasterCriticalSensors(masterDomain, mergedMasterSensors)
+      : [];
 
     let decision: AiPipelineDecision;
     if (detectSocialSignal(signalementText)) {
       decision = this.buildSocialPipelineDecision();
-    } else if (missingCritical.length > 0) {
-      decision = this.buildMissingSensorsDecision(missingCritical);
+    } else if (missingWater.length > 0) {
+      decision = this.buildMissingSensorsDecision(missingWater);
+    } else if (missingMaster.length > 0 && masterDomain) {
+      decision = this.buildMissingMasterSensorsDecision(
+        masterDomain,
+        missingMaster,
+      );
     } else {
       decision = await this.pipeline.analyze({
       title: ticketWithDocs.title,
@@ -189,6 +215,21 @@ export class AiRoutingService {
     });
     }
 
+    if (
+      !decision.needsMorePhoto &&
+      decision.responsibility !== 'PENDING' &&
+      decision.responsibility !== 'SOCIAL' &&
+      decision.responsibility !== 'NON_RECEVABLE'
+    ) {
+      decision = this.enrichDecisionWithMasterRules(
+        decision,
+        signalementText,
+        mergedMasterSensors,
+        masterDomain,
+      );
+      decision = applyUrgentCriticalOverlay(decision, signalementText);
+    }
+
     const pathoStepForDiag = decision.pipelineSteps.find(
       (s) => s.name === 'pathologist',
     );
@@ -196,7 +237,7 @@ export class AiRoutingService {
       pathoStepForDiag
         ? {
             category: decision.category,
-            severity: decision.severity,
+            severity: this.toPathologistSeverity(decision.severity),
             confidence: decision.confidence,
             needsMorePhoto: decision.needsMorePhoto,
             observation:
@@ -233,7 +274,7 @@ export class AiRoutingService {
           : undefined;
       const pathologist: PathologistResult = {
         category: decision.category,
-        severity: decision.severity,
+        severity: this.toPathologistSeverity(decision.severity),
         confidence: decision.confidence,
         needsMorePhoto: decision.needsMorePhoto,
         observation: observation ?? 'Analyse à partir de votre signalement.',
@@ -401,6 +442,13 @@ export class AiRoutingService {
     });
   }
 
+  private toPathologistSeverity(
+    severity: AiPipelineDecision['severity'],
+  ): 'LOW' | 'MEDIUM' | 'HIGH' {
+    if (severity === 'URGENT_CRITIQUE') return 'HIGH';
+    return severity;
+  }
+
   private buildSocialPipelineDecision(): AiPipelineDecision {
     return {
       responsibility: 'SOCIAL',
@@ -414,6 +462,114 @@ export class AiRoutingService {
         'Un référent social du bailleur va vous recontacter.',
       pipelineSteps: [
         { name: 'social_detection', decision: 'SOCIAL', confidence: 0.9 },
+      ],
+    };
+  }
+
+  private buildMissingMasterSensorsDecision(
+    domain: NonNullable<ReturnType<typeof detectMasterDomain>>,
+    missingIds: string[],
+  ): AiPipelineDecision {
+    const labels = domain.criticalSensors
+      .filter((s) => missingIds.includes(s.id))
+      .map((s) => s.label)
+      .join(' ; ');
+    return {
+      responsibility: 'PENDING',
+      category: domain.category,
+      severity: 'MEDIUM',
+      confidence: 0.5,
+      needsMorePhoto: false,
+      socialFlag: false,
+      message:
+        `Avant le diagnostic ${domain.label}, précisez : ${labels}. ` +
+        'Répondez dans le fil de conversation.',
+      pipelineSteps: [
+        {
+          name: 'sensor_gate',
+          decision: 'MISSING_MASTER_SENSORS',
+          extra: { domainId: domain.id, missing: missingIds },
+        },
+      ],
+    };
+  }
+
+  private enrichDecisionWithMasterRules(
+    decision: AiPipelineDecision,
+    contextText: string,
+    sensors: Record<string, string | undefined>,
+    domain: ReturnType<typeof detectMasterDomain>,
+  ): AiPipelineDecision {
+    if (!domain) return decision;
+    const diff = runMasterDifferential({
+      domain,
+      contextText,
+      sensors,
+    });
+    const respMap = {
+      LOCATAIRE: 'LOCATAIRE' as const,
+      BAILLEUR: 'BAILLEUR' as const,
+      NUANCE: 'ESCALADE_BAILLEUR' as const,
+    };
+    const responsibility =
+      respMap[diff.responsibilityHint] ?? decision.responsibility;
+
+    const pathoIdx = decision.pipelineSteps.findIndex(
+      (s) => s.name === 'pathologist',
+    );
+    const differential = {
+      leadingHypothesisId: diff.leadingHypothesisId,
+      hypotheses: diff.hypotheses.map((h) => ({
+        id: h.id,
+        label: h.label,
+        probability: h.probability,
+        eliminated: h.eliminated,
+        eliminationReason: h.eliminationReason,
+      })),
+    };
+    const pipelineSteps = [...decision.pipelineSteps];
+    if (pathoIdx >= 0) {
+      const step = pipelineSteps[pathoIdx]!;
+      pipelineSteps[pathoIdx] = {
+        ...step,
+        decision: diff.category,
+        extra: {
+          ...step.extra,
+          observation: diff.observation,
+          masterDomainId: domain.id,
+          differential,
+        },
+      };
+    } else {
+      pipelineSteps.push({
+        name: 'pathologist',
+        decision: diff.category,
+        confidence: decision.confidence,
+        extra: {
+          observation: diff.observation,
+          masterDomainId: domain.id,
+          differential,
+          simulation: true,
+        },
+      });
+    }
+
+    return {
+      ...decision,
+      category: diff.category,
+      responsibility,
+      message:
+        decision.message.includes(diff.observation) ||
+        diff.observation.length < 20
+          ? decision.message
+          : `${diff.observation}\n\n${decision.message}`,
+      pipelineSteps: [
+        ...pipelineSteps,
+        {
+          name: 'master_savoir_voir',
+          decision: diff.leadingHypothesisId,
+          extra: { domainId: domain.id },
+        },
       ],
     };
   }
@@ -458,6 +614,26 @@ export class AiRoutingService {
         ...state,
         leadingHypothesisId: diff.leadingHypothesisId,
         hypotheses: diff.hypotheses.map((h) => ({
+          id: h.id,
+          label: h.label,
+          probability: h.probability,
+          eliminated: h.eliminated,
+          eliminationReason: h.eliminationReason,
+          sources: [],
+        })),
+      };
+    }
+    const masterDomain = detectMasterDomain(params.caseContextForRules);
+    if (masterDomain) {
+      const masterDiff = runMasterDifferential({
+        domain: masterDomain,
+        contextText: params.caseContextForRules,
+        sensors: state.sensors as Record<string, string | undefined>,
+      });
+      state = {
+        ...state,
+        leadingHypothesisId: masterDiff.leadingHypothesisId,
+        hypotheses: masterDiff.hypotheses.map((h) => ({
           id: h.id,
           label: h.label,
           probability: h.probability,
@@ -561,6 +737,8 @@ export class AiRoutingService {
       });
     }
 
+    const urgent = isUrgentCriticalSeverity(decision.severity);
+
     // Cas 4 : décision finale BAILLEUR / LOCATAIRE / SOCIAL → OPEN
     return this.prisma.ticket.update({
       where: { id: ticket.id },
@@ -574,6 +752,12 @@ export class AiRoutingService {
         aiSuggestedArtisanType: decision.suggestedArtisanType ?? null,
         aiLastDecision: decisionJson,
         landlordProfileId: ticket.housing.landlordId,
+        ...(urgent
+          ? {
+              escalatedAt: new Date(),
+              escalationReason: `URGENT_CRITIQUE — ${decision.category}`,
+            }
+          : {}),
       },
     });
   }
@@ -644,6 +828,27 @@ export class AiRoutingService {
   ) {
     const tenantUserId = ticket.tenant.userId;
     const landlordUserId = ticket.housing.landlord.userId;
+
+    if (isUrgentCriticalSeverity(decision.severity)) {
+      const ref = ticket.caseNumber ?? `#${ticket.id}`;
+      await this.notifications.createNotification({
+        userId: landlordUserId,
+        title: `URGENCE CRITIQUE — ${ref}`,
+        message:
+          `Danger sécurité signalé sur « ${ticket.title} » (${decision.category}). ` +
+          'Intervention bailleur immédiate requise.',
+        type: 'ALERT',
+      });
+      await this.notifications.notifyUser(
+        tenantUserId,
+        {
+          title: 'Urgence sécurité — consignes immédiates',
+          message: decision.message,
+          type: 'ALERT',
+        },
+        { sendPush: true, ticketId: ticket.id, caseNumber: ticket.caseNumber ?? undefined },
+      );
+    }
 
     // 1) Notif au locataire — in-app + push (tap → ticket, Sprint F)
     await this.notifications.notifyUser(

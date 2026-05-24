@@ -258,6 +258,32 @@ export class LiaJuristService {
       : false;
 
     if (patho.category === 'ELECTRICITY') {
+      if (
+        /grésill|gresill|sent le brul|odeur de brul|étincelle|etincelle|fil denud/.test(
+          text,
+        )
+      ) {
+        return {
+          responsibility: 'BAILLEUR',
+          category: patho.category,
+          severity: 'HIGH',
+          confidence: Math.max(patho.confidence, 0.9),
+          needsMorePhoto: false,
+          socialFlag: false,
+          suggestedArtisanType: 'ELECTRICIAN',
+          message:
+            'Prise ou liaison dangereuse (grésillement, odeur de brûlé) : ne touchez plus la prise. ' +
+            'Coupez le circuit au tableau si possible. Charge bailleur — intervention urgente.',
+          pipelineSteps: [
+            ...steps,
+            {
+              name: 'jurist_simulation',
+              decision: 'BAILLEUR',
+              extra: { rule: 'electricity_danger_urgent' },
+            },
+          ],
+        };
+      }
       const elSignals = parseElectricitySignals(text);
       const elCharge = resolveElectricityCharge(elSignals, text);
       if (elCharge === 'BAILLEUR') {

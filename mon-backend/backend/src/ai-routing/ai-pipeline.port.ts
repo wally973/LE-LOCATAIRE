@@ -38,8 +38,8 @@ export interface AiPipelineDecision {
   responsibility: TicketResponsibility;
   /** Catégorie technique (PLUMBING, ELECTRICITY, HUMIDITY, ...). */
   category: string;
-  /** Sévérité textuelle (LOW / MEDIUM / HIGH). */
-  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+  /** Sévérité textuelle (LOW / MEDIUM / HIGH / URGENT_CRITIQUE). */
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT_CRITIQUE';
   /** Score de confiance dans [0,1]. */
   confidence: number;
   /** True si l'IA veut demander une autre photo (cas blur / insuffisant). */

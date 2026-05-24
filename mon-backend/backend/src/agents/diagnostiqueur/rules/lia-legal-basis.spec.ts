@@ -16,4 +16,22 @@ describe('lia-legal-basis', () => {
     });
     expect(line).toMatch(/1719/);
   });
+
+  it('cite 87-712 pour électricité locative', () => {
+    const line = resolveLegalBasisForVerdict({
+      responsibility: 'LOCATAIRE',
+      category: 'ELECTRICITY',
+    });
+    expect(line).toMatch(/87-712/);
+    expect(line).toMatch(/ampoule|interrupteur|douille/i);
+  });
+
+  it('cite 87-712 pour menuiserie locative', () => {
+    const line = resolveLegalBasisForVerdict({
+      responsibility: 'LOCATAIRE',
+      category: 'CARPENTRY',
+    });
+    expect(line).toMatch(/87-712/);
+    expect(line).toMatch(/menuiserie|porte|entretien/i);
+  });
 });

@@ -149,4 +149,22 @@ Champs clés :
 
 ---
 
-*Dernière mise à jour : 21 mai 2026 — aligné recherche AFPOLS/AQC et humidité Guyane.*
+## 8. Installations — charge, vétusté, durée de vie
+
+Fichier structuré (indicatif, pas juridique) : [`data/installations-charges-vetuste.json`](../data/installations-charges-vetuste.json)
+
+| Bloc JSON | Rôle |
+|-----------|------|
+| `principles` | 87-712 vs bailleur, vétusté (décret 2016-382), distinction 87-713 |
+| `vetusteIndicative` | Durées de vie / franchise / % abattement type accord collectif |
+| `installations[]` | Matrice poste → charge pendant bail → si vétusté / encastré |
+| `exceptionsChargeBailleur` | Règles transverses (GPA, 6 mois, force majeure…) |
+| `liaUsage` | Comment brancher Researcher / Juriste |
+
+**Sources web retenues (essentiel)** : [Service Public F31699](https://www.service-public.gouv.fr/particuliers/vosdroits/F31699) (vétusté → bailleur même si 87-712), [F21105](https://www.service-public.gouv.fr/particuliers/vosdroits/F21105) (grille EDL), [ANIL](https://www.anil.org/parole-expert-logement-locataire-qui-paie-les-reparations/).
+
+**Prochaine étape technique** : loader + matching mots-clés dans `LiaResearchService` (sans calcul de retenue à la sortie).
+
+---
+
+*Dernière mise à jour : 21 mai 2026 — aligné recherche AFPOLS/AQC, humidité Guyane et matrice installations.*

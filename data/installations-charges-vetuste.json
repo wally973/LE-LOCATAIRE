@@ -1,0 +1,377 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-21",
+  "description": "Matrice indicative : installations du logement → charge réparation (bail en cours) → vétusté → durée de vie de référence. Alimente Lia Researcher / Juriste ; ne calcule pas automatiquement une retenue sur dépôt de garantie.",
+  "disclaimer": "Document métier indicatif pour qualification Lia. En cas de litige, prévalent le bail, l’état des lieux et, le cas échéant, la grille de vétusté issue d’un accord collectif (décret n°2016-382). Ne remplace pas un avis juridique.",
+  "sources": [
+    {
+      "label": "Décret n°87-712 — réparations locatives (annexe)",
+      "url": "https://www.legifrance.gouv.fr/affichTexte.do?cidTexte=JORFTEXT000000635350"
+    },
+    {
+      "label": "Service Public — travaux bailleur",
+      "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F31699"
+    },
+    {
+      "label": "Service Public — dégradations et vétusté",
+      "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F21105"
+    },
+    {
+      "label": "Décret n°2016-382 — grille de vétusté (EDL)",
+      "url": "https://www.legifrance.gouv.fr/affichTexte.do?cidTexte=JORFTEXT000032204868"
+    },
+    {
+      "label": "ANIL — qui paie les réparations",
+      "url": "https://www.anil.org/parole-expert-logement-locataire-qui-paie-les-reparations/"
+    },
+    {
+      "label": "Code civil art. 1719 (bailleur) / 1721 (locataire)",
+      "url": "https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006070721/LEGISCTA000006150285/"
+    }
+  ],
+  "principles": {
+    "reparationsLocatives": {
+      "texte": "Décret n°87-712",
+      "resume": "Entretien courant et menues réparations liées à l’usage normal des locaux et équipements privatifs → locataire, liste limitative en annexe.",
+      "horsListe": "Tout ce qui n’est pas réparation locative → bailleur (grosses réparations, structure, réseaux collectifs, décence)."
+    },
+    "vetuste": {
+      "definition": "Usure normale due au temps et à l’usage (art. 7 loi 89-462, décret 2016-382).",
+      "regle": "Si la réparation est rendue nécessaire par la vétusté ou la force majeure → charge bailleur, même si l’acte figure au décret 87-712 (Service Public F31699, F21105).",
+      "grilleContractuelle": {
+        "obligatoire": false,
+        "quand": "Annexée au bail ou à l’EDL si les parties choisissent une grille issue d’un accord collectif.",
+        "parametres": ["dureeVieTheoriqueAnnees", "franchiseAnnees", "tauxAbattementAnnuelPct"],
+        "formuleIndicative": "vetustePct = min(100, max(0, (anneesOccupation - franchise) × tauxAbattementAnnuelPct))",
+        "partLocataireIndicative": "coutTravaux × (1 - vetustePct/100) — surtout utile à la sortie, pas pendant le bail."
+      }
+    },
+    "chargesRecuperables": {
+      "texte": "Décret n°87-713",
+      "note": "Charges locatives (eau/chauffage collectif, ascenseur, TEOM…) — distinct des réparations sur installations du logement."
+    }
+  },
+  "exceptionsChargeBailleur": [
+    {
+      "id": "vetuste",
+      "label": "Vétusté / usure normale",
+      "appliesDuringBail": true,
+      "appliesAtExit": true,
+      "liaHint": "Même poste 87-712 → orienter BAILLEUR si usure, pas négligence locataire."
+    },
+    {
+      "id": "force_majeure",
+      "label": "Force majeure (tempête, etc.)",
+      "appliesDuringBail": true,
+      "appliesAtExit": true
+    },
+    {
+      "id": "vice_construction",
+      "label": "Vice de construction / défaut d’installation",
+      "appliesDuringBail": true,
+      "appliesAtExit": true
+    },
+    {
+      "id": "faute_bailleur",
+      "label": "Faute du bailleur ou travaux mal réalisés",
+      "appliesDuringBail": true,
+      "appliesAtExit": true,
+      "liaHint": "Fenêtre 6 mois post-entrée, remise en état (cf. lia-occupancy-context)."
+    },
+    {
+      "id": "gpa",
+      "label": "GPA — remise en état neuve",
+      "appliesDuringBail": true,
+      "liaHint": "HlmResidence.gpaEndDate ≈ 1 an après livraison."
+    },
+    {
+      "id": "encastre_inaccessible",
+      "label": "Encastré ou inaccessible sans trappe",
+      "appliesDuringBail": true,
+      "liaHint": "Canalisation encastrée, câblage fixe, siphon sous receveur douche."
+    },
+    {
+      "id": "collectif",
+      "label": "Parties communes / réseau collectif",
+      "appliesDuringBail": true
+    }
+  ],
+  "vetusteIndicative": {
+    "note": "Repères issus de grilles type accord collectif (ex. OPAC / bailleurs sociaux). À remplacer par la grille contractuelle du bailleur quand elle existe en base.",
+    "elements": [
+      { "id": "peinture", "label": "Peintures murales", "dureeVieTheoriqueAnnees": 7, "franchiseAnnees": 2, "tauxAbattementAnnuelPct": 15 },
+      { "id": "moquette", "label": "Moquette / revêtement souple", "dureeVieTheoriqueAnnees": 7, "franchiseAnnees": 1, "tauxAbattementAnnuelPct": 15 },
+      { "id": "parquet", "label": "Parquet", "dureeVieTheoriqueAnnees": 20, "franchiseAnnees": 5, "tauxAbattementAnnuelPct": 5 },
+      { "id": "faience", "label": "Carrelage / faïence", "dureeVieTheoriqueAnnees": 20, "franchiseAnnees": 5, "tauxAbattementAnnuelPct": 5 },
+      { "id": "robinetterie", "label": "Robinetterie", "dureeVieTheoriqueAnnees": 10, "franchiseAnnees": 2, "tauxAbattementAnnuelPct": 12 },
+      { "id": "plomberie_reseau", "label": "Canalisations (hors encastré collectif)", "dureeVieTheoriqueAnnees": 15, "franchiseAnnees": 5, "tauxAbattementAnnuelPct": 8 },
+      { "id": "chauffe_eau", "label": "Chauffe-eau / ballon", "dureeVieTheoriqueAnnees": 12, "franchiseAnnees": 2, "tauxAbattementAnnuelPct": 10 },
+      { "id": "chauffage", "label": "Installation chauffage", "dureeVieTheoriqueAnnees": 25, "franchiseAnnees": 5, "tauxAbattementAnnuelPct": 4 },
+      { "id": "reseau_electrique", "label": "Réseau électrique fixe", "dureeVieTheoriqueAnnees": 20, "franchiseAnnees": 5, "tauxAbattementAnnuelPct": 5 },
+      { "id": "appareils_sanitaires", "label": "WC, lavabo, baignoire (appareil)", "dureeVieTheoriqueAnnees": 20, "franchiseAnnees": 5, "tauxAbattementAnnuelPct": 5 },
+      { "id": "volets", "label": "Volets / persiennes", "dureeVieTheoriqueAnnees": 20, "franchiseAnnees": 5, "tauxAbattementAnnuelPct": 5 },
+      { "id": "electromenager", "label": "Appareils ménagers fournis", "dureeVieTheoriqueAnnees": 10, "franchiseAnnees": 2, "tauxAbattementAnnuelPct": 10 }
+    ]
+  },
+  "installations": [
+    {
+      "id": "revetement_peinture",
+      "label": "Peintures, tapisseries, raccords",
+      "family": "GENERIC",
+      "decret87_712": "III.a",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "vetusteRef": "peinture",
+      "keywords": ["peinture", "tapisserie", "mur", "tache", "lessivage"]
+    },
+    {
+      "id": "revetement_sol_souple",
+      "label": "Moquette, lino, PVC",
+      "family": "GENERIC",
+      "decret87_712": "III.b",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "vetusteRef": "moquette",
+      "keywords": ["moquette", "lino", "sol", "pvc"]
+    },
+    {
+      "id": "revetement_parquet",
+      "label": "Parquet",
+      "family": "GENERIC",
+      "decret87_712": "III.b",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "vetusteRef": "parquet",
+      "keywords": ["parquet", "rayure", "vitir"]
+    },
+    {
+      "id": "menuiseries_portes_fenetres",
+      "label": "Portes, fenêtres — menues réparations",
+      "family": "GENERIC",
+      "decret87_712": "II.a",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "vetusteRef": "volets",
+      "keywords": ["gond", "paumelle", "charniere", "poignee", "cremone"]
+    },
+    {
+      "id": "vitrage_casse_locataire",
+      "label": "Vitrage cassé par le locataire",
+      "family": "GENERIC",
+      "decret87_712": "II.b",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "keywords": ["vitre cassee", "bris de glace"]
+    },
+    {
+      "id": "serrure_cles",
+      "label": "Serrure, verrous (hors remplacement sécurité bailleur)",
+      "family": "LOCK",
+      "decret87_712": "II.d",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "NUANCE",
+      "chargeSiVetuste": "BAILLEUR",
+      "notes": "Perte de clés / cylindre usé : souvent locataire ; serrure défectueuse d’origine : bailleur."
+    },
+    {
+      "id": "plomberie_robinetterie_accessible",
+      "label": "Robinetterie, joints, flexibles accessibles",
+      "family": "PLUMBING",
+      "decret87_712": "IV.d",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "chargeSiEncastre": "BAILLEUR",
+      "vetusteRef": "robinetterie",
+      "liaRules": ["lia-tenant-explanation"],
+      "keywords": ["robinet", "joint", "flexible", "fuite sous evier"]
+    },
+    {
+      "id": "plomberie_siphon_evier_lavabo",
+      "label": "Siphon / bonde sous évier ou lavabo",
+      "family": "PLUMBING",
+      "decret87_712": "IV.e",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "liaRules": ["lia-tenant-explanation", "lia-plumbing-rules"],
+      "keywords": ["siphon", "evier", "lavabo", "debouch"]
+    },
+    {
+      "id": "plomberie_douche_receveur",
+      "label": "Évacuation / siphon sous douche ou bac à douche",
+      "family": "PLUMBING",
+      "decret87_712": "IV.e",
+      "accessibilite": "INACCESSIBLE",
+      "chargePendantBail": "BAILLEUR",
+      "chargeSiEncastre": "BAILLEUR",
+      "liaRules": ["lia-plumbing-rules"],
+      "notes": "Sans trappe de visite ou sous receveur → bailleur, même si l’acte ressemble à un débouchage locatif.",
+      "keywords": ["douche", "bac a douche", "receveur", "siphon", "trappe"]
+    },
+    {
+      "id": "plomberie_canalisation_encastree",
+      "label": "Canalisation encastrée, réseau fixe logement",
+      "family": "PLUMBING",
+      "accessibilite": "ENCASTRE",
+      "chargePendantBail": "BAILLEUR",
+      "chargeSiEncastre": "BAILLEUR",
+      "vetusteRef": "plomberie_reseau",
+      "liaRules": ["lia-plumbing-rules"],
+      "keywords": ["encastr", "canalisation", "colonne"]
+    },
+    {
+      "id": "plomberie_colonne_collective",
+      "label": "Colonne, parties communes eau",
+      "family": "PLUMBING",
+      "scope": "COLLECTIF",
+      "chargePendantBail": "BAILLEUR",
+      "keywords": ["colonne", "parties communes", "collectif"]
+    },
+    {
+      "id": "chauffage_eau_chaude_ballon",
+      "label": "Chauffe-eau, ballon, production eau chaude",
+      "family": "HEATING",
+      "decret87_712": "IV.d",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "NUANCE",
+      "chargeSiVetuste": "BAILLEUR",
+      "vetusteRef": "chauffe_eau",
+      "liaRules": ["panne-diagnostic-logique:cause_vetuste_ballon"],
+      "notes": "Entretien courant locataire si négligence ; >12–15 ans ou corrosion → bailleur. Panne collective → bailleur.",
+      "keywords": ["ballon", "chauffe-eau", "eau chaude", "cumulus"]
+    },
+    {
+      "id": "chauffage_reseau_collectif",
+      "label": "Chauffage collectif, réseau immeuble",
+      "family": "HEATING",
+      "scope": "COLLECTIF",
+      "chargePendantBail": "BAILLEUR",
+      "vetusteRef": "chauffage"
+    },
+    {
+      "id": "elec_ampoule_interrupteur_accessible",
+      "label": "Ampoules, interrupteurs, douilles accessibles",
+      "family": "ELECTRICITY",
+      "decret87_712": "V",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "liaRules": ["lia-electricity-rules", "lia-tenant-explanation"],
+      "keywords": ["ampoule", "interrupteur", "douille"]
+    },
+    {
+      "id": "elec_cablage_encastre",
+      "label": "Câblage encastré, point lumineux fixe",
+      "family": "ELECTRICITY",
+      "accessibilite": "ENCASTRE",
+      "chargePendantBail": "BAILLEUR",
+      "chargeSiEncastre": "BAILLEUR",
+      "vetusteRef": "reseau_electrique",
+      "liaRules": ["lia-electricity-rules", "lia-plumbing-rules"],
+      "notes": "Ampoule + interrupteur + disjoncteur OK mais panne persistante → installation fixe bailleur.",
+      "keywords": ["encastr", "plafonnier", "circuit", "cablage"]
+    },
+    {
+      "id": "elec_tableau_disjoncteur",
+      "label": "Tableau électrique, disjoncteur général",
+      "family": "ELECTRICITY",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "BAILLEUR",
+      "vetusteRef": "reseau_electrique",
+      "liaRules": ["lia-electricity-rules"],
+      "keywords": ["tableau", "disjoncteur", "coupure generale"]
+    },
+    {
+      "id": "vmc_individuelle",
+      "label": "VMC ou extraction individuelle du lot",
+      "family": "HUMIDITY",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "NUANCE",
+      "chargeSiVetuste": "BAILLEUR",
+      "notes": "Entretien bouches / filtres : locataire ; moteur ou réseau collectif : bailleur."
+    },
+    {
+      "id": "vmc_collective",
+      "label": "VMC collective, réseau extraction immeuble",
+      "family": "HUMIDITY",
+      "scope": "COLLECTIF",
+      "chargePendantBail": "BAILLEUR"
+    },
+    {
+      "id": "toiture_facade_structure",
+      "label": "Toiture, façade, structure, infiltration",
+      "family": "ROOF",
+      "scope": "BATIMENT",
+      "chargePendantBail": "BAILLEUR",
+      "keywords": ["toiture", "infiltration", "fissure structure", "facade"]
+    },
+    {
+      "id": "gouttieres_usage_privatif",
+      "label": "Gouttières, chéneaux (usage privatif)",
+      "family": "ROOF",
+      "decret87_712": "I.c",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiVetuste": "BAILLEUR",
+      "keywords": ["gouttiere", "cheneau"]
+    },
+    {
+      "id": "detecteur_fumee",
+      "label": "Détecteur de fumée",
+      "family": "GENERIC",
+      "accessibilite": "ACCESSIBLE",
+      "chargePendantBail": "NUANCE",
+      "notes": "Pile / test : locataire ; défaut d’origine ou logement non conforme : bailleur."
+    },
+    {
+      "id": "appareils_menagers_bailleur",
+      "label": "Électroménager fourni par le bailleur (meublé)",
+      "family": "GENERIC",
+      "decret87_712": "VI",
+      "chargePendantBail": "BAILLEUR",
+      "chargeSiVetuste": "BAILLEUR",
+      "vetusteRef": "electromenager",
+      "notes": "Panne sans faute locataire : réparation ou remplacement bailleur."
+    },
+    {
+      "id": "jardin_privatif",
+      "label": "Jardin privatif",
+      "family": "GENERIC",
+      "decret87_712": "I.a",
+      "chargePendantBail": "LOCATAIRE",
+      "chargeSiForceMajeure": "BAILLEUR"
+    }
+  ],
+  "liaUsage": {
+    "loader": "À brancher : mon-backend/backend/src/legal-references/ ou knowledge-index.loader.ts",
+    "researchBrief": [
+      "Identifier installation.id depuis mots-clés + catégorie pathologiste.",
+      "Citer chargePendantBail et exceptions (vetuste, encastre, GPA, 6 mois).",
+      "Si âge équipement mentionné → comparer à vetusteIndicative (indicatif uniquement)."
+    ],
+    "juristPriority": [
+      "1. exceptionsChargeBailleur",
+      "2. installation.chargeSiEncastre / scope COLLECTIF",
+      "3. installation.chargePendantBail",
+      "4. legal-references.json (FAQ par métier)"
+    ],
+    "outOfScope": [
+      "Calcul automatique retenue dépôt de garantie",
+      "Substitution à la grille contractuelle du bailleur",
+      "Remplacement EDL structuré (Q66)"
+    ],
+    "relatedCode": [
+      "lia-plumbing-rules.ts",
+      "lia-electricity-rules.ts",
+      "lia-occupancy-context.ts",
+      "lia-housing-warranty.ts",
+      "lia-tenant-explanation.ts"
+    ]
+  }
+}

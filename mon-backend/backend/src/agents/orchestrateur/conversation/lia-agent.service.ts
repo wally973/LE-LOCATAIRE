@@ -34,6 +34,11 @@ import {
   goalCompleted,
   markGoalDone,
 } from './lia-goals.types';
+import {
+  buildMissingCriticalSensorsMessage,
+  getMissingCriticalSensors,
+} from '../../shared/critical-diagnostic-sensors';
+import { detectSocialSignal } from '../../shared/social-signal-detection';
 
 /**
  * Agent LIA autonome — choisit le prochain objectif depuis le SharedState (réactif).
@@ -417,6 +422,42 @@ export class LiaAgentService {
         state.ticketId,
         'LIA_ANALYZING',
       );
+    }
+
+    const signalementText = `${state.title} ${state.description} ${state.lastTenantMessage ?? ''}`;
+    if (detectSocialSignal(signalementText)) {
+      this.diagnostic.schedule(state.ticketId, signalementText, photoUrl);
+      return {
+        state: {
+          ...state,
+          intake,
+          agent: markGoalDone(state, 'RUN_DIAGNOSTIC'),
+        },
+        continueLoop: false,
+      };
+    }
+
+    const missingSensors = getMissingCriticalSensors({
+      title: state.title,
+      description: state.description,
+      sensors: state.sensors,
+      intakeAnswers: intake?.answers,
+    });
+    if (missingSensors.length > 0) {
+      const prompt = buildMissingCriticalSensorsMessage(missingSensors);
+      await this.conversation.appendMessage(
+        state.ticketId,
+        'LIA_HOST',
+        prompt,
+      );
+      if (intake && intake.phase !== 'INTAKE') {
+        intake = { ...intake, phase: 'INTAKE' };
+        await this.persistIntake(state.ticketId, intake, 'OPEN');
+      }
+      return {
+        state: { ...state, intake },
+        continueLoop: false,
+      };
     }
 
     const feedback =

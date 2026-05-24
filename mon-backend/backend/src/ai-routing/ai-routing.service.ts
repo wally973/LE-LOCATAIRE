@@ -21,6 +21,13 @@ import {
   splitPipelineFeedback,
 } from '../lia/lia-case-context';
 import { DiagnosticContextService } from '../agents/shared/diagnostic-context.service';
+import {
+  buildMissingCriticalSensorsMessage,
+  getMissingCriticalSensors,
+} from '../agents/shared/critical-diagnostic-sensors';
+import { detectSocialSignal } from '../agents/shared/social-signal-detection';
+import { buildDiagnosticState } from '../agents/shared/lia-diagnostic-state';
+import type { DiagnosticState } from '../agents/shared/lia-diagnostic-state.types';
 import { AiSummarizerService } from '../ai/ai-summarizer.service';
 import type { PathologistResult } from './agents/pathologist.types';
 
@@ -136,6 +143,8 @@ export class AiRoutingService {
       tenantFeedback: opts.tenantFeedback,
     });
 
+    const signalementText = `${ticketWithDocs.title} ${ticketWithDocs.description} ${tenantFeedback ?? ''}`;
+
     if (intakeState?.phase === 'AWAITING_PHOTO') {
       await this.prisma.ticketMessage.create({
         data: {
@@ -151,7 +160,20 @@ export class AiRoutingService {
       });
     }
 
-    let decision = await this.pipeline.analyze({
+    const missingCritical = getMissingCriticalSensors({
+      title: ticketWithDocs.title,
+      description: ticketWithDocs.description,
+      sensors: dxContext.sensors,
+      intakeAnswers: intakeState?.answers,
+    });
+
+    let decision: AiPipelineDecision;
+    if (detectSocialSignal(signalementText)) {
+      decision = this.buildSocialPipelineDecision();
+    } else if (missingCritical.length > 0) {
+      decision = this.buildMissingSensorsDecision(missingCritical);
+    } else {
+      decision = await this.pipeline.analyze({
       title: ticketWithDocs.title,
       description: ticketWithDocs.description,
       attempt,
@@ -164,6 +186,35 @@ export class AiRoutingService {
       landlordProfileId:
         ticketWithDocs.landlordProfileId ?? ticketWithDocs.housing.landlordId,
       housingId: ticketWithDocs.housingId,
+    });
+    }
+
+    const pathoStepForDiag = decision.pipelineSteps.find(
+      (s) => s.name === 'pathologist',
+    );
+    const pathologistForDiag: PathologistResult | undefined =
+      pathoStepForDiag
+        ? {
+            category: decision.category,
+            severity: decision.severity,
+            confidence: decision.confidence,
+            needsMorePhoto: decision.needsMorePhoto,
+            observation:
+              typeof pathoStepForDiag.extra?.observation === 'string'
+                ? pathoStepForDiag.extra.observation
+                : '',
+            fromLlm: Boolean(pathoStepForDiag.extra?.fromLlm),
+            differential: pathoStepForDiag.extra
+              ?.differential as PathologistResult['differential'],
+          }
+        : undefined;
+
+    const diagnosticState = this.buildPersistedDiagnosticState({
+      decision,
+      caseContextForRules,
+      existing: dxContext.diagnostic,
+      intakeAnswers: intakeState?.answers,
+      pathologist: pathologistForDiag,
     });
 
     // Si la confiance est trop faible, on bascule en needsMorePhoto sauf si on a
@@ -242,6 +293,7 @@ export class AiRoutingService {
       effectiveDecision,
       attempt,
       intakeDone,
+      diagnosticState,
     );
 
     await this.recordDiagnostic(ticketWithDocs.tenant.userId, effectiveDecision, {
@@ -349,11 +401,81 @@ export class AiRoutingService {
     });
   }
 
+  private buildSocialPipelineDecision(): AiPipelineDecision {
+    return {
+      responsibility: 'SOCIAL',
+      category: 'SOCIAL',
+      severity: 'MEDIUM',
+      confidence: 0.9,
+      needsMorePhoto: false,
+      socialFlag: true,
+      message:
+        'Votre message concerne une situation personnelle ou financière plutôt qu’un désordre technique du logement. ' +
+        'Un référent social du bailleur va vous recontacter.',
+      pipelineSteps: [
+        { name: 'social_detection', decision: 'SOCIAL', confidence: 0.9 },
+      ],
+    };
+  }
+
+  private buildMissingSensorsDecision(
+    missing: ReturnType<typeof getMissingCriticalSensors>,
+  ): AiPipelineDecision {
+    return {
+      responsibility: 'PENDING',
+      category: 'PLUMBING',
+      severity: 'MEDIUM',
+      confidence: 0.5,
+      needsMorePhoto: false,
+      socialFlag: false,
+      message: buildMissingCriticalSensorsMessage(missing),
+      pipelineSteps: [
+        {
+          name: 'sensor_gate',
+          decision: 'MISSING_CRITICAL_SENSORS',
+          extra: { missing },
+        },
+      ],
+    };
+  }
+
+  private buildPersistedDiagnosticState(params: {
+    decision: AiPipelineDecision;
+    caseContextForRules: string;
+    existing: DiagnosticState | null;
+    intakeAnswers?: Record<string, string>;
+    pathologist?: PathologistResult;
+  }): DiagnosticState {
+    let state = buildDiagnosticState({
+      category: params.decision.category,
+      contextText: params.caseContextForRules,
+      existing: params.existing,
+      intakeAnswers: params.intakeAnswers,
+    });
+    const diff = params.pathologist?.differential;
+    if (diff?.hypotheses?.length) {
+      state = {
+        ...state,
+        leadingHypothesisId: diff.leadingHypothesisId,
+        hypotheses: diff.hypotheses.map((h) => ({
+          id: h.id,
+          label: h.label,
+          probability: h.probability,
+          eliminated: h.eliminated,
+          eliminationReason: h.eliminationReason,
+          sources: [],
+        })),
+      };
+    }
+    return state;
+  }
+
   private async applyDecision(
     ticket: { id: number; aiMaxAttempts: number; housing: { landlordId: number } },
     decision: AiPipelineDecision,
     attempt: number,
     intakeDone?: ReturnType<typeof parseIntakeState>,
+    diagnosticState?: DiagnosticState,
   ) {
     // Round-trip JSON pour obtenir un Prisma.InputJsonValue propre,
     // sinon TS rejette les tableaux d'objets typés (TS2322).
@@ -369,6 +491,7 @@ export class AiRoutingService {
         pipelineSteps: decision.pipelineSteps,
         messageForTenant: decision.message,
         ...(intakeDone ? { intake: intakeDone } : {}),
+        ...(diagnosticState ? { diagnostic: diagnosticState } : {}),
       }),
     ) as Prisma.InputJsonValue;
 

@@ -11,6 +11,7 @@ import {
   formatDiagnosticModeHeader,
   formatSensorDetailLines,
 } from '../../shared/diagnostic-sensor-summary';
+import { resolveLegalBasisForVerdict } from './lia-legal-basis';
 
 const PATHO_CATEGORY_LABELS: Record<string, string> = {
   PLUMBING: 'Plomberie',
@@ -127,6 +128,37 @@ export function buildTenantDiagnosticMessage(params: {
   }
   if (reasoning.length > 0) {
     blocks.push(`• Logique appliquée : ${reasoning.join(' ')}`);
+  }
+  const legalBasis = resolveLegalBasisForVerdict({
+    responsibility: decision.responsibility,
+    category: pathologist.category,
+    sensors,
+  });
+  if (legalBasis) {
+    blocks.push(`• ${legalBasis}`);
+  }
+  if (pathologist.differential?.hypotheses?.length) {
+    const active = pathologist.differential.hypotheses.filter((h) => !h.eliminated);
+    const eliminated = pathologist.differential.hypotheses.filter(
+      (h) => h.eliminated,
+    );
+    if (eliminated.length) {
+      blocks.push(
+        `• Éliminations (Savoir-Voir) : ${eliminated
+          .map((h) => `${h.label}${h.eliminationReason ? ` — ${h.eliminationReason}` : ''}`)
+          .join(' | ')}`,
+      );
+    }
+    if (active.length) {
+      const lead = active.find(
+        (h) => h.id === pathologist.differential!.leadingHypothesisId,
+      );
+      if (lead) {
+        blocks.push(
+          `• Hypothèse retenue après élimination : ${lead.label} (${Math.round(lead.probability * 100)} %).`,
+        );
+      }
+    }
   }
   blocks.push(`• Orientation retenue : ${respLabel}`);
   blocks.push('');

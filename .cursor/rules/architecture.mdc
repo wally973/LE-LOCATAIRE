@@ -1,0 +1,38 @@
+---
+description: Architecture IA Lia — 3 piliers, legacy, pas de suppression sauvage
+globs: mon-backend/backend/src/lia/**,mon-backend/backend/src/ai-routing/**,data/*.json
+alwaysApply: false
+---
+
+# Architecture IA
+
+Référence : `MANIFESTE_FINAL.md`, `NOTE.md` §4ter (trois piliers).
+
+## Trois piliers (noms réels du code)
+
+| Pilier | Rôle | Fichiers clés |
+|--------|------|---------------|
+| **Organisateur** | Intake, questions, photo au bon moment | `lia-intake*.ts`, `lia-intake-organizer.ts`, `lia-orchestrator.service.ts`, `lia-intake-reactive.service.ts` |
+| **Chercheur** | Anti-hallucination — fiches + historique avant verdict | `lia-research.service.ts`, `ai-memory.service.ts` |
+| **Diagnostiqueur** | Constat technique + responsabilité | `lia-pathologist.service.ts`, `lia-jurist.service.ts`, règles `lia-*-rules.ts` |
+
+## Goals, pas d’étapes linéaires
+
+Piloter via **SharedState** et objectifs (`lia-goals.types.ts`, `lia-shared-state.service.ts`), pas une machine à états rigide dupliquée.
+
+## Legacy
+
+- Code ancien / prototypes : `admin-dashboard-old/`, modules historiques (`src/ai/`, stubs)
+- **Ne jamais supprimer** une logique métier sans migration vers `src/lia/` ou `src/ai-routing/`
+- Production Flutter ↔ NestJS uniquement ; pas de pipeline Python parallèle
+
+## Données métier
+
+Modifier une règle IA → vérifier cohérence avec :
+- `data/panne-diagnostic-logique.json` (organisateur, danger, probabilités Guyane)
+- `data/legal-references.json` (juriste / RAG)
+- Sync mobile : `scripts/sync-legal-references-assets.ts`
+
+## Rectification expert
+
+Le technicien peut **écraser** le diagnostic IA (`expert-rectification`) — Lia ne contredit pas le terrain.

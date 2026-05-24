@@ -1,0 +1,31 @@
+---
+description: Diagnostic métier — sécurité, historique, savoir interne, photo
+globs: mon-backend/backend/src/lia/**,mon-backend/backend/src/ai-routing/**,data/legal-references.json,data/panne-diagnostic-logique.json,data/reclamations-locataires.json
+alwaysApply: false
+---
+
+# Expertise terrain — qualification des réclamations
+
+Contexte : logement social Guyane, climat humide, déplacements coûteux → **qualifier avant de conclure**.
+
+## Hiérarchie de diagnostic (ordre strict)
+
+1. **Sécurité / danger** — niveau `danger` dans `panne-diagnostic-logique.json` (CRITICAL → LOW) ; couper / alerter si risque électrique, gaz, effondrement
+2. **Historique** — tickets similaires (logement, résidence, secteur) via recherche interne et `lia-landlord-history.ts`
+3. **Savoir interne** — fiches `legal-references.json`, catalogue pannes, règles déterministes (`lia-humidity-rules.ts`, `lia-electricity-rules.ts`, etc.)
+
+## Si le symptôme est flou
+
+- Demander **une photo** (`needsMorePhoto`, intake organisateur) plutôt que deviner
+- Escalade bailleur après **2 tentatives** max (décision Q4)
+- Pas de diagnostic « boîte noire » sans preuve visuelle quand le métier l’exige (humidité structurelle, électricité, infiltration)
+
+## Charge locataire / bailleur
+
+- S’appuyer sur décret 87-712 et fiches FAQ — message locataire via `lia-tenant-explanation.ts`
+- Exemples récents : électricité localisée vs tableau ; humidité surface + bricolage vs infiltration visible
+- Verdict **explicable** ; recherche **alimente** le juriste, ne le remplace pas
+
+## Périmètres réclamation
+
+Voir `data/reclamations-locataires.json` : logement / bâtiment / résidence / hors technique Lia.

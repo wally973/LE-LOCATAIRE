@@ -1,0 +1,38 @@
+---
+description: Contexte global LE LOCATAIRE — lire NOTE + MANIFESTE avant toute action significative
+alwaysApply: true
+---
+
+# LE LOCATAIRE — règle globale
+
+Avant toute modification significative, **lire** (ou se remémorer) :
+- `NOTE.md` — état du projet, décisions Q1–Q46, priorités V1
+- `MANIFESTE_FINAL.md` — architecture IA, Goals/SharedState, rectification expert
+
+## Stack de production
+
+- **Mobile locataire** : `mobile/flutter/`
+- **Backend** : `mon-backend/backend/` (NestJS + Prisma) — **seule source de vérité Lia**
+- **Référent** : `admin-dashboard/`
+- Ne pas confondre avec `admin-dashboard-old/` ni `mon-backend/dashboard/` (prototypes)
+
+## Les trois « tiroirs » (mapping réel)
+
+| Tiroir | Emplacement |
+|--------|-------------|
+| **Intelligence** | `mon-backend/backend/src/lia/` + `src/ai-routing/agents/` |
+| **Savoir** | `data/legal-references.json`, `data/panne-diagnostic-logique.json`, `data/reclamations-locataires.json` |
+| **Mémoire** | AiMemory, tickets passés, seeds (`scripts/seed-ai-memory.ts`, `seed-legal-references.ts`) |
+
+## Séquence IA obligatoire (V1)
+
+**Organisateur (intake)** → **Auto-recherche interne** → **Diagnostic (pathologiste + juriste)**.
+
+Ne pas conclure un verdict juridique sans contexte intake + recherche quand le métier l’exige.
+
+## Conventions de travail
+
+- Réponses et **commentaires de code en français**
+- Commits **uniquement sur demande explicite** du porteur
+- Diff minimal : ne pas refactorer hors périmètre
+- Pilote : bailleur social **2terHabitat** (Guyane) — pas de références SIGUY/SIMKO dans le code

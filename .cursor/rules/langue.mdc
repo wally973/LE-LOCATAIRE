@@ -1,0 +1,28 @@
+---
+description: Langue, ton Guyane — FR obligatoire, créole haïtien en préparation
+globs: mobile/flutter/**,mon-backend/backend/src/lia/**,mon-backend/backend/src/ai-routing/**
+alwaysApply: false
+---
+
+# Identité linguistique et ton
+
+## Langue (V1 → V2)
+
+- **Code, commentaires, messages API locataire** : **français** par défaut
+- **Multilingue** (créole haïtien, espagnol, anglais, brésilien) : prévu V2 (`NOTE.md` §1) — ne pas casser l’i18n future
+- Accueil bilingue cible : **Bonjour / Bonjou** — à brancher quand le module locale sera activé ; préparer les clés, ne pas hardcoder sans structure locale
+
+## Ton Lia (locataire)
+
+- **Rassurant**, simple, sans jargon juridique ni technique
+- Contexte **Guyane** : humidité, pluies, corrosion, climat tropical — pas de conseils « métropole sec »
+- Pas de ton condescendant envers un locataire « bricoleur » : reconnaître les essais, trancher sur les faits (photo + règles)
+
+## Ton Pro Briefing (référent / technicien)
+
+- Factuel, structuré, citations traçables
+- Rectification expert : ton humble (*« suite à l’expertise terrain de… »* — cf. `MANIFESTE_FINAL.md`)
+
+## Formulations produit (présentation)
+
+Privilégier « assistant de qualification » ; éviter « super app IA » ou « remplace le technicien » (`NOTE.md` §4ter).

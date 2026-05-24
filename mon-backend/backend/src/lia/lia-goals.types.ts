@@ -7,6 +7,7 @@ import type { QualificationFlags } from '../feature-flags/qualification-flags.ty
 import type { LiaIntakeState } from './lia-intake.service';
 import type { CompanionUiState } from './lia-companion.types';
 import type { ExpertRectificationStored } from './lia-expert-rectification.types';
+import type { DiagnosticState } from './lia-diagnostic-state.types';
 
 /** Objectifs métier : l’agent choisit le prochain selon le SharedState. */
 export type LiaGoal =
@@ -53,6 +54,8 @@ export interface LiaSharedState {
   /** Rectification expert — source de vérité si présente. */
   expertRectification: ExpertRectificationStored | null;
   diagnosticAuthority: 'AI_PROPOSED' | 'EXPERT_VALIDATED';
+  /** Logique différentielle — signes cliniques + hypothèses (AFPOLS/AQC). */
+  diagnostic: DiagnosticState | null;
   /** Dernier message locataire (déclencheur réactif). */
   lastTenantMessage?: string;
 }

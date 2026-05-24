@@ -17,6 +17,7 @@ import {
   parseAgentMemory,
 } from './lia-goals.types';
 import { parseExpertRectification } from './lia-expert-rectification.types';
+import { parseDiagnosticState } from './lia-diagnostic-state.types';
 
 @Injectable()
 export class LiaSharedStateService {
@@ -69,6 +70,7 @@ export class LiaSharedStateService {
       diagnosticAuthority: expertRectification
         ? 'EXPERT_VALIDATED'
         : 'AI_PROPOSED',
+      diagnostic: parseDiagnosticState(ai),
       lastTenantMessage: opts?.lastTenantMessage,
     };
   }

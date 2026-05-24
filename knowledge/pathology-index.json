@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-21",
+  "description": "Index bibliothécaire — cours AFPOLS / fiches AQC → signes cliniques → hypothèses différentielles",
+  "corpora": {
+    "AFPOLS": {
+      "label": "AFPOLS — Formation logement social",
+      "baseUrl": "https://www.afpols.fr",
+      "catalogPath": "/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments"
+    },
+    "AQC": {
+      "label": "AQC — Fiches pathologie bâtiment (6e éd. 2024)",
+      "baseUrl": "https://qualiteconstruction.com",
+      "catalogPath": "/agence-qualite-construction/consolider-bonnes-pratiques-construction-renovation/"
+    }
+  },
+  "courses": [
+    {
+      "id": "afpols-C0233",
+      "corpus": "AFPOLS",
+      "code": "C0233",
+      "title": "Diagnostics et pathologies du bâtiment",
+      "duration": "42 h / 6 jours",
+      "modules": ["fondations", "ossature", "façades", "toitures-terrasses", "menuiseries"],
+      "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments/diagnostics-et-pathologies-du-batiment"
+    },
+    {
+      "id": "afpols-C0237",
+      "corpus": "AFPOLS",
+      "code": "C0237",
+      "title": "L'eau et ses pathologies : condensations, infiltrations, diagnostics et solutions pratiques",
+      "duration": "stage patrimoine",
+      "modules": ["sources eau", "condensation", "infiltration", "occupation locataire"],
+      "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments"
+    },
+    {
+      "id": "afpols-C0411",
+      "corpus": "AFPOLS",
+      "code": "C0411",
+      "title": "Tout comprendre sur les pathologies du bâtiment",
+      "duration": "parcours autoformation + présentiel",
+      "modules": ["gros oeuvre", "second oeuvre", "équipements"],
+      "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments/tout-comprendre-sur-les-pathologies-du-batiment"
+    },
+    {
+      "id": "aqc-fiches-pathologie",
+      "corpus": "AQC",
+      "code": "FPB-6",
+      "title": "Fiches pathologie bâtiment — 86 désordres",
+      "duration": "référence terrain",
+      "modules": ["constat", "diagnostic", "bonnes pratiques", "textes de référence"],
+      "url": "https://qualiteconstruction.com/agence-qualite-construction/consolider-bonnes-pratiques-construction-renovation/"
+    },
+    {
+      "id": "aqc-rex-humidite",
+      "corpus": "AQC",
+      "code": "REX-HUM",
+      "title": "REX — Humidité dans les bâtiments performants",
+      "duration": "rapport",
+      "modules": ["4 sources humidité", "diagnostic initial rénovation", "12 enseignements"],
+      "url": "https://qualiteconstruction.com/wp-content/uploads/2024/05/Rapport-REX-BP-Humidite-Construction-AQC.pdf"
+    }
+  ],
+  "entries": [
+    {
+      "id": "hyp_remontee_capillaire",
+      "label": "Remontées capillaires",
+      "category": "HUMIDITY",
+      "responsibilityHint": "BAILLEUR",
+      "danger": "MEDIUM",
+      "sources": [
+        {
+          "corpus": "AQC",
+          "ref": "B.01",
+          "title": "Remontées capillaires",
+          "url": "https://qualiteconstruction.com/ressource/fiches-pathologie-batiment/remontees-capillaires/"
+        },
+        {
+          "corpus": "AFPOLS",
+          "ref": "C0237",
+          "title": "L'eau et ses pathologies",
+          "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments"
+        }
+      ],
+      "clinicalSigns": {
+        "color": ["franges sombres", "salpêtre blanc", "facade plus sombre en bas"],
+        "texture": ["efflorescence", "enduit qui se decolle", "poudre sur le mur"],
+        "odor": ["odeur de moisi possible"],
+        "pattern": ["bandes ondulees depuis le sol", "monte depuis le plinthes", "horizontal puis vertical"],
+        "location": ["plinthes", "mur bas", "facade", "rez-de-chaussee"]
+      },
+      "keywords": ["salpetre", "remontee", "capillaire", "frange", "efflorescence"]
+    },
+    {
+      "id": "hyp_infiltration_toiture",
+      "label": "Infiltration toiture / façade",
+      "category": "HUMIDITY",
+      "responsibilityHint": "BAILLEUR",
+      "danger": "HIGH",
+      "sources": [
+        {
+          "corpus": "AQC",
+          "ref": "toiture",
+          "title": "Fiches pathologie — clos couvert",
+          "url": "https://qualiteconstruction.com/agence-qualite-construction/consolider-bonnes-pratiques-construction-renovation/"
+        },
+        {
+          "corpus": "AFPOLS",
+          "ref": "C0233",
+          "title": "Toitures et terrasses",
+          "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments/diagnostics-et-pathologies-du-batiment"
+        }
+      ],
+      "clinicalSigns": {
+        "color": ["tache brune claire", "auréole au plafond", "trace apres pluie"],
+        "texture": ["peinture qui cloque", "plafond ramollit"],
+        "odor": ["odeur de moisi", "odeur de renferme apres pluie"],
+        "pattern": ["tache qui grossit quand il pleut", "localise sous toiture", "proche fenetre toit"],
+        "location": ["plafond", "comble", "facade", "angle fenetre"]
+      },
+      "keywords": ["infiltration", "toiture", "pluie", "goutte", "fuite plafond"]
+    },
+    {
+      "id": "hyp_condensation_usage",
+      "label": "Condensation / usage locataire (ventilation insuffisante)",
+      "category": "HUMIDITY",
+      "responsibilityHint": "LOCATAIRE",
+      "danger": "LOW",
+      "sources": [
+        {
+          "corpus": "AQC",
+          "ref": "REX-HUM",
+          "title": "Humidité — occupation du bâtiment",
+          "url": "https://qualiteconstruction.com/wp-content/uploads/2024/05/Rapport-REX-BP-Humidite-Construction-AQC.pdf"
+        },
+        {
+          "corpus": "AFPOLS",
+          "ref": "C0237",
+          "title": "Condensations",
+          "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments"
+        }
+      ],
+      "clinicalSigns": {
+        "color": ["moisissure noire en coin", "buée sur vitre", "tache localisee sans sel"],
+        "texture": ["mur froid au toucher", "surface humide sans infiltration nette"],
+        "odor": ["odeur de renferme", "moisi leger"],
+        "pattern": ["coin fenetre", "salle de bain sans VMC", "linge seché interieur"],
+        "location": ["angle", "salle de bain", "cuisine", "chambre fermee"]
+      },
+      "keywords": ["condensation", "buée", "ventilation", "vmc", "linge", "douche"]
+    },
+    {
+      "id": "hyp_humidite_sous_sol_drom",
+      "label": "Humidité sous-sol / DROM (Guyane)",
+      "category": "HUMIDITY",
+      "responsibilityHint": "BAILLEUR",
+      "danger": "MEDIUM",
+      "sources": [
+        {
+          "corpus": "AQC",
+          "ref": "B.02-OM",
+          "title": "Humidité sous-sol — Outre-mer",
+          "url": "https://qualiteconstruction.com/ressource/fiches-pathologie-batiment/humidite-sous-sol-batiments/"
+        }
+      ],
+      "clinicalSigns": {
+        "color": ["traces au ras du sol", "auréole jonction mur-dallage"],
+        "texture": ["parement qui se degrade", "salpetre"],
+        "odor": ["odeur de moisi persistante"],
+        "pattern": ["apres fortes pluies", "cyclone", "ruissellement terrain"],
+        "location": ["sous-sol", "rdc", "mur périphérique", "pente"]
+      },
+      "keywords": ["sous-sol", "nappe", "drainage", "cuvelage", "cyclone", "pluie forte"]
+    }
+  ]
+}

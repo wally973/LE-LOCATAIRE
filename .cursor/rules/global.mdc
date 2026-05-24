@@ -21,7 +21,7 @@ Avant toute modification significative, **lire** (ou se remémorer) :
 | Tiroir | Emplacement |
 |--------|-------------|
 | **Intelligence** | `mon-backend/backend/src/lia/` + `src/ai-routing/agents/` |
-| **Savoir** | `data/legal-references.json`, `data/panne-diagnostic-logique.json`, `data/reclamations-locataires.json` |
+| **Savoir** | `knowledge/` (AFPOLS/AQC, logique différentielle), `data/legal-references.json`, `data/panne-diagnostic-logique.json`, `data/reclamations-locataires.json` |
 | **Mémoire** | AiMemory, tickets passés, seeds (`scripts/seed-ai-memory.ts`, `seed-legal-references.ts`) |
 
 ## Séquence IA obligatoire (V1)

@@ -15,6 +15,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import type { BailleurScope } from '../auth/scope/bailleur-scope.types';
 import { UpdateSocialCaseDto } from './dto/update-social-case.dto';
 import { CreateSocialWorkerDto } from './dto/create-social-worker.dto';
+import { DiagnosticContextService } from '../agents/shared/diagnostic-context.service';
+import { buildDiagnosticBrief } from '../agents/shared/diagnostic-ticket-insights';
 
 const MAX_NOTES_LENGTH = 8000;
 
@@ -25,6 +27,7 @@ export class SocialCasesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly diagnosticContext: DiagnosticContextService,
   ) {}
 
   // --------------------------------------------------------------------------
@@ -100,7 +103,7 @@ export class SocialCasesService {
     });
     if (!c) throw new NotFoundException('Dossier social introuvable');
     this.assertAccess(c, scope, mode);
-    return c;
+    return this.attachTriggerTicketDiagnostic(c);
   }
 
   /**
@@ -123,7 +126,7 @@ export class SocialCasesService {
         'Vous ne pouvez consulter que les dossiers qui vous sont assignés.',
       );
     }
-    return c;
+    return this.attachTriggerTicketDiagnostic(c);
   }
 
   /**
@@ -478,6 +481,24 @@ export class SocialCasesService {
         message: `Votre dossier social #${caseId} a été clôturé.`,
         type: 'INFO',
       });
+    }
+  }
+
+  /** Contexte Savoir-Voir du ticket technique lié (si présent). */
+  private async attachTriggerTicketDiagnostic<T extends { triggerTicketId: number | null }>(
+    row: T,
+  ) {
+    if (!row.triggerTicketId) {
+      return { ...row, triggerTicketDiagnostic: null };
+    }
+    try {
+      const ctx = await this.diagnosticContext.fromTicket(row.triggerTicketId);
+      return {
+        ...row,
+        triggerTicketDiagnostic: buildDiagnosticBrief(ctx),
+      };
+    } catch {
+      return { ...row, triggerTicketDiagnostic: null };
     }
   }
 

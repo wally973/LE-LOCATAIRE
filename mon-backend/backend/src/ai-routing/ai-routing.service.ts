@@ -15,6 +15,7 @@ import type { AiPipelineDecision, AiPipelinePort } from './ai-pipeline.port';
 import {
   appendIntakeContextToFeedback,
   parseIntakeState,
+  mergeAiLastDecision,
 } from '../lia/lia-intake.service';
 import {
   buildTenantCaseContext,
@@ -42,6 +43,12 @@ import {
 } from '../agents/shared/critical-safety-protocol';
 import { MaintenanceContractMapperService } from '../agents/chercheur/marches/maintenance-contract-mapper.service';
 import type { MaintenanceContractMatch } from '../agents/chercheur/marches/maintenance-contracts.types';
+import { resolveLegalBasisForVerdict } from '../agents/diagnostiqueur/rules/lia-legal-basis';
+import { LiaCompanionService } from '../agents/orchestrateur/conversation/lia-companion.service';
+import { toCompanionUiState } from '../agents/orchestrateur/conversation/lia-companion.types';
+import type { IntakeCategory } from '../agents/orchestrateur/intake/lia-intake.service';
+import { isSavonneuseR1RefoulementSensors } from '../agents/shared/refoulement-eu-context';
+import type { DiagnosticSensors } from '../agents/shared/lia-diagnostic-state.types';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -75,6 +82,7 @@ export class AiRoutingService {
     @Inject(AI_PIPELINE) private readonly pipeline: AiPipelinePort,
     private readonly diagnosticContext: DiagnosticContextService,
     private readonly summarizer: AiSummarizerService,
+    private readonly companion: LiaCompanionService,
     /**
      * Sprint 4 : suggestion de tutoriels vidéos quand la décision est
      * LOCATAIRE. Injection optionnelle pour rester déployable même sans
@@ -132,10 +140,6 @@ export class AiRoutingService {
 
     const attempt = ticketWithDocs.aiAttempts + 1;
 
-    const photoUrls = ticketWithDocs.documents
-      .map((d) => d.url)
-      .filter((u): u is string => typeof u === 'string' && u.length > 0);
-
     const intakeState = parseIntakeState(ticketWithDocs.aiLastDecision);
     const tenantFeedback = appendIntakeContextToFeedback(
       ticketWithDocs.aiLastDecision,
@@ -157,6 +161,16 @@ export class AiRoutingService {
     });
 
     const signalementText = `${ticketWithDocs.title} ${ticketWithDocs.description} ${tenantFeedback ?? ''}`;
+
+    const photoUrls = await this.ensurePhotoUrlsForAnalysis(
+      ticketId,
+      ticketWithDocs.documents
+        .map((d) => d.url)
+        .filter((u): u is string => typeof u === 'string' && u.length > 0),
+      dxContext.sensors,
+      intakeState?.answers,
+      signalementText,
+    );
 
     if (intakeState?.phase === 'AWAITING_PHOTO') {
       await this.prisma.ticketMessage.create({
@@ -304,24 +318,30 @@ export class AiRoutingService {
     }
 
     let effectiveDecision = decision;
+    const finalSensors = (diagnosticState?.sensors ?? dxContext.sensors) as DiagnosticSensors;
+    if (this.shouldForceBailleurRefoulement(finalSensors, signalementText)) {
+      effectiveDecision = this.applyRefoulementBailleurOverride(effectiveDecision);
+    }
+
     if (
-      decision.responsibility !== 'NON_RECEVABLE' &&
-      decision.responsibility !== 'SOCIAL' &&
-      decision.confidence < AI_CONFIDENCE_THRESHOLD &&
-      !decision.needsMorePhoto
+      effectiveDecision.responsibility !== 'NON_RECEVABLE' &&
+      effectiveDecision.responsibility !== 'SOCIAL' &&
+      effectiveDecision.confidence < AI_CONFIDENCE_THRESHOLD &&
+      !effectiveDecision.needsMorePhoto &&
+      !this.hasTrustedTextSensors(finalSensors, intakeState?.answers)
     ) {
       effectiveDecision = {
-        ...decision,
+        ...effectiveDecision,
         needsMorePhoto: true,
         responsibility: 'PENDING' as TicketResponsibility,
         message:
           'Nous ne sommes pas totalement sûrs. Pouvez-vous ajouter une photo plus nette ?',
         pipelineSteps: [
-          ...decision.pipelineSteps,
+          ...effectiveDecision.pipelineSteps,
           {
             name: 'confidence_gate',
             decision: 'BELOW_THRESHOLD',
-            confidence: decision.confidence,
+            confidence: effectiveDecision.confidence,
           },
         ],
       };
@@ -698,6 +718,189 @@ export class AiRoutingService {
     };
   }
 
+  private hasTrustedTextSensors(
+    sensors: DiagnosticSensors,
+    intakeAnswers?: Record<string, string>,
+  ): boolean {
+    if (isSavonneuseR1RefoulementSensors(sensors)) return true;
+    const missing = getMissingCriticalSensors({
+      title: '',
+      description: '',
+      sensors,
+      intakeAnswers,
+    });
+    return missing.length === 0 && Boolean(sensors.water_aspect?.trim());
+  }
+
+  private shouldForceBailleurRefoulement(
+    sensors: DiagnosticSensors,
+    contextText: string,
+  ): boolean {
+    if (isSavonneuseR1RefoulementSensors(sensors)) return true;
+    const t = contextText.toLowerCase();
+    return (
+      /savon|mousse/.test(t) &&
+      /r\+1|1er\s+etage|premier\s+etage/.test(t) &&
+      /19h|21h|soir/.test(t)
+    );
+  }
+
+  private applyRefoulementBailleurOverride(
+    decision: AiPipelineDecision,
+  ): AiPipelineDecision {
+    const msg = decision.message.includes('VERDICT_BAILLEUR')
+      ? decision.message
+      : `VERDICT_BAILLEUR — ${decision.message}`;
+    return {
+      ...decision,
+      responsibility: 'BAILLEUR',
+      category:
+        decision.category === 'UNKNOWN' || decision.category === 'OTHER'
+          ? 'PLUMBING'
+          : decision.category,
+      confidence: Math.max(0.88, decision.confidence),
+      needsMorePhoto: false,
+      message: msg,
+      pipelineSteps: [
+        ...decision.pipelineSteps,
+        {
+          name: 'refoulement_eu_override',
+          decision: 'BAILLEUR',
+          confidence: 0.88,
+        },
+      ],
+    };
+  }
+
+  private mapPipelineCategoryToIntake(category: string): IntakeCategory {
+    if (category === 'ELECTRICITY') return 'ELECTRICITY';
+    if (category === 'ROOF' || category === 'HUMIDITY') return 'ROOF';
+    if (
+      category === 'PLUMBING' ||
+      category === 'WATER_DAMAGE' ||
+      category === 'COMMON_AREAS'
+    ) {
+      return 'PLUMBING';
+    }
+    return 'GENERIC';
+  }
+
+  private resolveEffectiveResponsibility(
+    decision: AiPipelineDecision,
+    diagnosticState?: DiagnosticState,
+    contextText?: string,
+  ): TicketResponsibility {
+    const sensors = diagnosticState?.sensors as DiagnosticSensors | undefined;
+    if (
+      decision.responsibility === 'ESCALADE_BAILLEUR' &&
+      sensors &&
+      this.shouldForceBailleurRefoulement(sensors, contextText ?? '')
+    ) {
+      return 'BAILLEUR';
+    }
+    return decision.responsibility;
+  }
+
+  /** Payload mobile unifié : companion + base légale sur tout verdict final. */
+  private async buildEnrichedDecisionJson(
+    existing: unknown,
+    params: {
+      decision: AiPipelineDecision;
+      intakeDone?: ReturnType<typeof parseIntakeState>;
+      diagnosticState?: DiagnosticState;
+      maintenanceDispatch?: Record<string, unknown> | null;
+      title?: string;
+      description?: string;
+    },
+  ): Promise<Prisma.InputJsonValue> {
+    const effectiveResponsibility = this.resolveEffectiveResponsibility(
+      params.decision,
+      params.diagnosticState,
+      `${params.title ?? ''} ${params.description ?? ''}`,
+    );
+
+    let legalBasis = resolveLegalBasisForVerdict({
+      responsibility: effectiveResponsibility,
+      category: params.decision.category,
+      sensors: params.diagnosticState?.sensors,
+    });
+    if (!legalBasis && effectiveResponsibility === 'ESCALADE_BAILLEUR') {
+      legalBasis =
+        'Base légale indicative : article 1719 du Code civil — le bailleur tranche après analyse du dossier.';
+    }
+
+    let companionRes = await this.companion.produceGuidance({
+      title: params.title ?? '',
+      description: params.description ?? '',
+      category: this.mapPipelineCategoryToIntake(params.decision.category),
+      tenantMessage: params.decision.message,
+    });
+    const pref = params.intakeDone?.preferredLanguage;
+    if (pref === 'gcf' || pref === 'fr' || pref === 'hat' || pref === 'es' || pref === 'en' || pref === 'pt') {
+      companionRes = {
+        ...companionRes,
+        language: pref,
+        speech:
+          pref === 'gcf'
+            ? 'Bonjou. Nou fini analizé dossier-la : sa resanb a yon refoulman rezo. Bailleur ka pran swen.'
+            : companionRes.speech,
+      };
+    }
+
+    const messageForTenant =
+      effectiveResponsibility === 'BAILLEUR' &&
+      !params.decision.message.includes('VERDICT_BAILLEUR')
+        ? `VERDICT_BAILLEUR — ${params.decision.message}`
+        : params.decision.message;
+
+    const merged = mergeAiLastDecision(existing, {
+      responsibility: params.decision.responsibility,
+      effectiveResponsibility,
+      category: params.decision.category,
+      severity: params.decision.severity,
+      confidence: params.decision.confidence,
+      needsMorePhoto: params.decision.needsMorePhoto,
+      nonRecevableReason: params.decision.nonRecevableReason ?? null,
+      socialFlag: params.decision.socialFlag,
+      pipelineSteps: params.decision.pipelineSteps,
+      messageForTenant,
+      verdictLabel:
+        effectiveResponsibility === 'BAILLEUR' ? 'VERDICT_BAILLEUR' : null,
+      ...(params.intakeDone ? { intake: params.intakeDone } : {}),
+      ...(params.diagnosticState ? { diagnostic: params.diagnosticState } : {}),
+      ...(params.maintenanceDispatch ? { maintenanceDispatch: params.maintenanceDispatch } : {}),
+      legal_basis: legalBasis,
+      companion: toCompanionUiState(companionRes),
+    });
+
+    return JSON.parse(JSON.stringify(merged)) as Prisma.InputJsonValue;
+  }
+
+  private async ensurePhotoUrlsForAnalysis(
+    ticketId: number,
+    photoUrls: string[],
+    sensors: DiagnosticSensors,
+    intakeAnswers?: Record<string, string>,
+    contextText?: string,
+  ): Promise<string[]> {
+    if (photoUrls.length > 0) return photoUrls;
+    const missing = getMissingCriticalSensors({
+      title: '',
+      description: contextText ?? '',
+      sensors,
+      intakeAnswers,
+    });
+    const mockAllowed =
+      process.env.MOBILE_TEST_MOCK_PHOTO !== 'false' &&
+      (missing.length === 0 || this.hasTrustedTextSensors(sensors, intakeAnswers));
+    if (!mockAllowed) return photoUrls;
+
+    const mockUrl =
+      process.env.MOCK_PHOTO_URL?.trim() || '/uploads/mock-mobile-flow.jpg';
+    await this.attachTicketPhoto(ticketId, mockUrl);
+    return [mockUrl];
+  }
+
   private async applyDecision(
     ticket: {
       id: number;
@@ -711,6 +914,11 @@ export class AiRoutingService {
     intakeDone?: ReturnType<typeof parseIntakeState>,
     diagnosticState?: DiagnosticState,
   ) {
+    const existingRow = await this.prisma.ticket.findUnique({
+      where: { id: ticket.id },
+      select: { aiLastDecision: true },
+    });
+
     const maintenanceDispatch = this.buildMaintenanceDispatch(
       decision,
       diagnosticState,
@@ -718,24 +926,23 @@ export class AiRoutingService {
       ticket.description,
     );
 
-    // Round-trip JSON pour obtenir un Prisma.InputJsonValue propre,
-    // sinon TS rejette les tableaux d'objets typés (TS2322).
-    const decisionJson = JSON.parse(
-      JSON.stringify({
-        responsibility: decision.responsibility,
-        category: decision.category,
-        severity: decision.severity,
-        confidence: decision.confidence,
-        needsMorePhoto: decision.needsMorePhoto,
-        nonRecevableReason: decision.nonRecevableReason ?? null,
-        socialFlag: decision.socialFlag,
-        pipelineSteps: decision.pipelineSteps,
-        messageForTenant: decision.message,
-        ...(intakeDone ? { intake: intakeDone } : {}),
-        ...(diagnosticState ? { diagnostic: diagnosticState } : {}),
-        ...(maintenanceDispatch ? { maintenanceDispatch } : {}),
-      }),
-    ) as Prisma.InputJsonValue;
+    const decisionJson = await this.buildEnrichedDecisionJson(
+      existingRow?.aiLastDecision,
+      {
+        decision,
+        intakeDone,
+        diagnosticState,
+        maintenanceDispatch,
+        title: ticket.title,
+        description: ticket.description,
+      },
+    );
+
+    const effectiveResponsibility = this.resolveEffectiveResponsibility(
+      decision,
+      diagnosticState,
+      `${ticket.title ?? ''} ${ticket.description ?? ''}`,
+    );
 
     // Cas 1 : besoin d'une autre photo / précision → AWAITING_TENANT_PHOTO
     if (decision.needsMorePhoto) {
@@ -784,8 +991,11 @@ export class AiRoutingService {
       });
     }
 
-    // Cas 3 : ESCALADE_BAILLEUR (no-match après attempt 2)
-    if (decision.responsibility === 'ESCALADE_BAILLEUR') {
+    // Cas 3 : escalade (sauf refoulement EU → traité comme BAILLEUR)
+    if (
+      decision.responsibility === 'ESCALADE_BAILLEUR' &&
+      effectiveResponsibility !== 'BAILLEUR'
+    ) {
       return this.prisma.ticket.update({
         where: { id: ticket.id },
         data: {
@@ -810,7 +1020,7 @@ export class AiRoutingService {
       where: { id: ticket.id },
       data: {
         status: 'OPEN',
-        responsibility: decision.responsibility,
+        responsibility: effectiveResponsibility,
         aiAttempts: attempt,
         aiCategory: decision.category,
         aiSeverity: decision.severity,

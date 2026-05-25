@@ -54,6 +54,7 @@ function resolvePipelineMode(): 'stub' | 'lia' {
     LiaJuristService,
     AiPipelineStubAdapter,
     AiPipelineLiaAdapter,
+    AiSummarizerService,
     {
       provide: AI_PIPELINE,
       useFactory: (

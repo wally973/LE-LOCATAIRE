@@ -15,6 +15,12 @@ export function resolveLegalBasisForVerdict(params: {
     return null;
   }
   if (responsibility === 'PENDING' || responsibility === 'ESCALADE_BAILLEUR') {
+    if (sensors && isSavonneuseR1RefoulementSensors(sensors)) {
+      return (
+        'Base légale retenue : article 1719 du Code civil (grosses réparations et entretien des parties communes) ; ' +
+        'réseaux collectifs d’évacuation — charge du bailleur.'
+      );
+    }
     return null;
   }
 

@@ -1,15 +1,34 @@
 # LE LOCATAIRE — Notes de projet
 
 Document de synthèse regroupant les **résumés de fin de session** (assistant + développement backend).  
-Dernière mise à jour : **22 mai 2026** (milestone Savoir-Voir + marchés d'entretien).
+Dernière mise à jour : **22 mai 2026** — **V1 du cœur technique validée et testée**.
 
 **Manifeste produit / architecture IA** : voir [`MANIFESTE_FINAL.md`](MANIFESTE_FINAL.md) (rectification expert, Goals + SharedState, mapping stack réelle).
 
 ---
 
+## V1 DU CŒUR TECHNIQUE : VALIDÉE ET TESTÉE
+
+Le **moteur diagnostic** (Savoir-Voir + `DiagnosticContextService` + pipeline `ai-routing`) est **opérationnel** et **validé par test E2E mobile** (`npm run test:mobile-flow` — ticket **#42** au vert : `VERDICT_BAILLEUR`, champs Flutter `language`, `severity`, `sensors`, `legal_basis`, `avatar_action`).
+
+| Bloc | Statut |
+|------|--------|
+| Contexte unifié | `DiagnosticContextService` — capteurs, intake, phases Savoir-Voir |
+| Pipeline locataire | `ai-routing` + pathologiste + juriste + companion |
+| Services satellites | Ticket, Dispatch, Quality, Support, Social, Legal, Insurance, Photo — **tous branchés** sur le contexte (plus de stubs MVP parallèles) |
+| Volet social | `SocialCasesService` expose `triggerTicketDiagnostic` sur les fiches liées |
+| Marchés d'entretien | Mapping `leadingHypothesisId` → contrats (`090cb665`) |
+| Prochaine étape produit | **Carrosserie** : Avatar Lia + dashboards (référent, marchés, technicien) |
+
+**Commande de non-régression cœur** : backend `npm run start:dev` + `npm run test:mobile-flow` (compte démo seed).
+
+---
+
 ## Priorité en cours (22 mai 2026)
 
-**Avant toute évolution du dashboard référent** : reprendre et valider les **essais de l’écran de saisie** des réclamations sur l’**app mobile locataire** (`DescriptionScreen` → `MultiClaimScreen` → conversation Lia).
+**Carrosserie produit** (après cœur validé) : **Avatar Lia** (animations, `avatar_action`) et **dashboards** (référent AGENT, Service des Marchés, technicien).
+
+Les essais mobile de saisie restent utiles en non-régression (`test:mobile-flow`, checklist ci-dessous).
 
 ### Backlog noté (pas la priorité immédiate)
 
@@ -23,7 +42,7 @@ Dernière mise à jour : **22 mai 2026** (milestone Savoir-Voir + marchés d'ent
 | 2 | Deux sujets : *Fuite au WC et plus d’électricité dans la cuisine* | Écran **Plusieurs problèmes** (2 cartes) |
 | 3 | Après (2), ouvrir le 1er sujet puis revenir à l’accueil | Bandeau *Traiter le problème suivant* |
 | 4 | Compte sans logement actif | Message : contacter le bailleur |
-| 5 | Backend arrêté / mauvaise URL API | Message d’erreur lisible (pas écran bloqué) |
+| 5 | Backend + seed démo | `npm run start:dev` puis `npm run test:mobile-flow` (script client simulé) |
 
 **Compte démo** (si seed à jour) : `demo.locataire@lelocataire.test` / `DemoLocataire1!` — lancer backend + `flutter run` (Chrome ou téléphone sur le même Wi‑Fi, `config.dart` = IP du PC).
 

@@ -5,6 +5,7 @@ import { AiQualityService } from './ai-quality.service';
 import { AiLegalService } from './ai-legal.service';
 import { AiInsuranceService } from './ai-insurance.service';
 import { AiSupportService } from './ai-support.service';
+import { AiSocialService } from './ai-social.service';
 import { AiService } from './ai.service';
 import { AiPhotoService } from './ai-photo.service';
 import { AiController } from './ai.controller';
@@ -34,6 +35,7 @@ import { LegalReferencesModule } from '../legal-references/legal-references.modu
     AiLegalService,
     AiInsuranceService,
     AiSupportService,
+    AiSocialService,
   ],
   exports: [
     AiTicketService,
@@ -42,6 +44,7 @@ import { LegalReferencesModule } from '../legal-references/legal-references.modu
     AiLegalService,
     AiInsuranceService,
     AiSupportService,
+    AiSocialService,
     AiRoutingModule,
   ],
 })

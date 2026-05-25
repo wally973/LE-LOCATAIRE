@@ -18,6 +18,12 @@ import {
   extractDiagnosticSensors,
   isWaterOnFloorReport,
 } from '../../shared/lia-diagnostic-sensors';
+import { getMissingCriticalSensors } from '../../shared/critical-diagnostic-sensors';
+import {
+  INTAKE_LANGUAGE_ANSWER_ID,
+  isTenantLanguageGreeting,
+  resolveLanguageFromGreeting,
+} from '../../shared/lia-tenant-greeting';
 export type { LiaIntakeOrganizerState } from './lia-intake-organizer';
 
 /** Catégories dérivées du libellé initial (ex. PDF conversation). */
@@ -52,6 +58,8 @@ export interface LiaIntakeState {
   organizer?: LiaIntakeOrganizerState;
   intakeTitle?: string;
   intakeDescription?: string;
+  /** Langue choisie via salutation (Bonjou → gcf). */
+  preferredLanguage?: string;
 }
 
 export interface IntakeReactiveTurn {
@@ -696,9 +704,17 @@ export class LiaIntakeService {
   }
 
   recordAnswer(state: LiaIntakeState, answer: string): LiaIntakeState {
+    const trimmed = answer.trim();
+    if (isTenantLanguageGreeting(trimmed) && !state.answers[INTAKE_LANGUAGE_ANSWER_ID]) {
+      const language = resolveLanguageFromGreeting(trimmed);
+      return this.reconcileStepIndex({
+        ...state,
+        preferredLanguage: language,
+        answers: { ...state.answers, [INTAKE_LANGUAGE_ANSWER_ID]: trimmed },
+      });
+    }
     const q = this.getCurrentQuestion(state);
     if (!q) return state;
-    const trimmed = answer.trim();
     const answers = { ...state.answers, [q.id]: trimmed };
     let next: LiaIntakeState = { ...state, answers };
     if (isOrganizerQuestionId(q.id)) {
@@ -709,7 +725,22 @@ export class LiaIntakeService {
 
   /** Photo utile pour le diagnostic visuel (sauf cas purement administratif). */
   needsPhoto(state: LiaIntakeState): boolean {
-    return state.category !== 'GENERIC';
+    if (state.category === 'GENERIC') return false;
+    if (usesWaterOnFloorPath(state)) {
+      const ctx = `${state.intakeTitle ?? ''} ${state.intakeDescription ?? ''}`;
+      const sensors = extractDiagnosticSensors({
+        contextText: ctx,
+        intakeAnswers: state.answers,
+      });
+      const missing = getMissingCriticalSensors({
+        title: state.intakeTitle ?? '',
+        description: state.intakeDescription ?? '',
+        sensors,
+        intakeAnswers: state.answers,
+      });
+      if (missing.length === 0) return false;
+    }
+    return true;
   }
 
   markDone(state: LiaIntakeState): LiaIntakeState {

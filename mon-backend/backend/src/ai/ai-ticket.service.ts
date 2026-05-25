@@ -1,66 +1,52 @@
 import { Injectable } from '@nestjs/common';
+import { DiagnosticContextService } from '../agents/shared/diagnostic-context.service';
+import {
+  buildDiagnosticBrief,
+  resolveAiCategoryFromContext,
+  resolveSeverityFromContext,
+} from '../agents/shared/diagnostic-ticket-insights';
 
 @Injectable()
 export class AiTicketService {
-  constructor() {}
+  constructor(
+    private readonly diagnosticContext: DiagnosticContextService,
+  ) {}
 
   /**
-   * Analyse un ticket à partir du texte (description)
-   * Retourne une catégorie, une sévérité et un score de confiance
+   * Analyse texte hors ticket (pré-création) — capteurs + domaine Savoir-Voir.
+   * Le flux mobile complet passe par `ai-routing` après création du ticket.
    */
-  async analyze(description: string) {
-    if (!description || description.trim().length === 0) {
+  async analyze(description: string, opts?: { title?: string }) {
+    if (!description?.trim()) {
       return null;
     }
 
-    // --- IA SIMPLIFIÉE POUR MVP ---
-    // Ici tu peux brancher OpenAI, Gemini, Azure OpenAI, etc.
-    // Pour l’instant on fait une logique simple et propre.
-
-    const text = description.toLowerCase();
-
-    let category = 'OTHER';
-    let severity = 'LOW';
-    let confidence = 0.7;
-
-    if (text.includes('fuite') || text.includes('eau') || text.includes('plomberie')) {
-      category = 'PLUMBING';
-      severity = text.includes('urgence') || text.includes('inondation') ? 'HIGH' : 'MEDIUM';
-      confidence = 0.9;
-    }
-
-    if (text.includes('électricité') || text.includes('prise') || text.includes('court-circuit')) {
-      category = 'ELECTRICITY';
-      severity = text.includes('étincelle') || text.includes('brûle') ? 'HIGH' : 'MEDIUM';
-      confidence = 0.9;
-    }
-
-    if (text.includes('moisissure') || text.includes('humidité')) {
-      category = 'HUMIDITY';
-      severity = 'MEDIUM';
-      confidence = 0.85;
-    }
-
-    if (text.includes('porte') || text.includes('serrure') || text.includes('clé')) {
-      category = 'LOCK';
-      severity = 'LOW';
-      confidence = 0.8;
-    }
+    const ctx = this.diagnosticContext.fromParts({
+      ticketId: 0,
+      title: opts?.title ?? 'Analyse',
+      description,
+      aiLastDecision: null,
+    });
 
     return {
-      category,
-      severity,
-      confidence,
+      category: resolveAiCategoryFromContext(ctx),
+      severity: resolveSeverityFromContext(ctx),
+      confidence: ctx.diagnostic?.confidence ?? 0.78,
+      savoirVoirPhase: ctx.savoirVoirPhase,
+      sensors: ctx.sensors,
     };
   }
 
+  /** Analyse alignée sur le ticket persisté (intake + `aiLastDecision`). */
+  async analyzeForTicket(ticketId: number) {
+    const ctx = await this.diagnosticContext.fromTicket(ticketId);
+    return buildDiagnosticBrief(ctx);
+  }
+
   /**
-   * Analyse d’une photo en mémoire (optionnel)
-   * Tu peux l’activer plus tard si tu veux
+   * Photo en buffer : non utilisé — vision via `AiPhotoService` / pathologiste.
    */
-  async analyzeFromBuffer(buffer: Buffer) {
-    // Pour l’instant, on ne fait rien avec les photos
-    // Tu pourras brancher une IA vision plus tard
+  async analyzeFromBuffer(_buffer: Buffer) {
     return null;
   }
 }

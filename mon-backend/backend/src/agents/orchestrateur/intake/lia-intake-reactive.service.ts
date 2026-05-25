@@ -10,6 +10,11 @@ import {
 } from './lia-intake.service';
 import { syncOrganizerFromContext } from './lia-intake-organizer';
 import { isSkipPhotoIntent } from '../conversation/lia-agent-intents';
+import {
+  INTAKE_LANGUAGE_ANSWER_ID,
+  isTenantLanguageGreeting,
+  resolveLanguageFromGreeting,
+} from '../../shared/lia-tenant-greeting';
 
 /**
  * Intake réactif — analyse chaque réponse locataire avant la question suivante.
@@ -56,6 +61,28 @@ export class LiaIntakeReactiveService {
           'Pas de souci : votre téléphone ne permet pas d’envoyer de photo. ' +
           'Je lance l’analyse avec votre description et vos réponses.',
         nextQuestionText: null,
+      };
+    }
+
+    if (isTenantLanguageGreeting(msg) && !params.state.answers[INTAKE_LANGUAGE_ANSWER_ID]) {
+      const language = resolveLanguageFromGreeting(msg);
+      let state: LiaIntakeState = {
+        ...params.state,
+        preferredLanguage: language,
+        answers: {
+          ...params.state.answers,
+          [INTAKE_LANGUAGE_ANSWER_ID]: msg,
+        },
+      };
+      state = this.intake.reconcileStepIndex(state);
+      const next = this.intake.getCurrentQuestion(state);
+      return {
+        state,
+        acknowledgment:
+          language === 'gcf'
+            ? 'Bonjou ! Mo ka koz ar ou an kréyòl. Di mwen kisa ki rive — mo pral poze kèk kesyon.'
+            : 'Bonjour ! Je vous réponds en français. Décrivez ce qui se passe, je vais vous poser quelques questions.',
+        nextQuestionText: state.phase === 'INTAKE' && next ? next.text : null,
       };
     }
 

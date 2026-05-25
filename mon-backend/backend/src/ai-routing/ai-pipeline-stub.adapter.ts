@@ -149,9 +149,9 @@ export class AiPipelineStubAdapter implements AiPipelinePort {
       {
         category: 'PLUMBING',
         severity: 'MEDIUM',
-        keywords: ['fuite', 'plomberie', 'robinet', 'tuyau', 'wc', 'toilette'],
+        keywords: ['fuite', 'plomberie', 'robinet', 'tuyau', 'wc', 'toilette', 'savon', 'savonneuse', 'mousse', 'eau au sol', 'flaque'],
         severityBoost: ['inondation', 'urgence', 'éclat'],
-        bailleurHints: ['canalisation', 'colonne'],
+        bailleurHints: ['canalisation', 'colonne', 'savonneuse', 'refoulement', 'parties communes'],
         artisanType: 'PLUMBER',
       },
       {

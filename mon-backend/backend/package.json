@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:legal": "ts-node scripts/seed-legal-references.ts",
-    "sync:legal-assets": "ts-node scripts/sync-legal-references-assets.ts"
+    "sync:legal-assets": "ts-node scripts/sync-legal-references-assets.ts",
+    "test:mobile-flow": "ts-node scripts/test-mobile-full-flow.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

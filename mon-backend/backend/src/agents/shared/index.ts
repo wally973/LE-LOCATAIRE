@@ -9,6 +9,14 @@ export {
 } from './diagnostic-context.service';
 export { AgentsSharedModule } from './agents-shared.module';
 export {
+  resolveAiCategoryFromContext,
+  resolveSeverityFromContext,
+  classifySocialRiskFromText,
+  buildDiagnosticBrief,
+  type SocialRiskAssessment,
+  type TicketSeverity,
+} from './diagnostic-ticket-insights';
+export {
   isSavonneuseR1RefoulementSensors,
   INSURANCE_REFOULEMENT_EU_NOTE,
   LEGAL_REFOULEMENT_EU_SUMMARY,

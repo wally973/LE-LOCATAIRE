@@ -1,15 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { DiagnosticContextService } from '../agents/shared/diagnostic-context.service';
+import { buildDiagnosticBrief } from '../agents/shared/diagnostic-ticket-insights';
 
 @Injectable()
 export class AiQualityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly diagnosticContext: DiagnosticContextService,
+  ) {}
 
   async analyzeBeforeAfter(beforeUrl: string, afterUrl: string) {
     return {
       qualityScore: 0.9,
       isResolved: true,
       comments: 'La réparation semble correcte, aucune anomalie visible.',
+      beforeUrl,
+      afterUrl,
     };
   }
 
@@ -21,18 +28,20 @@ export class AiQualityService {
           include: {
             housing: true,
             tenant: true,
-            documents: true, // les photos sont dans Document
+            documents: true,
           },
         },
-        artisan: true, // User
+        artisan: true,
       },
     });
 
-    if (!slot || !slot.ticket) {
+    if (!slot?.ticket) {
       return null;
     }
 
-    // Les photos sont dans Document (type = RAPPORT_INTERVENTION ?)
+    const ctx = await this.diagnosticContext.fromTicket(slot.ticket.id);
+    const diagnosticBrief = buildDiagnosticBrief(ctx);
+
     const photos = slot.ticket.documents ?? [];
     const beforePhoto = photos[0]?.url ?? null;
     const afterPhoto = photos[1]?.url ?? null;
@@ -56,6 +65,7 @@ export class AiQualityService {
       startedAt: slot.startDate,
       endedAt: slot.endDate,
       quality,
+      diagnostic: diagnosticBrief,
     };
   }
 }

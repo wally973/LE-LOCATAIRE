@@ -102,8 +102,8 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
     }
     final interval =
         bootstrap ? const Duration(seconds: 2) : const Duration(seconds: 4);
-    final maxPolls = bootstrap ? 20 : 8;
-    final minMessages = bootstrap ? 2 : 5;
+    final maxPolls = bootstrap ? 25 : 8;
+    final minMessages = bootstrap ? 1 : 5;
     _intakePollTimer = Timer.periodic(interval, (_) {
       _intakePollCount++;
       if (_intakePollCount > maxPolls) {
@@ -435,8 +435,11 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
                               ),
                             if (companion != null)
                               CompanionSafetyBanner(companion: companion),
-                            if (_needsBootstrapMessages && !analyzing)
-                              _BootstrapBanner(endpoint: getApiEndpoint()),
+                                            if (_needsBootstrapMessages && !analyzing)
+                              _BootstrapBanner(
+                                endpoint: getApiEndpoint(),
+                                pollCount: _intakePollCount,
+                              ),
                             if (analyzing) _AnalyzingBanner(),
                             if (showDiagnostic && !analyzing)
                               _DiagnosticResultBanner(ticket: _ticket!),
@@ -855,8 +858,12 @@ class _DiagnosticResultBanner extends StatelessWidget {
 
 class _BootstrapBanner extends StatelessWidget {
   final String endpoint;
+  final int pollCount;
 
-  const _BootstrapBanner({required this.endpoint});
+  const _BootstrapBanner({
+    required this.endpoint,
+    this.pollCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -877,7 +884,11 @@ class _BootstrapBanner extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Lia prépare votre conversation…\nServeur : $endpoint',
+                pollCount > 12
+                    ? 'Lia met un peu plus de temps que prévu…\n'
+                        'Vérifiez que le backend tourne et que le Wi-Fi est le même.\n'
+                        'Serveur : $endpoint'
+                    : 'Lia prépare votre conversation…\nServeur : $endpoint',
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.blue.shade900,

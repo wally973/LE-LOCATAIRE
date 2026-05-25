@@ -26,6 +26,15 @@ describe('lia-tenant-language', () => {
     ).toBe('fr');
   });
 
+  it('ne bascule pas en créole pour « fuite sous le lavabo » en français', () => {
+    expect(
+      detectLanguageFromTenantText(
+        'Plomberie',
+        'fuite sous le lavabo depuis mon emménagement, pouvez-vous envoyer un plombier',
+      ),
+    ).toBe('fr');
+  });
+
   it('Bonjou seul → gcf', () => {
     expect(resolveLanguageFromGreeting('Bonjou')).toBe('gcf');
   });

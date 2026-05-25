@@ -117,13 +117,20 @@ export function applyJarvis360ToState(
   description: string,
   message = '',
 ): LiaIntakeState {
-  const lang = detectLanguageFromTenantText(
-    title,
-    description,
-    message,
-    state.intakeTitle,
-    state.intakeDescription,
-  );
+  const lang = message.trim()
+    ? detectLanguageFromTenantText(
+        message,
+        title,
+        description,
+        state.intakeTitle,
+        state.intakeDescription,
+      )
+    : detectLanguageFromTenantText(
+        title,
+        description,
+        state.intakeTitle,
+        state.intakeDescription,
+      );
   let next: LiaIntakeState = {
     ...state,
     intakeMode: 'jarvis',

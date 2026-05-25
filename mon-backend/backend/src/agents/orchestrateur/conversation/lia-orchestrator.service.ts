@@ -88,7 +88,14 @@ export class LiaOrchestratorService {
 
     await this.sharedState.seedInitialState(ticketId, intakeState, 'OPEN');
 
-    await this.agent.react(ticketId, tenantUserId, 'TICKET_OPENED');
+    // Réponse HTTP rapide : l’agent complète le fil en arrière-plan (évite le spinner mobile).
+    setImmediate(() => {
+      void this.agent
+        .react(ticketId, tenantUserId, 'TICKET_OPENED')
+        .catch((e) =>
+          this.logger.error(`Agent TICKET_OPENED #${ticketId}`, e),
+        );
+    });
 
     setImmediate(() => {
       void this.notifications
@@ -110,7 +117,11 @@ export class LiaOrchestratorService {
         .catch((e) => this.logger.warn('Notification accueil Lia', e));
     });
 
-    return this.conversation.listMessages(ticketId, tenantUserId, 'LOCATAIRE');
+    return this.conversation.listMessages(
+      ticketId,
+      tenantUserId,
+      'LOCATAIRE',
+    );
   }
 
   /**

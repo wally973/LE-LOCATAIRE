@@ -1,15 +1,23 @@
 import 'package:flutter/foundation.dart';
 
-/// PC / simulateur iOS sur la même machine que le backend.
-const String apiLocal = 'http://localhost:3000';
-/// Émulateur Android (localhost du PC = 10.0.2.2).
-const String apiEmulator = 'http://10.0.2.2:3000';
-/// Téléphone physique : IP du PC serveur sur le Wi-Fi local.
-const String apiPhone = 'http://192.168.1.16:3000';
+/// IP du PC sur le Wi-Fi — surcharge : --dart-define=API_HOST=192.168.x.x
+const String _apiHost = String.fromEnvironment(
+  'API_HOST',
+  defaultValue: '192.168.1.16',
+);
 
-/// Téléphone Android physique sur le Wi-Fi : `flutter run --dart-define=USE_PHONE_API=true`
-const bool usePhoneApi =
-    bool.fromEnvironment('USE_PHONE_API', defaultValue: false);
+/// PC / simulateur iOS sur la même machine que le backend.
+String get apiLocal => 'http://localhost:3000';
+
+/// Émulateur Android (localhost du PC = 10.0.2.2).
+String get apiEmulator => 'http://10.0.2.2:3000';
+
+/// Téléphone physique ou iPhone sur le même Wi-Fi que le PC.
+String get apiPhone => 'http://$_apiHost:3000';
+
+/// Émulateur Android uniquement : --dart-define=USE_EMULATOR_API=true
+const bool useEmulatorApi =
+    bool.fromEnvironment('USE_EMULATOR_API', defaultValue: false);
 
 enum DeviceEnvironment {
   android,
@@ -43,8 +51,8 @@ String getApiEndpoint() {
   final environment = getDeviceEnvironment();
 
   if (environment == DeviceEnvironment.android) {
-    // Émulateur par défaut (10.0.2.2) — évite les blocages sur 192.168.x.x
-    return usePhoneApi ? apiPhone : apiEmulator;
+    // Téléphone physique par défaut ; émulateur avec USE_EMULATOR_API=true
+    return useEmulatorApi ? apiEmulator : apiPhone;
   }
 
   if (environment == DeviceEnvironment.windows ||
@@ -54,7 +62,6 @@ String getApiEndpoint() {
   }
 
   if (environment == DeviceEnvironment.ios) {
-    // iPhone physique : même Wi-Fi que le PC serveur.
     return apiPhone;
   }
 

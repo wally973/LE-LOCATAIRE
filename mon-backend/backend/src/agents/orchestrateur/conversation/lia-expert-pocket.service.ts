@@ -42,22 +42,19 @@ export class LiaExpertPocketService {
     description: string,
     state?: LiaIntakeState,
   ): CompanionLanguage {
-    if (state?.preferredLanguage === 'gcf' || state?.preferredLanguage === 'fr') {
-      const fromMsg = detectLanguageFromTenantText(
+    if (message.trim()) {
+      return detectLanguageFromTenantText(
         message,
         title,
         description,
-        state.intakeTitle,
-        state.intakeDescription,
+        state?.intakeTitle,
+        state?.intakeDescription,
       );
-      if (fromMsg === 'gcf') return 'gcf';
-      return state.preferredLanguage as CompanionLanguage;
     }
     if (isTenantLanguageGreeting(message)) {
       return resolveLanguageFromGreeting(message);
     }
     return detectLanguageFromTenantText(
-      message,
       title,
       description,
       state?.intakeTitle,

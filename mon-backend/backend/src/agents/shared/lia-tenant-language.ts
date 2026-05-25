@@ -7,8 +7,13 @@ function norm(raw: string): string {
     .replace(/\p{M}/gu, '');
 }
 
-const GCF_MARKERS =
-  /\b(bonjou|bonswa|alo|mwen|nou|dlo|lavabo|bokit|anba|antre|koule|ap koule|fe vit|fè vit|pase|kay|plomb|teknisyen|bailleur)\b/gi;
+/** Mots / tournures clairement kréyòl (pas « lavabo » ou « plomb » partagés avec le français). */
+const STRONG_GCF =
+  /\b(bonjou|bonswa|alo|mwen|nou|dlo|bokit|anba|antre|koule|ap koule|fe vit|f[eè] vit|yon |mo ka|m ka|pou mwen|pou nou|ki kote|ki sa|ki jan|touswit|anpil)\b/gi;
+
+/** Français standard du locataire (signalement rédigé en français). */
+const FRENCH_DOMINANT =
+  /\b(je |j'|vous |nous |mon |ma |mes |le |la |les |des |du |de la |sous |depuis |chez |merci|bonjour|bonsoir|fuite|évier|evier|lavabo|emménag|plombier|pouvez|envoyer|constat|problème|probleme)\b/gi;
 
 /** Salutation seule — choix de langue, pas réponse intake technique. */
 export function isTenantLanguageGreeting(message: string): boolean {
@@ -28,7 +33,7 @@ export function resolveLanguageFromGreeting(message: string): CompanionLanguage 
 }
 
 /**
- * Miroir linguistique — détecte le créole sur tout le fil (pas seulement Bonjou).
+ * Miroir linguistique — créole seulement si le texte l’indique clairement (pas un faux positif sur « lavabo »).
  */
 export function detectLanguageFromTenantText(
   ...parts: (string | undefined)[]
@@ -40,12 +45,13 @@ export function detectLanguageFromTenantText(
     return resolveLanguageFromGreeting(t);
   }
 
-  const matches = t.match(GCF_MARKERS);
-  const gcfScore = matches?.length ?? 0;
-  if (gcfScore >= 2) return 'gcf';
-  if (gcfScore >= 1 && /(mwen|dlo|lavabo|bokit|anba|ap koule)/.test(t)) {
-    return 'gcf';
-  }
+  const strongGcf = (t.match(STRONG_GCF) ?? []).length;
+  const frenchHits = (t.match(FRENCH_DOMINANT) ?? []).length;
+
+  if (strongGcf >= 2) return 'gcf';
+  if (strongGcf >= 1 && frenchHits === 0) return 'gcf';
+  if (frenchHits >= 2 && strongGcf === 0) return 'fr';
+  if (frenchHits >= 1 && strongGcf === 0) return 'fr';
 
   return 'fr';
 }

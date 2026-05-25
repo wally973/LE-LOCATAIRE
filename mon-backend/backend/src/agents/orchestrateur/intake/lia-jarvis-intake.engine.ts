@@ -21,6 +21,7 @@ import {
 } from './lia-intake-plumbing-extract';
 import type { IntakeCategory, LiaIntakeState } from './lia-intake.service';
 import { ORG_QUESTION_PREFIX } from './lia-intake-organizer';
+import { detectLanguageFromTenantText } from '../../shared/lia-tenant-language';
 
 export type JarvisDialogueIntent =
   | 'greeting'
@@ -116,9 +117,17 @@ export function applyJarvis360ToState(
   description: string,
   message = '',
 ): LiaIntakeState {
+  const lang = detectLanguageFromTenantText(
+    title,
+    description,
+    message,
+    state.intakeTitle,
+    state.intakeDescription,
+  );
   let next: LiaIntakeState = {
     ...state,
     intakeMode: 'jarvis',
+    preferredLanguage: lang,
     jarvisFacts: { ...(state.jarvisFacts ?? {}) },
   };
 

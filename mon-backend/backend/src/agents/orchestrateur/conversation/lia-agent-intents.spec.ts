@@ -13,6 +13,10 @@ describe('isSkipPhotoIntent', () => {
     expect(isSkipPhotoIntent('je continue sans photo')).toBe(true);
   });
 
+  it('détecte appareil photo en panne', () => {
+    expect(isSkipPhotoIntent('mon appareil photo ne fonctionne pas')).toBe(true);
+  });
+
   it('ne déclenche pas sur une simple question métier', () => {
     expect(isSkipPhotoIntent('l interrupteur ne marche pas')).toBe(false);
   });

@@ -3,8 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { TicketMessageRole } from '@prisma/client';
+import { Prisma, TicketMessageRole } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import type { LiaMessageUiStatus } from './lia-message-ui-status';
 
 @Injectable()
 export class LiaConversationService {
@@ -23,9 +24,13 @@ export class LiaConversationService {
     role: TicketMessageRole,
     content: string,
     locale = 'fr-FR',
+    metadata?: { uiStatus?: LiaMessageUiStatus },
   ) {
+    const meta: Prisma.InputJsonValue | undefined = metadata?.uiStatus
+      ? ({ uiStatus: metadata.uiStatus } as Prisma.InputJsonValue)
+      : undefined;
     return this.prisma.ticketMessage.create({
-      data: { ticketId, role, content, locale },
+      data: { ticketId, role, content, locale, metadata: meta },
     });
   }
 

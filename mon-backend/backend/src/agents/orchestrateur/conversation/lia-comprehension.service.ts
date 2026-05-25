@@ -6,6 +6,7 @@ import {
 } from '../intake/lia-intake.service';
 import { LiaIntakeReactiveService } from '../intake/lia-intake-reactive.service';
 import { LiaConversationService } from './lia-conversation.service';
+import { LiaExpertPocketService } from './lia-expert-pocket.service';
 import { categoryLabel } from '../../chercheur/knowledge/lia-multi-claim';
 import { isConfirmedTopicChange } from '../intake/lia-jarvis-intake.engine';
 
@@ -54,12 +55,31 @@ export class LiaComprehensionService {
     description: string,
     state: LiaIntakeState,
   ): Promise<void> {
+    if (state.answers.situation_analysis_sent === 'oui') {
+      return;
+    }
     const lines = this.situationAnalysisLines(
       firstName,
       title,
       description,
       state,
     );
+    const opening = this.expertPocket.buildOpeningAck({
+      tenantFirstName: firstName,
+      title,
+      description,
+      state,
+    });
+    if (opening) {
+      await this.conversation.appendMessage(
+        ticketId,
+        'LIA_HOST',
+        opening.text,
+        opening.language === 'gcf' ? 'gcf-GP' : 'fr-FR',
+        { uiStatus: opening.uiStatus },
+      );
+      return;
+    }
     if (lines.length === 0) return;
     await this.conversation.appendMessage(
       ticketId,

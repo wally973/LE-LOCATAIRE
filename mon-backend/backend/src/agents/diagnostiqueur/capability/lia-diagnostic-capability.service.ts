@@ -5,6 +5,8 @@ import { FeatureFlagsService } from '../../../feature-flags/feature-flags.servic
 import { LiaConversationService } from '../../orchestrateur/conversation/lia-conversation.service';
 import { LiaResearchService } from '../../chercheur/research/lia-research.service';
 import { isExpertValidated } from '../briefing/lia-expert-rectification.types';
+import { parseIntakeState } from '../../orchestrateur/intake/lia-intake.service';
+import { uiStatusForResponsibility } from '../../orchestrateur/conversation/lia-message-ui-status';
 
 /**
  * Capacité « diagnostic » — pathologiste + juriste (pipeline existant).
@@ -84,7 +86,19 @@ export class LiaDiagnosticCapabilityService {
         orderBy: { createdAt: 'desc' },
       });
       if (lastHost?.content.trim() !== finalText.trim()) {
-        await this.conversation.appendMessage(ticketId, 'LIA_HOST', finalText);
+        const intake = parseIntakeState(updated.aiLastDecision);
+        const lang = intake?.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
+        const uiStatus = uiStatusForResponsibility(
+          updated.responsibility,
+          lang,
+        );
+        await this.conversation.appendMessage(
+          ticketId,
+          'LIA_HOST',
+          finalText,
+          lang === 'gcf' ? 'gcf-GP' : 'fr-FR',
+          uiStatus ? { uiStatus } : undefined,
+        );
       }
     } catch (e) {
       this.logger.error(`Diagnostic ticket #${ticketId}`, e);

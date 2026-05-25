@@ -6,6 +6,7 @@ import '../models/companion_state.dart';
 import '../models/tenant_artisan_offer.dart';
 import '../models/qualification_settings.dart';
 import '../models/ticket_message.dart';
+import '../models/lia_message_ui_status.dart';
 import '../widgets/companion_safety_banner.dart';
 import '../services/tenant_service.dart';
 import '../services/ticket_flow_service.dart';
@@ -250,14 +251,14 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
     );
   }
 
-  Future<void> _addPhoto() async {
+  Future<void> _addPhoto({ImageSource? source}) async {
     if (_uploadingPhoto) return;
 
-    final source = await _pickPhotoSource();
-    if (source == null) return;
+    final resolved = source ?? await _pickPhotoSource();
+    if (resolved == null) return;
 
     final picked = await ImagePicker().pickImage(
-      source: source,
+      source: resolved,
       imageQuality: 85,
     );
     if (picked == null) return;
@@ -520,7 +521,8 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
                 uploading: _uploadingPhoto,
                 sending: _sending,
                 canSkipPhoto: canSkipPhoto,
-                onPhoto: _addPhoto,
+                onGallery: () => _addPhoto(source: ImageSource.gallery),
+                onCamera: () => _addPhoto(source: ImageSource.camera),
                 onSkip: _skipPhoto,
               ),
             if (!followUpClosed)
@@ -529,7 +531,7 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
                 sending: _sending,
                 onSend: _send,
                 showPhotoButton: showPhotoActions,
-                onPhoto: _uploadingPhoto ? null : _addPhoto,
+                onPhoto: _uploadingPhoto ? null : () => _addPhoto(),
               ),
           ],
         ),
@@ -601,7 +603,8 @@ class _PhotoActionPanel extends StatelessWidget {
   final bool uploading;
   final bool sending;
   final bool canSkipPhoto;
-  final VoidCallback onPhoto;
+  final VoidCallback onGallery;
+  final VoidCallback onCamera;
   final VoidCallback onSkip;
 
   const _PhotoActionPanel({
@@ -610,7 +613,8 @@ class _PhotoActionPanel extends StatelessWidget {
     required this.uploading,
     required this.sending,
     required this.canSkipPhoto,
-    required this.onPhoto,
+    required this.onGallery,
+    required this.onCamera,
     required this.onSkip,
   });
 
@@ -643,21 +647,39 @@ class _PhotoActionPanel extends StatelessWidget {
                     ),
                   ),
             ],
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: uploading ? null : onPhoto,
-              icon: uploading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.camera_alt_outlined),
-              label: Text(uploading ? 'Envoi en cours…' : 'Prendre une photo'),
+            const SizedBox(height: 4),
+            Text(
+              'Sur émulateur ou sans appareil photo : utilisez la galerie.',
+              style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
             ),
+            const SizedBox(height: 8),
+            if (uploading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onGallery,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: const Text('Galerie'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onCamera,
+                      icon: const Icon(Icons.camera_alt_outlined),
+                      label: const Text('Caméra'),
+                    ),
+                  ),
+                ],
+              ),
             if (canSkipPhoto)
               TextButton(
                 onPressed: sending ? null : onSkip,
@@ -972,6 +994,77 @@ class _MessageBubble extends StatelessWidget {
                 height: 1.35,
               ),
             ),
+            if (!isTenant && message.uiStatus != null)
+              _LiaStatusChip(status: message.uiStatus!),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LiaStatusChip extends StatelessWidget {
+  final LiaMessageUiStatus status;
+
+  const _LiaStatusChip({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = status.tone;
+    final Color bg;
+    final Color fg;
+    final IconData icon;
+    switch (tone) {
+      case 'success':
+        bg = Colors.green.shade50;
+        fg = Colors.green.shade900;
+        icon = Icons.check_circle_outline;
+        break;
+      case 'warning':
+        bg = Colors.orange.shade50;
+        fg = Colors.orange.shade900;
+        icon = Icons.warning_amber_outlined;
+        break;
+      default:
+        bg = Colors.blue.shade50;
+        fg = Colors.blue.shade900;
+        icon = Icons.info_outline;
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: fg.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: fg),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    status.label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: fg,
+                    ),
+                  ),
+                  if (status.detail != null && status.detail!.trim().isNotEmpty)
+                    Text(
+                      status.detail!,
+                      style: TextStyle(fontSize: 11, color: fg, height: 1.25),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -1002,9 +1095,9 @@ class _MessageComposer extends StatelessWidget {
         children: [
           if (showPhotoButton)
             IconButton(
-              tooltip: 'Prendre une photo',
+              tooltip: 'Photo (galerie ou caméra)',
               onPressed: onPhoto,
-              icon: const Icon(Icons.camera_alt_outlined),
+              icon: const Icon(Icons.add_photo_alternate_outlined),
             ),
           Expanded(
             child: TextField(

@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LiaHostService } from '../conversation/lia-host.service';
+import { LiaExpertPocketService } from '../conversation/lia-expert-pocket.service';
+import { analyzingStatus } from '../conversation/lia-message-ui-status';
 import {
   getIntakeQuestionsForState,
   isLightingOnlyScope,
@@ -27,7 +29,6 @@ import {
   isJarvisReadyForImmediateVerdict,
   parseTopicChangeConfirmation,
 } from './lia-jarvis-intake.engine';
-import { categoryLabel } from '../../chercheur/knowledge/lia-multi-claim';
 
 /**
  * Intake réactif mode Jarvis — extraction 360°, dialogue naturel, questions critiques uniquement.
@@ -39,6 +40,7 @@ export class LiaIntakeReactiveService {
   constructor(
     private readonly intake: LiaIntakeService,
     private readonly host: LiaHostService,
+    private readonly expertPocket: LiaExpertPocketService,
   ) {}
 
   async processTenantReply(params: {
@@ -58,8 +60,9 @@ export class LiaIntakeReactiveService {
     }
 
     if (
-      params.state.phase === 'AWAITING_PHOTO' &&
-      isSkipPhotoIntent(msg)
+      isSkipPhotoIntent(msg) &&
+      (params.state.phase === 'AWAITING_PHOTO' ||
+        params.state.phase === 'INTAKE')
     ) {
       const done = this.intake.markDone({
         ...params.state,
@@ -68,12 +71,22 @@ export class LiaIntakeReactiveService {
           photo_unavailable: msg,
         },
       });
-      return {
+      const pocket = await this.expertPocket.buildReply({
+        tenantFirstName: params.tenantFirstName,
+        title: params.title,
+        description: params.description,
+        message: msg,
         state: done,
-        acknowledgment:
-          'Pas de souci : votre téléphone ne permet pas d’envoyer de photo. ' +
-          'Je lance l’analyse avec votre description et vos réponses.',
+      });
+      const lang = pocket.language === 'gcf' ? 'gcf' : 'fr';
+      return {
+        state: { ...done, preferredLanguage: pocket.language },
+        acknowledgment: pocket.text,
         nextQuestionText: null,
+        uiStatus:
+          done.phase === 'DONE'
+            ? analyzingStatus(lang)
+            : pocket.uiStatus,
       };
     }
 
@@ -219,10 +232,19 @@ export class LiaIntakeReactiveService {
       state = this.intake.reconcileStepIndex(state);
     }
 
+    let uiStatus = undefined as IntakeReactiveTurn['uiStatus'];
+
     if (!acknowledgment) {
-      acknowledgment =
-        llm?.acknowledgment ??
-        this.buildJarvisAcknowledgment(state, msg, params.tenantFirstName);
+      const pocket = await this.expertPocket.buildReply({
+        tenantFirstName: params.tenantFirstName,
+        title: params.title,
+        description: params.description,
+        message: msg,
+        state,
+      });
+      state = { ...state, preferredLanguage: pocket.language };
+      acknowledgment = llm?.acknowledgment ?? pocket.text;
+      uiStatus = pocket.uiStatus;
     }
 
     if (
@@ -237,14 +259,9 @@ export class LiaIntakeReactiveService {
       });
     }
 
-    if (
-      isJarvisReadyForImmediateVerdict(state) &&
-      state.phase === 'DONE' &&
-      !acknowledgment
-    ) {
-      const label = categoryLabel(state.category);
-      acknowledgment =
-        `${params.tenantFirstName?.trim() || 'Merci'} — j’ai assez d’éléments sur votre ${label.toLowerCase()} pour lancer l’analyse tout de suite.`;
+    if (state.phase === 'DONE' && !uiStatus) {
+      const lang = state.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
+      uiStatus = analyzingStatus(lang);
     }
 
     const next = this.intake.getCurrentQuestion(state);
@@ -255,7 +272,7 @@ export class LiaIntakeReactiveService {
       nextQuestionText = this.intake.photoRequestMessage(state);
     }
 
-    return { state, acknowledgment, nextQuestionText };
+    return { state, acknowledgment, nextQuestionText, uiStatus };
   }
 
   private buildJarvisAcknowledgment(

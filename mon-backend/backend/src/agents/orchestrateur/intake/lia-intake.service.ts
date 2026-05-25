@@ -86,6 +86,8 @@ export interface IntakeReactiveTurn {
   acknowledgment: string | null;
   /** Prochaine question à poser, ou null si photo / analyse. */
   nextQuestionText: string | null;
+  /** Statut affiché sous ce message Lia (synchronisé avec la parole). */
+  uiStatus?: import('../conversation/lia-message-ui-status').LiaMessageUiStatus;
 }
 
 export const INTAKE_QUESTIONS: Record<IntakeCategory, IntakeQuestion[]> = {

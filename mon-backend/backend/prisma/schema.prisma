@@ -889,6 +889,8 @@ model TicketMessage {
   role      TicketMessageRole
   content   String
   locale    String            @default("fr-FR")
+  /// Statut UI sous le message Lia (synchronisé avec l’action annoncée).
+  metadata  Json?
   createdAt DateTime          @default(now())
   ticket    Ticket            @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 

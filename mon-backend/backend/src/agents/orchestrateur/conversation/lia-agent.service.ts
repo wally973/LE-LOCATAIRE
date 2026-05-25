@@ -39,6 +39,8 @@ import {
   getMissingCriticalSensors,
 } from '../../shared/critical-diagnostic-sensors';
 import { detectSocialSignal } from '../../shared/social-signal-detection';
+import { isJarvisReadyForImmediateVerdict } from '../intake/lia-jarvis-intake.engine';
+import { analyzingStatus, uiStatusForResponsibility } from './lia-message-ui-status';
 
 /**
  * Agent LIA autonome — choisit le prochain objectif depuis le SharedState (réactif).
@@ -107,6 +109,14 @@ export class LiaAgentService {
     if (trigger === 'TENANT_MESSAGE' && msg) {
       if (state.intake?.answers.topic_change_confirmed === 'oui') {
         return 'ISOLATE_WRONG_TOPIC';
+      }
+      if (
+        state.intake &&
+        isSkipPhotoIntent(msg) &&
+        (state.intake.phase === 'INTAKE' ||
+          state.intake.phase === 'AWAITING_PHOTO')
+      ) {
+        return 'COLLECT_MISSING_FACTS';
       }
       if (isDeclineArtisanIntent(msg) || isArtisanIntent(msg)) {
         return 'RESOLVE_ARTISAN_INTENT';
@@ -208,17 +218,25 @@ export class LiaAgentService {
     state: LiaSharedState,
   ): Promise<GoalExecutionResult> {
     if (!state.intake) return { state, continueLoop: false };
-    await this.comprehension.appendSituationAnalysis(
-      state.ticketId,
-      state.tenantFirstName,
-      state.title,
-      state.description,
-      state.intake,
-    );
-    this.scheduleCompanion(state, state.intake);
+    let intake = state.intake;
+    if (intake.answers.situation_analysis_sent !== 'oui') {
+      await this.comprehension.appendSituationAnalysis(
+        state.ticketId,
+        state.tenantFirstName,
+        state.title,
+        state.description,
+        intake,
+      );
+      intake = {
+        ...intake,
+        answers: { ...intake.answers, situation_analysis_sent: 'oui' },
+      };
+    }
+    this.scheduleCompanion(state, intake);
     return {
       state: {
         ...state,
+        intake,
         agent: markGoalDone(state, 'COMPREHEND_SITUATION'),
       },
       continueLoop: true,
@@ -244,11 +262,23 @@ export class LiaAgentService {
       const parts: string[] = [];
       if (turn.acknowledgment) parts.push(turn.acknowledgment);
       if (turn.nextQuestionText) parts.push(turn.nextQuestionText);
-      if (parts.length > 0) {
+      const locale =
+        intake.preferredLanguage === 'gcf' ? 'gcf-GP' : 'fr-FR';
+      if (turn.acknowledgment) {
         await this.conversation.appendMessage(
           state.ticketId,
           'LIA_HOST',
-          parts.join('\n\n'),
+          turn.acknowledgment,
+          locale,
+          { uiStatus: turn.uiStatus },
+        );
+      }
+      if (turn.nextQuestionText) {
+        await this.conversation.appendMessage(
+          state.ticketId,
+          'LIA_HOST',
+          turn.nextQuestionText,
+          locale,
         );
       }
       await this.persistIntake(
@@ -399,10 +429,13 @@ export class LiaAgentService {
         await this.persistIntake(state.ticketId, intake, 'LIA_ANALYZING');
 
         if (skippingPhoto) {
+          const lang = intake?.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
           await this.conversation.appendMessage(
             state.ticketId,
             'LIA_HOST',
             this.comprehension.skipPhotoAck(),
+            intake?.preferredLanguage === 'gcf' ? 'gcf-GP' : 'fr-FR',
+            { uiStatus: analyzingStatus(lang) },
           );
           await this.notifications.notifyUser(
             state.tenantUserId,
@@ -617,17 +650,25 @@ export class LiaAgentService {
     ticketId: number,
     intake: LiaIntakeState,
     status: 'OPEN' | 'AWAITING_TENANT_PHOTO' | 'LIA_ANALYZING',
+    companionOverride?: ReturnType<typeof parseCompanionState>,
   ): Promise<void> {
     const row = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
       select: { aiLastDecision: true },
     });
-    const companion = parseCompanionState(row?.aiLastDecision) ?? undefined;
+    let companion =
+      companionOverride ?? parseCompanionState(row?.aiLastDecision) ?? undefined;
+    if (intake.answers.photo_unavailable?.trim() && companion) {
+      companion = { ...companion, photoRequested: false };
+    }
     await this.prisma.ticket.update({
       where: { id: ticketId },
       data: {
         status,
-        aiLastDecision: buildIntakePayload(intake, companion) as object,
+        aiLastDecision: mergeAiLastDecision(
+          row?.aiLastDecision,
+          buildIntakePayload(intake, companion),
+        ) as object,
       },
     });
   }
@@ -648,12 +689,19 @@ export class LiaAgentService {
             select: { aiLastDecision: true },
           });
           const current = parseIntakeState(row?.aiLastDecision) ?? intake;
+          let ui = toCompanionUiState(res);
+          if (
+            isJarvisReadyForImmediateVerdict(current) ||
+            current.answers.photo_unavailable?.trim()
+          ) {
+            ui = { ...ui, photoRequested: false };
+          }
           await this.prisma.ticket.update({
             where: { id: state.ticketId },
             data: {
-              aiLastDecision: buildIntakePayload(
-                current,
-                toCompanionUiState(res),
+              aiLastDecision: mergeAiLastDecision(
+                row?.aiLastDecision,
+                buildIntakePayload(current, ui),
               ) as object,
             },
           });

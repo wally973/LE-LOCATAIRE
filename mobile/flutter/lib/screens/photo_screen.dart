@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/ticket_flow_service.dart';
@@ -25,10 +24,11 @@ class _PhotoScreenState extends State<PhotoScreen> {
   bool _loading = false;
   String? _error;
 
-  Future<void> _takePhoto() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.camera);
-
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 85,
+    );
     if (picked == null) return;
 
     final bytes = await picked.readAsBytes();
@@ -36,12 +36,13 @@ class _PhotoScreenState extends State<PhotoScreen> {
     setState(() {
       _pickedImage = picked;
       _imageBytes = bytes;
+      _error = null;
     });
   }
 
   Future<void> _sendPhoto() async {
-if (_imageBytes == null || _pickedImage == null) {
-      setState(() => _error = "Veuillez prendre une photo.");
+    if (_imageBytes == null || _pickedImage == null) {
+      setState(() => _error = 'Veuillez choisir ou prendre une photo.');
       return;
     }
 
@@ -51,38 +52,36 @@ if (_imageBytes == null || _pickedImage == null) {
     });
 
     try {
-      // 1. Upload de la photo (à remplacer par ton upload réel)
       final photoUrl = await TicketFlowService.instance.uploadPhoto(
         filename: _pickedImage!.name,
         bytes: _imageBytes!,
       );
 
-      // 2. Envoi au backend IA
       final state = await TicketFlowService.instance.sendPhoto(photoUrl);
 
-      if (state["next"] == "ASK_PHOTO") {
-        // Photo floue → l’IA demande une nouvelle photo
+      if (state['next'] == 'ASK_PHOTO') {
         setState(() {
-          _error = state["message"];
+          _error = state['message'];
           _pickedImage = null;
           _imageBytes = null;
         });
-      } else if (state["next"] == "READY_TO_CREATE_TICKET") {
-        // Tout est OK → on passe au résumé
+      } else if (state['next'] == 'READY_TO_CREATE_TICKET') {
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => SummaryScreen(
               description: widget.description,
-              diagnostic: state["diagnostic"],
+              diagnostic: state['diagnostic'],
             ),
           ),
         );
       } else {
-        setState(() => _error = "Réponse inattendue du serveur.");
+        setState(() => _error = 'Réponse inattendue du serveur.');
       }
     } catch (e) {
-      setState(() => _error = "Erreur lors de l’envoi. Vérifiez votre connexion.");
+      setState(() =>
+          _error = 'Erreur lors de l’envoi. Vérifiez votre connexion.');
     }
 
     setState(() => _loading = false);
@@ -92,7 +91,7 @@ if (_imageBytes == null || _pickedImage == null) {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Prendre une photo"),
+        title: const Text('Photo du problème'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -104,35 +103,42 @@ if (_imageBytes == null || _pickedImage == null) {
               style: const TextStyle(fontSize: 18),
               textAlign: TextAlign.center,
             ),
-
+            const SizedBox(height: 12),
+            Text(
+              'Sur émulateur, préférez « Galerie » pour choisir une image déjà enregistrée.',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 20),
-
-            // Affichage de la photo prise
             if (_imageBytes != null)
-              Image.memory(_imageBytes!, height: 250),
-
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(_imageBytes!, height: 250, fit: BoxFit.cover),
+              ),
             const SizedBox(height: 20),
-
             if (_error != null)
               Text(
                 _error!,
                 style: const TextStyle(color: Colors.red),
               ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: _takePhoto,
-              child: const Text("Prendre une photo"),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _loading ? null : () => _pickImage(ImageSource.gallery),
+              icon: const Icon(Icons.photo_library_outlined),
+              label: const Text('Choisir dans la galerie'),
             ),
-
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _loading ? null : () => _pickImage(ImageSource.camera),
+              icon: const Icon(Icons.camera_alt_outlined),
+              label: const Text('Prendre une photo'),
+            ),
             const SizedBox(height: 20),
-
             _loading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
+                ? const Center(child: CircularProgressIndicator())
+                : FilledButton(
                     onPressed: _sendPhoto,
-                    child: const Text("Continuer"),
+                    child: const Text('Continuer'),
                   ),
           ],
         ),

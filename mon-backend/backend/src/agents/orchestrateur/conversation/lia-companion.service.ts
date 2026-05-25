@@ -3,6 +3,7 @@ import { LegalReferencesService } from '../../../legal-references/legal-referenc
 import { EXPERT_COMPAGNON_SYSTEM_PROMPT } from '../prompts/expert-compagnon.prompt';
 import { LiaHostService } from './lia-host.service';
 import type { IntakeCategory } from '../intake/lia-intake.service';
+import { isSkipPhotoIntent } from './lia-agent-intents';
 import {
   type CompanionLanguage,
   type CompanionResponse,
@@ -113,6 +114,20 @@ export class LiaCompanionService {
   }): CompanionResponse {
     const text = `${params.title} ${params.description} ${params.tenantMessage ?? ''}`.toLowerCase();
     const name = params.tenantFirstName?.trim() || 'Bonjour';
+
+    if (params.tenantMessage && isSkipPhotoIntent(params.tenantMessage)) {
+      return {
+        speech: `${name}, pas de souci pour la caméra. Utilisez « Galerie » si possible, sinon je m’appuie sur votre description pour le diagnostic.`,
+        language: 'fr',
+        avatar_action: 'GESTURE:nod',
+        avatar_position: 'bottom_right',
+        search_trigger: null,
+        safety_level: 'yellow',
+        photo_requested: false,
+        landlord_hint: 'NUANCE',
+        photo_guidance_steps: [],
+      };
+    }
 
     if (
       params.effectiveResponsibility === 'BAILLEUR' ||

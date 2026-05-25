@@ -234,8 +234,27 @@ class TicketService {
     if (ticket == null) return null;
     final ai = ticket['aiLastDecision'];
     if (ai is Map<String, dynamic>) {
-      final msg = ai['messageForTenant'] as String?;
-      if (msg != null && msg.trim().isNotEmpty) return msg.trim();
+      var msg = ai['messageForTenant'] as String?;
+      if (msg != null && msg.trim().isNotEmpty) {
+        msg = msg.trim();
+        msg = msg.replaceFirst(
+          RegExp(r'^VERDICT_BAILLEUR\s*[—\-]\s*', caseSensitive: false),
+          '',
+        );
+        if (msg.contains('Synthèse de l’analyse')) {
+          final parts = msg.split('\n');
+          final simple = parts
+              .where((l) =>
+                  !l.startsWith('•') &&
+                  !l.startsWith('Capteurs') &&
+                  !l.contains('Hypothèse retenue') &&
+                  !l.contains('Éliminations'))
+              .join('\n')
+              .trim();
+          if (simple.length > 40) return simple;
+        }
+        return msg;
+      }
     }
     return null;
   }

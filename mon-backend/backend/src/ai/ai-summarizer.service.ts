@@ -7,6 +7,7 @@ import {
 import type { PathologistResult } from '../ai-routing/agents/pathologist.types';
 import type { AiPipelineDecision } from '../ai-routing/ai-pipeline.port';
 import { buildTenantDiagnosticMessage } from '../agents/diagnostiqueur/rules/lia-tenant-diagnostic-summary';
+import { buildTenantFacingMessage } from '../agents/diagnostiqueur/rules/lia-tenant-facing-message';
 import type { LiaIntakeState } from '../agents/orchestrateur/intake/lia-intake.service';
 
 export interface TenantSummaryInput {
@@ -19,8 +20,16 @@ export interface TenantSummaryInput {
   sensors: DiagnosticSensors;
   intake?: LiaIntakeState | null;
   tenantSupplement?: string;
+  tenantFirstName?: string;
   insuranceNotes?: string[];
   legalSummary?: string | null;
+}
+
+export interface TenantSummaryResult {
+  /** Message court pour le locataire (app mobile). */
+  tenantFacing: string;
+  /** Dossier technique pour référent / technicien agence. */
+  agencyTechnicalSummary: string;
 }
 
 /**
@@ -28,9 +37,9 @@ export interface TenantSummaryInput {
  */
 @Injectable()
 export class AiSummarizerService {
-  /** Résumé structuré pour le locataire après pipeline complet. */
-  buildTenantFinalSummary(input: TenantSummaryInput): string {
-    const core = buildTenantDiagnosticMessage({
+  /** Synthèse technique (agence) + message simple locataire. */
+  buildTenantFinalSummary(input: TenantSummaryInput): TenantSummaryResult {
+    const agencyTechnicalSummary = buildTenantDiagnosticMessage({
       decision: input.decision,
       pathologist: input.pathologist,
       intake: input.intake,
@@ -50,16 +59,24 @@ export class AiSummarizerService {
     if (input.legalSummary?.trim()) {
       extras.push(`Juridique : ${input.legalSummary.trim()}`);
     }
-    if (!extras.length) {
-      return core;
-    }
-    const decisionLine = input.decision.message.trim();
-    const withoutDupDecision = core.endsWith(decisionLine)
-      ? core.slice(0, -decisionLine.length).trimEnd()
-      : core;
-    return [...withoutDupDecision.split('\n'), '', ...extras, '', decisionLine].join(
-      '\n',
-    );
+
+    const agencyWithExtras = extras.length
+      ? [...agencyTechnicalSummary.split('\n'), '', ...extras].join('\n')
+      : agencyTechnicalSummary;
+
+    const tenantFacing = buildTenantFacingMessage({
+      responsibility: input.decision.responsibility,
+      category: input.decision.category,
+      title: input.ticket.title,
+      description: input.ticket.description,
+      tenantFirstName: input.tenantFirstName,
+      intake: input.intake,
+      tenantSupplement: input.tenantSupplement,
+      pipelineMessage: input.decision.message,
+      humidityPhoto: input.pathologist.humidityPhoto,
+    });
+
+    return { tenantFacing, agencyTechnicalSummary: agencyWithExtras };
   }
 
   /**

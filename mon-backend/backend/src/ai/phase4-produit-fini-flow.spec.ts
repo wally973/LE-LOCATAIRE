@@ -110,7 +110,7 @@ describe('Phase 4 — produit fini (clim Guyane, saison sèche)', () => {
     expect(legalBrief.applies).toBe(false);
 
     const summarizer = new AiSummarizerService();
-    const summary = summarizer.buildTenantFinalSummary({
+    const summaryPack = summarizer.buildTenantFinalSummary({
       ticket: { id: 42, title, description },
       decision,
       pathologist: {
@@ -128,8 +128,12 @@ describe('Phase 4 — produit fini (clim Guyane, saison sèche)', () => {
       legalSummary: legalBrief.applies ? legalBrief.summary : null,
     });
 
-    expect(summary).toContain('Diagnostic établi en mode Saison sèche');
-    expect(summary).toMatch(/condensat|LOCATAIRE|charge locataire/i);
-    expect(summary).toMatch(/Contexte météo/);
+    expect(summaryPack.agencyTechnicalSummary).toContain(
+      'Diagnostic établi en mode Saison sèche',
+    );
+    expect(summaryPack.agencyTechnicalSummary).toMatch(
+      /condensat|LOCATAIRE|charge locataire/i,
+    );
+    expect(summaryPack.agencyTechnicalSummary).toMatch(/Contexte météo/);
   });
 });

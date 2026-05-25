@@ -112,24 +112,25 @@ export function mergeMasterSensors(
   domain: MasterDomainRules,
   text: string,
   base: DiagnosticSensors,
-): DiagnosticSensors & Record<string, string> {
+): DiagnosticSensors {
   const inferred = inferSensorsFromText(domain, text);
   return { ...base, ...inferred };
 }
 
 export function getMissingMasterCriticalSensors(
   domain: MasterDomainRules,
-  sensors: Record<string, string | undefined>,
+  sensors: DiagnosticSensors,
 ): string[] {
+  const map = sensors as Record<string, string | undefined>;
   return domain.criticalSensors
-    .filter((s) => s.required && !sensors[s.id]?.trim())
+    .filter((s) => s.required && !map[s.id]?.trim())
     .map((s) => s.id);
 }
 
 export function runMasterDifferential(params: {
   domain: MasterDomainRules;
   contextText: string;
-  sensors?: Record<string, string | undefined>;
+  sensors?: DiagnosticSensors;
 }): MasterDifferentialResult {
   const sensors = {
     ...inferSensorsFromText(params.domain, params.contextText),

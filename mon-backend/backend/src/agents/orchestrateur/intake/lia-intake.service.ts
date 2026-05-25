@@ -20,6 +20,17 @@ import {
 } from '../../shared/lia-diagnostic-sensors';
 import { getMissingCriticalSensors } from '../../shared/critical-diagnostic-sensors';
 import {
+  extractElectricityIntakeFromText,
+  isElectricityLightingIntakeSaturated,
+  needsContextualElectricityPhoto,
+} from './lia-intake-electricity-extract';
+import {
+  ensureJarvisOrganizer,
+  isJarvisReadyForImmediateVerdict,
+  pickJarvisCriticalQuestion,
+} from './lia-jarvis-intake.engine';
+import { isPlumbingSinkLeakSaturated } from './lia-intake-plumbing-extract';
+import {
   INTAKE_LANGUAGE_ANSWER_ID,
   isTenantLanguageGreeting,
   resolveLanguageFromGreeting,
@@ -60,6 +71,13 @@ export interface LiaIntakeState {
   intakeDescription?: string;
   /** Langue choisie via salutation (Bonjou → gcf). */
   preferredLanguage?: string;
+  /** jarvis = agent autonome (KB) ; legacy = file de questions fixe. */
+  intakeMode?: 'jarvis' | 'legacy';
+  /** Faits extraits à 360° (non redemandés au locataire). */
+  jarvisFacts?: Record<string, string>;
+  /** Changement de sujet suspect — confirmation explicite requise avant fermeture. */
+  topicChangePending?: boolean;
+  pendingTopicLabel?: string;
 }
 
 export interface IntakeReactiveTurn {
@@ -269,7 +287,7 @@ export function isLightingOnlyScope(
     ) &&
     !/(disjoncteur|compteur|tableau).*(g[eé]n[eé]ral|tout)/.test(t);
   const roomLight =
-    /salle de bain.*(lumi|ampoule|éclair)|lumi.*salle de bain|cuisine.*(lumi|ampoule)/.test(
+    /salle de bain.*(lumi|ampoule|éclair)|lumi.*salle de bain|cuisine.*(lumi|ampoule)|chambre.*(sans lumi|pas de lumi|ne marche pas)|pas de lumi.*chambre/.test(
       t,
     );
   return localized || roomLight;
@@ -391,13 +409,23 @@ export class LiaIntakeService {
 
   createInitialState(title: string, description: string): LiaIntakeState {
     const category = this.detectCategory(title, description);
-    const signals = this.extractSignals(`${title} ${description}`);
-    const answers = this.prefillAnswersFromInitialText(
+    let signals = this.extractSignals(`${title} ${description}`);
+    let answers = this.prefillAnswersFromInitialText(
       category,
       signals,
+      title,
       description,
     );
     const fullText = `${title} ${description}`;
+    let skippedFromExtract: string[] | undefined;
+    if (category === 'ELECTRICITY') {
+      const extracted = extractElectricityIntakeFromText(title, description);
+      answers = { ...answers, ...extracted.answers };
+      skippedFromExtract = extracted.skippedQuestionIds;
+      if (extracted.roomHint) {
+        signals = { ...signals, roomHint: extracted.roomHint };
+      }
+    }
     const waterFloor = isWaterOnFloorReport(title, description, answers);
     const tree = waterFloor
       ? undefined
@@ -429,14 +457,25 @@ export class LiaIntakeService {
       intakeTitle: title,
       intakeDescription: description,
       organizer,
+      intakeMode: 'jarvis',
       skippedQuestionIds: organizer
         ? this.legacyQuestionIdsForCategory(category)
-        : category === 'ELECTRICITY' &&
+        : [
+            ...(skippedFromExtract ?? []),
+            ...(category === 'ELECTRICITY' &&
             isLightingOnlyScope(fullText, signals, answers)
-          ? ['breaker', 'breaker_stays', 'subscription']
-          : undefined,
+              ? ['breaker', 'breaker_stays', 'subscription']
+              : []),
+          ],
     };
-    return this.reconcileStepIndex(base);
+    let jarvisState = ensureJarvisOrganizer(base, title, description);
+    if (
+      isJarvisReadyForImmediateVerdict(jarvisState) &&
+      !this.needsPhoto(jarvisState)
+    ) {
+      jarvisState = { ...jarvisState, phase: 'DONE', stepIndex: 0 };
+    }
+    return this.reconcileStepIndex(jarvisState);
   }
 
   /** Toutes les questions fixes d'une catégorie (désactivées si parcours organisateur). */
@@ -498,6 +537,18 @@ export class LiaIntakeService {
     if (state.category === 'ELECTRICITY') {
       const lighting = isLightingOnlyScope(text, s, state.answers);
       const bulbDone = tenantAlreadyChangedBulb(text, state.answers);
+      const saturated = isElectricityLightingIntakeSaturated(state);
+      const newTenant = Boolean(state.answers.occupancy_note);
+      if (lighting && newTenant && saturated) {
+        const room = s.roomHint ? ` dans ${s.roomHint}` : '';
+        messages.push(
+          `${name}, bienvenue — j’ai bien lu votre souci d’éclairage${room} depuis votre emménagement.`,
+        );
+        messages.push(
+          'Vous avez déjà fait les vérifications utiles (ampoule, compteur, disjoncteur) : je ne vais pas vous faire perdre de temps en répétant les mêmes questions.',
+        );
+        return messages;
+      }
       if (lighting) {
         const room = s.roomHint ? ` (${s.roomHint})` : '';
         messages.push(
@@ -559,6 +610,7 @@ export class LiaIntakeService {
   private prefillAnswersFromInitialText(
     category: IntakeCategory,
     signals: IntakeSignals,
+    title: string,
     description: string,
   ): Record<string, string> {
     const answers: Record<string, string> = {};
@@ -595,16 +647,11 @@ export class LiaIntakeService {
       }
     }
 
-    if (category === 'ELECTRICITY' && isLightingOnlyScope(d, signals)) {
-      answers.scope =
-        'Éclairage localisé (point lumineux, pas coupure générale).';
-      if (tenantAlreadyChangedBulb(d)) {
-        answers.bulb_action =
-          'Ampoule déjà remplacée par le locataire (mention initiale).';
-      }
-      if (/depuis|quelque temps|semaine|mois|hier|matin|jour/.test(d)) {
-        answers.since_when =
-          'Durée déjà indiquée à l’ouverture du dossier.';
+    if (category === 'ELECTRICITY') {
+      const full = `${title} ${description}`;
+      if (isLightingOnlyScope(full, signals, answers)) {
+        answers.scope =
+          'Éclairage localisé (point lumineux, pas coupure générale).';
       }
     }
 
@@ -613,6 +660,14 @@ export class LiaIntakeService {
 
   getCurrentQuestion(state: LiaIntakeState): IntakeQuestion | null {
     if (state.phase !== 'INTAKE') return null;
+
+    if (state.organizer && state.intakeMode !== 'legacy') {
+      const jarvisQ = pickJarvisCriticalQuestion(state);
+      if (jarvisQ) {
+        return { id: jarvisQ.id, text: jarvisQ.text };
+      }
+      return null;
+    }
 
     if (state.organizer) {
       const tree = getPanneTreeById(state.organizer.panneId);
@@ -661,6 +716,47 @@ export class LiaIntakeService {
   }
 
   reconcileStepIndex(state: LiaIntakeState): LiaIntakeState {
+    if (
+      state.intakeMode !== 'legacy' &&
+      isJarvisReadyForImmediateVerdict(state) &&
+      !this.needsPhoto(state)
+    ) {
+      return { ...state, stepIndex: 0, phase: 'DONE' };
+    }
+
+    if (
+      state.category === 'ELECTRICITY' &&
+      isElectricityLightingIntakeSaturated(state) &&
+      !this.needsPhoto(state)
+    ) {
+      const list = getIntakeQuestionsForState(state);
+      return {
+        ...state,
+        stepIndex: list.length,
+        phase: 'DONE',
+      };
+    }
+
+    if (
+      state.category === 'PLUMBING' &&
+      isPlumbingSinkLeakSaturated(state) &&
+      !this.needsPhoto(state)
+    ) {
+      return { ...state, stepIndex: 0, phase: 'DONE' };
+    }
+
+    if (state.organizer && state.intakeMode !== 'legacy') {
+      const jarvisQ = pickJarvisCriticalQuestion(state);
+      if (!jarvisQ) {
+        return {
+          ...state,
+          stepIndex: 0,
+          phase: this.needsPhoto(state) ? 'AWAITING_PHOTO' : 'DONE',
+        };
+      }
+      return { ...state, stepIndex: 0, phase: 'INTAKE' };
+    }
+
     if (state.organizer) {
       const tree = getPanneTreeById(state.organizer.panneId);
       if (!tree) {
@@ -726,6 +822,12 @@ export class LiaIntakeService {
   /** Photo utile pour le diagnostic visuel (sauf cas purement administratif). */
   needsPhoto(state: LiaIntakeState): boolean {
     if (state.category === 'GENERIC') return false;
+    if (state.category === 'ELECTRICITY') {
+      if (usesLightingElectricityPath(state)) {
+        return needsContextualElectricityPhoto(state);
+      }
+      return false;
+    }
     if (usesWaterOnFloorPath(state)) {
       const ctx = `${state.intakeTitle ?? ''} ${state.intakeDescription ?? ''}`;
       const sensors = extractDiagnosticSensors({
@@ -790,6 +892,23 @@ export class LiaIntakeService {
         'Merci pour ces précisions. Faites une photo pour le technicien : la zone touchée ' +
         '(taches au plafond, traces d’eau, gouttes…) avec le bouton « Prendre une photo » ci-dessous. ' +
         'Ensuite je lance l’analyse complète (charge locataire ou bailleur).'
+      );
+    }
+    if (
+      state?.category === 'ELECTRICITY' &&
+      usesLightingElectricityPath(state) &&
+      needsContextualElectricityPhoto(state)
+    ) {
+      return (
+        'Merci pour ces précisions. Si vous le pouvez, envoyez une photo rapprochée de la douille ou du support d’ampoule ' +
+        '(pas une photo de la pièce entière) — cela aide à confirmer une usure. ' +
+        'Sinon décrivez l’état de la douille dans le fil : je lancerai l’analyse sans photo.'
+      );
+    }
+    if (state?.category === 'ELECTRICITY') {
+      return (
+        'Merci pour ces réponses. Vos vérifications suffisent pour lancer le diagnostic sans photo de la pièce. ' +
+        'Écrivez « pas de photo » si vous préférez passer directement à l’analyse.'
       );
     }
     return (

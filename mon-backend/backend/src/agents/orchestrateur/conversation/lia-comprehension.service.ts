@@ -6,7 +6,8 @@ import {
 } from '../intake/lia-intake.service';
 import { LiaIntakeReactiveService } from '../intake/lia-intake-reactive.service';
 import { LiaConversationService } from './lia-conversation.service';
-import { categoryLabel, isDifferentClaimTopic } from '../../chercheur/knowledge/lia-multi-claim';
+import { categoryLabel } from '../../chercheur/knowledge/lia-multi-claim';
+import { isConfirmedTopicChange } from '../intake/lia-jarvis-intake.engine';
 
 /**
  * Capacité « compréhension » — intake, cadrage, multi-sujet (40 jours de logique métier).
@@ -104,11 +105,15 @@ export class LiaComprehensionService {
     description: string,
     intake: LiaIntakeState | null,
   ): boolean {
-    return isDifferentClaimTopic(
+    if (!intake) return false;
+    if (intake.topicChangePending && intake.answers.topic_change_confirmed === 'oui') {
+      return true;
+    }
+    return isConfirmedTopicChange(
       message,
       title,
       description,
-      intake?.category ?? null,
+      intake.category,
     );
   }
 

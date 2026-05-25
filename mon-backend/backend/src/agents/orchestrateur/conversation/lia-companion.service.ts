@@ -27,6 +27,7 @@ export class LiaCompanionService {
     category: IntakeCategory;
     tenantFirstName?: string;
     tenantMessage?: string;
+    effectiveResponsibility?: string;
   }): Promise<CompanionResponse> {
     const query = `${params.title} ${params.description} ${params.tenantMessage ?? ''}`;
     const legalSnippets = this.legalRefs
@@ -71,6 +72,7 @@ export class LiaCompanionService {
     return this.fallbackRules({
       ...params,
       tenantMessage: params.tenantMessage,
+      effectiveResponsibility: params.effectiveResponsibility,
     });
   }
 
@@ -107,9 +109,27 @@ export class LiaCompanionService {
     category: IntakeCategory;
     tenantFirstName?: string;
     tenantMessage?: string;
+    effectiveResponsibility?: string;
   }): CompanionResponse {
     const text = `${params.title} ${params.description} ${params.tenantMessage ?? ''}`.toLowerCase();
     const name = params.tenantFirstName?.trim() || 'Bonjour';
+
+    if (
+      params.effectiveResponsibility === 'BAILLEUR' ||
+      params.effectiveResponsibility === 'ESCALADE_BAILLEUR'
+    ) {
+      return {
+        speech: `${name}, c’est bien pris en charge par le bailleur. Un technicien de l’agence vous recontactera — pas besoin d’artisan partenaire.`,
+        language: 'fr',
+        avatar_action: 'GESTURE:nod',
+        avatar_position: 'bottom_right',
+        search_trigger: null,
+        safety_level: 'green',
+        photo_requested: false,
+        landlord_hint: 'BAILLEUR',
+        photo_guidance_steps: [],
+      };
+    }
 
     const solo = (params.tenantMessage ?? '').trim();
     if (

@@ -86,7 +86,10 @@ export class LiaProBriefingService {
       expert,
     );
 
-    const ai = ticket.aiLastDecision as { messageForTenant?: string } | null;
+    const ai = ticket.aiLastDecision as {
+      messageForTenant?: string;
+      agencyTechnicalSummary?: string;
+    } | null;
 
     return {
       ticketId,
@@ -99,7 +102,10 @@ export class LiaProBriefingService {
       narrativeSummary: narrative,
       critical,
       research,
-      diagnosticMessage: ai?.messageForTenant ?? null,
+      diagnosticMessage:
+        ai?.agencyTechnicalSummary?.trim() ||
+        ai?.messageForTenant?.trim() ||
+        null,
       diagnosticAuthority: state.diagnosticAuthority,
       expertCorrection: expert
         ? {

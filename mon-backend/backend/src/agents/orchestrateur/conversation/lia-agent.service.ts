@@ -95,7 +95,7 @@ export class LiaAgentService {
     const msg = state.lastTenantMessage?.trim() ?? '';
 
     if (state.followUpClosed) {
-      if (trigger === 'TENANT_MESSAGE' && msg) return 'ISOLATE_WRONG_TOPIC';
+      if (trigger === 'TENANT_MESSAGE' && msg) return 'ACKNOWLEDGE_TENANT';
       return null;
     }
 
@@ -105,15 +105,7 @@ export class LiaAgentService {
     }
 
     if (trigger === 'TENANT_MESSAGE' && msg) {
-      if (
-        state.intake &&
-        this.comprehension.isWrongTopicMessage(
-          msg,
-          state.title,
-          state.description,
-          state.intake,
-        )
-      ) {
+      if (state.intake?.answers.topic_change_confirmed === 'oui') {
         return 'ISOLATE_WRONG_TOPIC';
       }
       if (isDeclineArtisanIntent(msg) || isArtisanIntent(msg)) {
@@ -148,8 +140,12 @@ export class LiaAgentService {
       return null;
     }
 
-    if (state.intake?.phase === 'DONE' && trigger === 'TICKET_OPENED') {
-      return 'COLLECT_MISSING_FACTS';
+    if (
+      state.intake?.phase === 'DONE' &&
+      trigger === 'TICKET_OPENED' &&
+      goalCompleted(state, 'COMPREHEND_SITUATION')
+    ) {
+      return 'RUN_DIAGNOSTIC';
     }
 
     if (state.responsibility === 'PENDING') {
@@ -260,6 +256,9 @@ export class LiaAgentService {
         intake,
         intake.phase === 'AWAITING_PHOTO' ? 'AWAITING_TENANT_PHOTO' : 'OPEN',
       );
+      if (intake.answers.topic_change_confirmed === 'oui') {
+        return this.goalIsolateWrongTopic({ ...state, intake });
+      }
       if (intake.phase === 'DONE') {
         return this.goalRunDiagnostic({ ...state, intake }, trigger);
       }
@@ -497,7 +496,11 @@ export class LiaAgentService {
           : this.comprehension.closedDossierReply(),
     );
 
-    if (wrongTopic && !state.followUpClosed) {
+    if (
+      wrongTopic &&
+      !state.followUpClosed &&
+      state.intake?.answers.topic_change_confirmed === 'oui'
+    ) {
       await this.closeFollowUp(state.ticketId);
       state = { ...state, followUpClosed: true };
     }

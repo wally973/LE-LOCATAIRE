@@ -65,6 +65,23 @@ export interface DiagnosticSensors {
   building_floor?: string;
   /** Contexte pluviométrique (ex. "Saison sèche"). */
   weather_context?: string;
+  /** Électricité — périmètre de la panne (master-diagnostic-rules). */
+  electric_scope?: string;
+  /** Électricité — signes de danger immédiat. */
+  danger_signs?: string;
+  /** Menuiserie / humidité — lien infiltration ou moisissure. */
+  humidity_link?: string;
+  /** Électricité — tableau / disjoncteur. */
+  breaker_behavior?: string;
+  /** Menuiserie — élément concerné. */
+  carpentry_element?: string;
+  carpentry_symptom?: string;
+  /** VMC — pièce et symptôme. */
+  vmc_room?: string;
+  vmc_symptom?: string;
+  /** Ascenseur / parties communes. */
+  elevator_trapped?: string;
+  collective_scope?: string;
 }
 
 /**

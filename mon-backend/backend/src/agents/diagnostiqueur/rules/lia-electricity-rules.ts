@@ -214,24 +214,30 @@ export function resolveElectricityCharge(
 /** Signaux à partir des champs intake structurés (évite les faux « oui » croisés). */
 export function parseElectricitySignalsFromAnswers(
   answers: Record<string, string>,
+  contextText = '',
 ): ElectricitySignals {
+  const block = [contextText, ...Object.values(answers)].filter(Boolean).join('\n');
+  const fromText = parseElectricitySignals(block);
   const scopeText = answers.scope ?? '';
   const localized =
-    /localis/i.test(scopeText) ||
-    parseElectricitySignals(scopeText).localizedLighting;
+    /localis/i.test(scopeText) || fromText.localizedLighting;
   return {
+    ...fromText,
     localizedLighting: localized,
-    bulbAlreadyChanged: Boolean(answers.bulb_action?.trim()),
-    generalOutage: /tout le logement|toute la maison|coupure g[eé]n[eé]rale/i.test(
-      scopeText,
-    ),
-    switchWorks: triStateFromAnswer(answers.switch_ok ?? ''),
-    roomBreakerOk: triStateFromAnswer(answers.room_breaker ?? ''),
-    douilleWear: triStateFromAnswer(answers.socket_check ?? ''),
-    bailleurInstallation: triStateFromAnswer(answers.room_breaker ?? '') === false,
-    recentMoveIn: false,
-    remiseEnEtatHandover: false,
-    problemSinceMoveIn: false,
+    bulbAlreadyChanged:
+      Boolean(answers.bulb_action?.trim()) || fromText.bulbAlreadyChanged,
+    generalOutage:
+      /tout le logement|toute la maison|coupure g[eé]n[eé]rale/i.test(scopeText) ||
+      fromText.generalOutage,
+    switchWorks:
+      triStateFromAnswer(answers.switch_ok ?? '') ?? fromText.switchWorks,
+    roomBreakerOk:
+      triStateFromAnswer(answers.room_breaker ?? '') ?? fromText.roomBreakerOk,
+    douilleWear:
+      triStateFromAnswer(answers.socket_check ?? '') ?? fromText.douilleWear,
+    bailleurInstallation:
+      triStateFromAnswer(answers.room_breaker ?? '') === false ||
+      fromText.bailleurInstallation,
   };
 }
 
@@ -254,8 +260,8 @@ export function buildElectricityJuristHint(answers: Record<string, string>): str
     parts.push(`Périmètre : ${answers.scope}`);
   }
   if (parts.length === 0) return '';
-  const signals = parseElectricitySignalsFromAnswers(answers);
   const fullText = parts.join(' ');
+  const signals = parseElectricitySignalsFromAnswers(answers, fullText);
   const charge = resolveElectricityCharge(signals, fullText);
   const handover = isHandoverElectricalDefect(signals, parts.join(' '));
   const embeddedLighting =

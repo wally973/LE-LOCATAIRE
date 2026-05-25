@@ -31,7 +31,7 @@ export class AiTicketService {
     return {
       category: resolveAiCategoryFromContext(ctx),
       severity: resolveSeverityFromContext(ctx),
-      confidence: ctx.diagnostic?.confidence ?? 0.78,
+      confidence: ctx.diagnostic?.differentialConfidence ?? 0.78,
       savoirVoirPhase: ctx.savoirVoirPhase,
       sensors: ctx.sensors,
     };

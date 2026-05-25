@@ -28,7 +28,10 @@ import {
 } from '../agents/shared/critical-diagnostic-sensors';
 import { detectSocialSignal } from '../agents/shared/social-signal-detection';
 import { buildDiagnosticState } from '../agents/shared/lia-diagnostic-state';
-import type { DiagnosticState } from '../agents/shared/lia-diagnostic-state.types';
+import type {
+  DiagnosticSensors,
+  DiagnosticState,
+} from '../agents/shared/lia-diagnostic-state.types';
 import { AiSummarizerService } from '../ai/ai-summarizer.service';
 import type { PathologistResult } from './agents/pathologist.types';
 import {
@@ -48,7 +51,6 @@ import { LiaCompanionService } from '../agents/orchestrateur/conversation/lia-co
 import { toCompanionUiState } from '../agents/orchestrateur/conversation/lia-companion.types';
 import type { IntakeCategory } from '../agents/orchestrateur/intake/lia-intake.service';
 import { isSavonneuseR1RefoulementSensors } from '../agents/shared/refoulement-eu-context';
-import type { DiagnosticSensors } from '../agents/shared/lia-diagnostic-state.types';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -195,12 +197,8 @@ export class AiRoutingService {
     });
     const masterDomain = detectMasterDomain(signalementText);
     const mergedMasterSensors = masterDomain
-      ? mergeMasterSensors(
-          masterDomain,
-          signalementText,
-          dxContext.sensors as Record<string, string | undefined>,
-        )
-      : {};
+      ? mergeMasterSensors(masterDomain, signalementText, dxContext.sensors)
+      : dxContext.sensors;
     const missingMaster = masterDomain
       ? getMissingMasterCriticalSensors(masterDomain, mergedMasterSensors)
       : [];
@@ -300,21 +298,28 @@ export class AiRoutingService {
         hvacPhoto: pathoStep?.extra?.hvacPhoto as PathologistResult['hvacPhoto'],
         humidityPhoto: pathoStep?.extra?.humidityPhoto as PathologistResult['humidityPhoto'],
       };
+      const tenantRow = await this.prisma.ticket.findUnique({
+        where: { id: ticketId },
+        select: { tenant: { select: { firstName: true } } },
+      });
+      const summaryPack = this.summarizer.buildTenantFinalSummary({
+        ticket: {
+          id: ticketId,
+          title: ticketWithDocs.title,
+          description: ticketWithDocs.description,
+        },
+        decision,
+        pathologist,
+        sensors: dxContext.sensors,
+        intake: intakeState,
+        tenantSupplement,
+        tenantFirstName: tenantRow?.tenant?.firstName,
+      });
       decision = {
         ...decision,
-        message: this.summarizer.buildTenantFinalSummary({
-          ticket: {
-            id: ticketId,
-            title: ticketWithDocs.title,
-            description: ticketWithDocs.description,
-          },
-          decision,
-          pathologist,
-          sensors: dxContext.sensors,
-          intake: intakeState,
-          tenantSupplement,
-        }),
-      };
+        message: summaryPack.tenantFacing,
+        agencyTechnicalSummary: summaryPack.agencyTechnicalSummary,
+      } as AiPipelineDecision & { agencyTechnicalSummary?: string };
     }
 
     let effectiveDecision = decision;
@@ -526,7 +531,7 @@ export class AiRoutingService {
   private enrichDecisionWithMasterRules(
     decision: AiPipelineDecision,
     contextText: string,
-    sensors: Record<string, string | undefined>,
+    sensors: DiagnosticSensors,
     domain: ReturnType<typeof detectMasterDomain>,
   ): AiPipelineDecision {
     if (!domain) return decision;
@@ -748,9 +753,7 @@ export class AiRoutingService {
   private applyRefoulementBailleurOverride(
     decision: AiPipelineDecision,
   ): AiPipelineDecision {
-    const msg = decision.message.includes('VERDICT_BAILLEUR')
-      ? decision.message
-      : `VERDICT_BAILLEUR — ${decision.message}`;
+    const msg = decision.message.replace(/^VERDICT_BAILLEUR\s*—\s*/i, '').trim();
     return {
       ...decision,
       responsibility: 'BAILLEUR',
@@ -805,7 +808,7 @@ export class AiRoutingService {
   private async buildEnrichedDecisionJson(
     existing: unknown,
     params: {
-      decision: AiPipelineDecision;
+      decision: AiPipelineDecision & { agencyTechnicalSummary?: string };
       intakeDone?: ReturnType<typeof parseIntakeState>;
       diagnosticState?: DiagnosticState;
       maintenanceDispatch?: Record<string, unknown> | null;
@@ -834,6 +837,7 @@ export class AiRoutingService {
       description: params.description ?? '',
       category: this.mapPipelineCategoryToIntake(params.decision.category),
       tenantMessage: params.decision.message,
+      effectiveResponsibility,
     });
     const pref = params.intakeDone?.preferredLanguage;
     if (pref === 'gcf' || pref === 'fr' || pref === 'hat' || pref === 'es' || pref === 'en' || pref === 'pt') {
@@ -847,11 +851,7 @@ export class AiRoutingService {
       };
     }
 
-    const messageForTenant =
-      effectiveResponsibility === 'BAILLEUR' &&
-      !params.decision.message.includes('VERDICT_BAILLEUR')
-        ? `VERDICT_BAILLEUR — ${params.decision.message}`
-        : params.decision.message;
+    const messageForTenant = params.decision.message.trim();
 
     const merged = mergeAiLastDecision(existing, {
       responsibility: params.decision.responsibility,
@@ -864,6 +864,8 @@ export class AiRoutingService {
       socialFlag: params.decision.socialFlag,
       pipelineSteps: params.decision.pipelineSteps,
       messageForTenant,
+      agencyTechnicalSummary:
+        params.decision.agencyTechnicalSummary?.trim() || null,
       verdictLabel:
         effectiveResponsibility === 'BAILLEUR' ? 'VERDICT_BAILLEUR' : null,
       ...(params.intakeDone ? { intake: params.intakeDone } : {}),
@@ -1025,7 +1027,10 @@ export class AiRoutingService {
         aiCategory: decision.category,
         aiSeverity: decision.severity,
         aiConfidence: decision.confidence,
-        aiSuggestedArtisanType: decision.suggestedArtisanType ?? null,
+        aiSuggestedArtisanType:
+          effectiveResponsibility === 'LOCATAIRE'
+            ? decision.suggestedArtisanType ?? null
+            : null,
         aiLastDecision: decisionJson,
         landlordProfileId: ticket.housing.landlordId,
         ...(urgent

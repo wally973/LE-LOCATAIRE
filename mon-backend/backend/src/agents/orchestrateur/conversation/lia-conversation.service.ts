@@ -27,7 +27,9 @@ export class LiaConversationService {
     metadata?: { uiStatus?: LiaMessageUiStatus },
   ) {
     const meta: Prisma.InputJsonValue | undefined = metadata?.uiStatus
-      ? ({ uiStatus: metadata.uiStatus } as Prisma.InputJsonValue)
+      ? (JSON.parse(
+          JSON.stringify({ uiStatus: metadata.uiStatus }),
+        ) as Prisma.InputJsonValue)
       : undefined;
     return this.prisma.ticketMessage.create({
       data: { ticketId, role, content, locale, metadata: meta },

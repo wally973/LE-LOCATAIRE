@@ -659,7 +659,7 @@ export class LiaAgentService {
     let companion =
       companionOverride ?? parseCompanionState(row?.aiLastDecision) ?? undefined;
     if (intake.answers.photo_unavailable?.trim() && companion) {
-      companion = { ...companion, photoRequested: false };
+      companion = { ...companion, photo_requested: false };
     }
     await this.prisma.ticket.update({
       where: { id: ticketId },
@@ -694,7 +694,7 @@ export class LiaAgentService {
             isJarvisReadyForImmediateVerdict(current) ||
             current.answers.photo_unavailable?.trim()
           ) {
-            ui = { ...ui, photoRequested: false };
+            ui = { ...ui, photo_requested: false };
           }
           await this.prisma.ticket.update({
             where: { id: state.ticketId },

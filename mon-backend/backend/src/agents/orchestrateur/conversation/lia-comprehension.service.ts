@@ -20,6 +20,7 @@ export class LiaComprehensionService {
     private readonly intake: LiaIntakeService,
     private readonly intakeReactive: LiaIntakeReactiveService,
     private readonly conversation: LiaConversationService,
+    private readonly expertPocket: LiaExpertPocketService,
   ) {}
 
   createInitialIntake(title: string, description: string): LiaIntakeState {

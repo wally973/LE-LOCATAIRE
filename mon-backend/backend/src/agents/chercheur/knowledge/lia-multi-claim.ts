@@ -109,6 +109,7 @@ const TOPIC_RULES: {
     category: 'GENERIC',
     label: 'Serrure / clés',
     patterns: [
+      /gache|gâche/i,
       /serrure/i,
       /cl[eé] perdue/i,
       /cl[eé] cass/i,

@@ -333,7 +333,10 @@ export class AiRoutingService {
       effectiveDecision.responsibility !== 'SOCIAL' &&
       effectiveDecision.confidence < AI_CONFIDENCE_THRESHOLD &&
       !effectiveDecision.needsMorePhoto &&
-      !this.hasTrustedTextSensors(finalSensors, intakeState?.answers)
+      !this.hasTrustedTextSensors(finalSensors, intakeState?.answers) &&
+      !this.isClearCarpentrySignalement(signalementText) &&
+      effectiveDecision.responsibility !== 'ESCALADE_BAILLEUR' &&
+      effectiveDecision.responsibility !== 'BAILLEUR'
     ) {
       effectiveDecision = {
         ...effectiveDecision,
@@ -735,6 +738,16 @@ export class AiRoutingService {
       intakeAnswers,
     });
     return missing.length === 0 && Boolean(sensors.water_aspect?.trim());
+  }
+
+  /** Gâche / serrure / porte décrite clairement — pas de photo obligatoire. */
+  private isClearCarpentrySignalement(contextText: string): boolean {
+    const t = contextText.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+    const hardware =
+      /gache|gâche|serrure|poignee|poignée|targette|verrou/.test(t);
+    const place = /porte|chambre|piece|pièce|entree|entrée/.test(t);
+    const damage = /(cass|cassé|cassee|bloqu|hs|ne ferme)/.test(t);
+    return hardware && place && damage;
   }
 
   private shouldForceBailleurRefoulement(

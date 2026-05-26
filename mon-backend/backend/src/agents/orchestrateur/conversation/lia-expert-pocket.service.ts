@@ -11,6 +11,11 @@ import {
   extractPlumbingIntakeFromText,
   isPlumbingSinkLeakSaturated,
 } from '../intake/lia-intake-plumbing-extract';
+import {
+  extractCarpentryIntakeFromText,
+  buildCarpentryExpertAcknowledgment,
+  isCarpentryDoorIssueSaturated,
+} from '../intake/lia-intake-carpentry-extract';
 import { isJarvisReadyForImmediateVerdict } from '../intake/lia-jarvis-intake.engine';
 import {
   landlordHandoffStatus,
@@ -110,6 +115,20 @@ export class LiaExpertPocketService {
       };
     }
 
+    if (isCarpentryDoorIssueSaturated(params.state)) {
+      return {
+        language: 'fr',
+        text: buildCarpentryExpertAcknowledgment({
+          title: params.title,
+          description: params.description,
+          answers: params.state.answers,
+          jarvisFacts: params.state.jarvisFacts,
+          tenantFirstName: params.tenantFirstName,
+        }),
+        uiStatus: landlordHandoffStatus('fr'),
+      };
+    }
+
     if (/fuite|eau|coule|lavabo|évier|evier/i.test(full)) {
       if (lang === 'gcf') {
         return {
@@ -146,7 +165,11 @@ export class LiaExpertPocketService {
     );
     const name = params.tenantFirstName?.trim() || (lang === 'gcf' ? 'Bonjou' : 'Bonjour');
 
-    const templated = this.templateReply(params, lang, name);
+    const templated = this.templateReply(
+      { ...params, tenantFirstName: params.tenantFirstName },
+      lang,
+      name,
+    );
     if (templated) return templated;
 
     const llm = await this.host.chatStructured(
@@ -187,6 +210,7 @@ export class LiaExpertPocketService {
       title: string;
       description: string;
       state: LiaIntakeState;
+      tenantFirstName?: string;
     },
     lang: CompanionLanguage,
     name: string,
@@ -257,6 +281,40 @@ export class LiaExpertPocketService {
           uiStatus: landlordHandoffStatus('gcf'),
         };
       }
+    }
+
+    if (
+      /avez[- ]?vous (bien )?(compris|sa)|de quoi vous|comprenez/i.test(
+        msg.toLowerCase(),
+      )
+    ) {
+      if (isCarpentryDoorIssueSaturated(params.state)) {
+        return {
+          language: 'fr',
+          text: buildCarpentryExpertAcknowledgment({
+            title: params.title,
+            description: params.description,
+            answers: params.state.answers,
+            jarvisFacts: params.state.jarvisFacts,
+            tenantFirstName: params.tenantFirstName,
+          }),
+          uiStatus: landlordHandoffStatus('fr'),
+        };
+      }
+    }
+
+    if (isCarpentryDoorIssueSaturated(params.state)) {
+      return {
+        language: 'fr',
+        text: buildCarpentryExpertAcknowledgment({
+          title: params.title,
+          description: params.description,
+          answers: params.state.answers,
+          jarvisFacts: params.state.jarvisFacts,
+          tenantFirstName: params.tenantFirstName,
+        }),
+        uiStatus: landlordHandoffStatus('fr'),
+      };
     }
 
     if (

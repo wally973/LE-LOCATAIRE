@@ -220,17 +220,13 @@ export class LiaAgentService {
     if (!state.intake) return { state, continueLoop: false };
     let intake = state.intake;
     if (intake.answers.situation_analysis_sent !== 'oui') {
-      await this.comprehension.appendSituationAnalysis(
+      intake = await this.comprehension.appendSituationAnalysis(
         state.ticketId,
         state.tenantFirstName,
         state.title,
         state.description,
         intake,
       );
-      intake = {
-        ...intake,
-        answers: { ...intake.answers, situation_analysis_sent: 'oui' },
-      };
     }
     this.scheduleCompanion(state, intake);
     return {
@@ -300,20 +296,28 @@ export class LiaAgentService {
         },
         continueLoop: false,
       };
-    } else if (trigger === 'TICKET_OPENED' && intake.phase === 'INTAKE') {
-      const q = this.comprehension.currentQuestion(intake);
-      if (q) {
-        await this.conversation.appendMessage(
-          state.ticketId,
-          'LIA_HOST',
-          q.text,
-        );
-        await this.persistIntake(state.ticketId, intake, 'OPEN');
+    } else if (trigger === 'TICKET_OPENED') {
+      let nextIntake = intake;
+      if (nextIntake.phase === 'INTAKE') {
+        if ((nextIntake.intakeMode ?? 'llm_first') !== 'llm_first') {
+          const q = this.comprehension.currentQuestion(nextIntake);
+          if (q) {
+            await this.conversation.appendMessage(
+              state.ticketId,
+              'LIA_HOST',
+              q.text,
+            );
+          }
+        }
+        await this.persistIntake(state.ticketId, nextIntake, 'OPEN');
+        return {
+          state: { ...state, intake: nextIntake },
+          continueLoop: false,
+        };
       }
-      return {
-        state: { ...state, intake },
-        continueLoop: false,
-      };
+      if (nextIntake.phase === 'DONE') {
+        return this.goalRunDiagnostic({ ...state, intake: nextIntake }, trigger);
+      }
     }
 
     if (intake.phase === 'INTAKE') {

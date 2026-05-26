@@ -71,8 +71,8 @@ export interface LiaIntakeState {
   intakeDescription?: string;
   /** Langue choisie via salutation (Bonjou → gcf). */
   preferredLanguage?: string;
-  /** jarvis = agent autonome (KB) ; legacy = file de questions fixe. */
-  intakeMode?: 'jarvis' | 'legacy';
+  /** llm_first = compréhension naturelle (défaut) ; jarvis/legacy = anciens modes. */
+  intakeMode?: 'llm_first' | 'jarvis' | 'legacy';
   /** Faits extraits à 360° (non redemandés au locataire). */
   jarvisFacts?: Record<string, string>;
   /** Changement de sujet suspect — confirmation explicite requise avant fermeture. */
@@ -420,6 +420,7 @@ export class LiaIntakeService {
     );
     const fullText = `${title} ${description}`;
     let skippedFromExtract: string[] | undefined;
+    let jarvisFactsFromExtract: Record<string, string> | undefined;
     if (category === 'ELECTRICITY') {
       const extracted = extractElectricityIntakeFromText(title, description);
       answers = { ...answers, ...extracted.answers };
@@ -428,6 +429,7 @@ export class LiaIntakeService {
         signals = { ...signals, roomHint: extracted.roomHint };
       }
     }
+    // Mode llm_first : pas d’extraction scriptée par métier à l’ouverture.
     const waterFloor = isWaterOnFloorReport(title, description, answers);
     const tree = waterFloor
       ? undefined
@@ -459,17 +461,23 @@ export class LiaIntakeService {
       intakeTitle: title,
       intakeDescription: description,
       organizer,
-      intakeMode: 'jarvis',
-      skippedQuestionIds: organizer
-        ? this.legacyQuestionIdsForCategory(category)
-        : [
-            ...(skippedFromExtract ?? []),
-            ...(category === 'ELECTRICITY' &&
-            isLightingOnlyScope(fullText, signals, answers)
-              ? ['breaker', 'breaker_stays', 'subscription']
-              : []),
-          ],
+      intakeMode: 'llm_first',
+      jarvisFacts: jarvisFactsFromExtract ?? {},
+      skippedQuestionIds: [
+        ...this.allScriptQuestionIds(category),
+        ...(organizer ? this.legacyQuestionIdsForCategory(category) : []),
+        ...(skippedFromExtract ?? []),
+      ],
     };
+    // LLM-first : pas d’organisateur scripté à l’ouverture ; le modèle mène le dialogue.
+    if (base.intakeMode === 'llm_first') {
+      return {
+        ...base,
+        organizer: undefined,
+        phase: 'INTAKE',
+        stepIndex: 0,
+      };
+    }
     let jarvisState = ensureJarvisOrganizer(base, title, description);
     if (
       isJarvisReadyForImmediateVerdict(jarvisState) &&
@@ -660,8 +668,14 @@ export class LiaIntakeService {
     return answers;
   }
 
+  /** Tous les identifiants de questions scriptées (hors organisateur KB). */
+  allScriptQuestionIds(category: IntakeCategory): string[] {
+    return INTAKE_QUESTIONS[category].map((q) => q.id);
+  }
+
   getCurrentQuestion(state: LiaIntakeState): IntakeQuestion | null {
     if (state.phase !== 'INTAKE') return null;
+    if (state.intakeMode === 'llm_first') return null;
 
     if (state.organizer && state.intakeMode !== 'legacy') {
       const jarvisQ = pickJarvisCriticalQuestion(state);
@@ -718,6 +732,17 @@ export class LiaIntakeService {
   }
 
   reconcileStepIndex(state: LiaIntakeState): LiaIntakeState {
+    if (state.intakeMode === 'llm_first') {
+      if (state.answers.llm_intake_complete === 'oui') {
+        return {
+          ...state,
+          phase: 'DONE',
+          stepIndex: 0,
+        };
+      }
+      return state.phase === 'DONE' ? state : { ...state, phase: 'INTAKE' };
+    }
+
     if (
       state.intakeMode !== 'legacy' &&
       isJarvisReadyForImmediateVerdict(state) &&

@@ -20,7 +20,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:legal": "ts-node scripts/seed-legal-references.ts",
     "sync:legal-assets": "ts-node scripts/sync-legal-references-assets.ts",
-    "test:mobile-flow": "ts-node scripts/test-mobile-full-flow.ts"
+    "test:mobile-flow": "ts-node scripts/test-mobile-full-flow.ts",
+    "test:golden": "jest src/agents/golden/lia-golden.scenarios.spec.ts",
+    "test:golden:live": "ts-node scripts/run-golden-scenarios.ts --live"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

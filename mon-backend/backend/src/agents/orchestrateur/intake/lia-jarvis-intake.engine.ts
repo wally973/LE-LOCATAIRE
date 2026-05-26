@@ -16,6 +16,11 @@ import {
   isElectricityLightingIntakeSaturated,
 } from './lia-intake-electricity-extract';
 import {
+  extractCarpentryIntakeFromText,
+  isCarpentryDoorIssueSaturated,
+  isCarpentryDoorIssueText,
+} from './lia-intake-carpentry-extract';
+import {
   extractPlumbingIntakeFromText,
   isPlumbingSinkLeakSaturated,
 } from './lia-intake-plumbing-extract';
@@ -31,10 +36,10 @@ export type JarvisDialogueIntent =
   | 'fact';
 
 const CONTESTATION_RE =
-  /pourquoi|ne comprend|pas normal|vous (avez|me) (parle|demande)|je (viens de|vous) (dir|dit)|concentrons|plut[oô]t|r[aâ]ler|inutile|absurde/i;
+  /pourquoi|de quoi|ne comprend|pas normal|bien compris|comprenez|vous (avez|me) (parle|demande)|je (viens de|vous) (dir|dit)|concentrons|plut[oô]t|r[aâ]ler|inutile|absurde/i;
 
 const META_QUESTION_RE =
-  /peux[- ]?tu lire|as[- ]?tu (lu|re[cç]u)|mon (message|signalement|r[eé]clamation)/i;
+  /peux[- ]?tu lire|as[- ]?tu (lu|re[cç]u)|avez[- ]?vous (bien )?(compris|sa)|mon (message|signalement|r[eé]clamation)/i;
 
 function norm(raw: string): string {
   return raw
@@ -156,6 +161,25 @@ export function applyJarvis360ToState(
       jarvisFacts: { ...next.jarvisFacts, ...pl.jarvisFacts },
       signals: pl.roomHint
         ? { ...next.signals, roomHint: pl.roomHint }
+        : next.signals,
+    };
+  }
+
+  const carpCtx = `${title} ${description} ${message}`;
+  if (isCarpentryDoorIssueText(carpCtx)) {
+    const carp = extractCarpentryIntakeFromText(title, description, message);
+    next = {
+      ...next,
+      answers: { ...next.answers, ...carp.answers },
+      skippedQuestionIds: [
+        ...new Set([
+          ...(next.skippedQuestionIds ?? []),
+          ...carp.skippedQuestionIds,
+        ]),
+      ],
+      jarvisFacts: { ...next.jarvisFacts, ...carp.jarvisFacts },
+      signals: carp.roomHint
+        ? { ...next.signals, roomHint: carp.roomHint }
         : next.signals,
     };
   }
@@ -285,6 +309,9 @@ export function isJarvisReadyForImmediateVerdict(state: LiaIntakeState): boolean
   if (state.category === 'PLUMBING') {
     return isPlumbingSinkLeakSaturated(state);
   }
+  if (isCarpentryDoorIssueSaturated(state)) {
+    return true;
+  }
 
   if (!state.organizer) return false;
   const tree = getPanneTreeById(state.organizer.panneId);
@@ -317,6 +344,28 @@ export function buildJarvisReassurance(params: {
     return (
       `${name}, pardon si la question semblait hors sujet. ` +
       'Je croise plusieurs causes possibles, mais je retiens bien votre éclairage et ce que vous avez déjà vérifié.'
+    );
+  }
+
+  if (
+    isCarpentryDoorIssueSaturated({
+      ...params.state,
+      intakeTitle: params.state.intakeTitle,
+      intakeDescription: params.state.intakeDescription,
+    })
+  ) {
+  const ex = extractCarpentryIntakeFromText(
+    params.state.intakeTitle ?? '',
+    params.state.intakeDescription ?? '',
+    params.message,
+  );
+  const facts = { ...params.state.jarvisFacts, ...ex.jarvisFacts };
+  const element = facts.element ?? 'la gâche / serrure';
+  const lieu = facts.localisation ?? 'la pièce indiquée';
+    return (
+      `${name}, oui — j’ai bien compris : ${element.toLowerCase()} ` +
+      `(${lieu}) est cassée. Je ne vous redemande pas ce que vous avez déjà précisé. ` +
+      'Je transmets au bailleur pour qu’un serrurier intervienne.'
     );
   }
 

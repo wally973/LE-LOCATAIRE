@@ -7,6 +7,7 @@ import {
 import { LiaIntakeReactiveService } from '../intake/lia-intake-reactive.service';
 import { LiaConversationService } from './lia-conversation.service';
 import { LiaExpertPocketService } from './lia-expert-pocket.service';
+import { LiaLlmFirstComprehensionService } from '../../comprehension/lia-llm-first-comprehension.service';
 import { categoryLabel } from '../../chercheur/knowledge/lia-multi-claim';
 import { isConfirmedTopicChange } from '../intake/lia-jarvis-intake.engine';
 
@@ -21,6 +22,7 @@ export class LiaComprehensionService {
     private readonly intakeReactive: LiaIntakeReactiveService,
     private readonly conversation: LiaConversationService,
     private readonly expertPocket: LiaExpertPocketService,
+    private readonly llmFirst: LiaLlmFirstComprehensionService,
   ) {}
 
   createInitialIntake(title: string, description: string): LiaIntakeState {
@@ -55,9 +57,9 @@ export class LiaComprehensionService {
     title: string,
     description: string,
     state: LiaIntakeState,
-  ): Promise<void> {
+  ): Promise<LiaIntakeState> {
     if (state.answers.situation_analysis_sent === 'oui') {
-      return;
+      return state;
     }
     const lines = this.situationAnalysisLines(
       firstName,
@@ -65,6 +67,39 @@ export class LiaComprehensionService {
       description,
       state,
     );
+    if ((state.intakeMode ?? 'llm_first') === 'llm_first') {
+      const turn = await this.llmFirst.comprehendOpening({
+        state,
+        title,
+        description,
+        tenantFirstName: firstName,
+      });
+      const locale =
+        turn.state.preferredLanguage === 'gcf' ? 'gcf-GP' : 'fr-FR';
+      await this.conversation.appendMessage(
+        ticketId,
+        'LIA_HOST',
+        turn.acknowledgment,
+        locale,
+        { uiStatus: turn.uiStatus },
+      );
+      if (turn.nextQuestion) {
+        await this.conversation.appendMessage(
+          ticketId,
+          'LIA_HOST',
+          turn.nextQuestion,
+          locale,
+        );
+      }
+      return {
+        ...turn.state,
+        answers: {
+          ...turn.state.answers,
+          situation_analysis_sent: 'oui',
+        },
+      };
+    }
+
     const opening = this.expertPocket.buildOpeningAck({
       tenantFirstName: firstName,
       title,
@@ -79,14 +114,26 @@ export class LiaComprehensionService {
         opening.language === 'gcf' ? 'gcf-GP' : 'fr-FR',
         { uiStatus: opening.uiStatus },
       );
-      return;
+      return {
+        ...state,
+        answers: { ...state.answers, situation_analysis_sent: 'oui' },
+      };
     }
-    if (lines.length === 0) return;
+    if (lines.length === 0) {
+      return {
+        ...state,
+        answers: { ...state.answers, situation_analysis_sent: 'oui' },
+      };
+    }
     await this.conversation.appendMessage(
       ticketId,
       'LIA_HOST',
       lines.join('\n\n'),
     );
+    return {
+      ...state,
+      answers: { ...state.answers, situation_analysis_sent: 'oui' },
+    };
   }
 
   recordAnswer(state: LiaIntakeState, answer: string): LiaIntakeState {

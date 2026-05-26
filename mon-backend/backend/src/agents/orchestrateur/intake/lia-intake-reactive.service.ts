@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { LiaHostService } from '../conversation/lia-host.service';
-import { LiaExpertPocketService } from '../conversation/lia-expert-pocket.service';
+import { LiaLlmFirstComprehensionService } from '../../comprehension/lia-llm-first-comprehension.service';
 import { analyzingStatus } from '../conversation/lia-message-ui-status';
 import {
-  getIntakeQuestionsForState,
-  isLightingOnlyScope,
-  tenantAlreadyChangedBulb,
   type IntakeReactiveTurn,
   type LiaIntakeState,
   LiaIntakeService,
@@ -17,21 +13,17 @@ import {
   resolveLanguageFromGreeting,
 } from '../../shared/lia-tenant-greeting';
 import {
-  buildMarieElectricityAcknowledgment,
-  isElectricityLightingIntakeSaturated,
-} from './lia-intake-electricity-extract';
-import {
   applyJarvis360ToState,
   buildJarvisReassurance,
   buildTopicChangeConfirmationQuestion,
   detectJarvisDialogueIntent,
   detectedTopicLabelForConfirmation,
-  isJarvisReadyForImmediateVerdict,
   parseTopicChangeConfirmation,
 } from './lia-jarvis-intake.engine';
 
 /**
- * Intake réactif mode Jarvis — extraction 360°, dialogue naturel, questions critiques uniquement.
+ * Intake réactif — mode LLM-first par défaut.
+ * Les règles scriptées (questions GENERIC, extracteurs métier) ne s’appliquent plus au dialogue.
  */
 @Injectable()
 export class LiaIntakeReactiveService {
@@ -39,8 +31,7 @@ export class LiaIntakeReactiveService {
 
   constructor(
     private readonly intake: LiaIntakeService,
-    private readonly host: LiaHostService,
-    private readonly expertPocket: LiaExpertPocketService,
+    private readonly llmFirst: LiaLlmFirstComprehensionService,
   ) {}
 
   async processTenantReply(params: {
@@ -59,6 +50,27 @@ export class LiaIntakeReactiveService {
       };
     }
 
+    const mode = params.state.intakeMode ?? 'llm_first';
+    if (mode === 'llm_first') {
+      return this.processLlmFirst(params, msg);
+    }
+
+    this.logger.warn(
+      `Intake mode « ${mode} » : basculez vers llm_first. Traitement minimal.`,
+    );
+    return this.processLlmFirst(params, msg);
+  }
+
+  private async processLlmFirst(
+    params: {
+      state: LiaIntakeState;
+      message: string;
+      title: string;
+      description: string;
+      tenantFirstName?: string;
+    },
+    msg: string,
+  ): Promise<IntakeReactiveTurn> {
     if (
       isSkipPhotoIntent(msg) &&
       (params.state.phase === 'AWAITING_PHOTO' ||
@@ -66,70 +78,63 @@ export class LiaIntakeReactiveService {
     ) {
       const done = this.intake.markDone({
         ...params.state,
+        intakeMode: 'llm_first',
         answers: {
           ...params.state.answers,
           photo_unavailable: msg,
+          llm_intake_complete: 'oui',
         },
       });
-      const pocket = await this.expertPocket.buildReply({
-        tenantFirstName: params.tenantFirstName,
-        title: params.title,
-        description: params.description,
-        message: msg,
-        state: done,
-      });
-      const lang = pocket.language === 'gcf' ? 'gcf' : 'fr';
+      const lang = done.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
       return {
-        state: { ...done, preferredLanguage: pocket.language },
-        acknowledgment: pocket.text,
+        state: done,
+        acknowledgment:
+          'C’est noté — je lance l’analyse avec votre description, sans photo.',
         nextQuestionText: null,
-        uiStatus:
-          done.phase === 'DONE'
-            ? analyzingStatus(lang)
-            : pocket.uiStatus,
+        uiStatus: analyzingStatus(lang),
       };
     }
 
-    if (isTenantLanguageGreeting(msg) && !params.state.answers[INTAKE_LANGUAGE_ANSWER_ID]) {
+    if (
+      isTenantLanguageGreeting(msg) &&
+      !params.state.answers[INTAKE_LANGUAGE_ANSWER_ID]
+    ) {
       const language = resolveLanguageFromGreeting(msg);
       let state: LiaIntakeState = {
         ...params.state,
-        intakeMode: 'jarvis',
+        intakeMode: 'llm_first',
         preferredLanguage: language,
         answers: {
           ...params.state.answers,
           [INTAKE_LANGUAGE_ANSWER_ID]: msg,
         },
       };
-      state = this.intake.reconcileStepIndex(state);
-      const next = this.intake.getCurrentQuestion(state);
-      return {
+      const turn = await this.llmFirst.comprehendTenantTurn({
         state,
-        acknowledgment:
-          language === 'gcf'
-            ? 'Bonjou ! Mo ka koz ar ou an kréyòl. Di mwen kisa ki rive — mo pral poze kèk kesyon si mo manke yon bagay enpòtan.'
-            : 'Bonjour ! Je vous réponds en français. Décrivez ce qui se passe ; je ne vous poserai une question que si une information critique manque.',
-        nextQuestionText: state.phase === 'INTAKE' && next ? next.text : null,
-      };
+        message: msg,
+        title: params.title,
+        description: params.description,
+        tenantFirstName: params.tenantFirstName,
+      });
+      return this.toReactiveTurn(turn);
     }
 
     let state: LiaIntakeState = {
       ...params.state,
-      intakeMode: params.state.intakeMode ?? 'jarvis',
+      intakeMode: 'llm_first',
     };
 
     if (state.topicChangePending) {
       const decision = parseTopicChangeConfirmation(msg);
       if (decision === 'yes') {
-        state = {
-          ...state,
-          answers: { ...state.answers, topic_change_confirmed: 'oui' },
-        };
         return {
-          state,
+          state: {
+            ...state,
+            answers: { ...state.answers, topic_change_confirmed: 'oui' },
+          },
           acknowledgment:
             'Très bien. Pour ce second sujet, ouvrez une nouvelle demande depuis l’accueil ' +
-            '(bouton « Déclarer un problème »). Je clos la suite de ce fil pour éviter de mélanger les diagnostics.',
+            '(bouton « Déclarer un problème »).',
           nextQuestionText: null,
         };
       }
@@ -139,35 +144,8 @@ export class LiaIntakeReactiveService {
           topicChangePending: false,
           pendingTopicLabel: undefined,
         };
-        state = applyJarvis360ToState(
-          state,
-          params.title,
-          params.description,
-          msg,
-        );
-        state = this.intake.reconcileStepIndex(state);
-        const next = this.intake.getCurrentQuestion(state);
-        return {
-          state,
-          acknowledgment: buildJarvisReassurance({
-            message: msg,
-            state,
-            tenantFirstName: params.tenantFirstName,
-          }),
-          nextQuestionText:
-            state.phase === 'INTAKE' && next
-              ? this.intake.questionText(state, next)
-              : null,
-        };
       }
     }
-
-    state = applyJarvis360ToState(
-      state,
-      params.title,
-      params.description,
-      msg,
-    );
 
     const intent = detectJarvisDialogueIntent(
       msg,
@@ -175,206 +153,66 @@ export class LiaIntakeReactiveService {
       params.description,
     );
 
-    let acknowledgment: string | null = null;
-
-    if (intent === 'reassurance' || intent === 'meta_question') {
-      acknowledgment = buildJarvisReassurance({
-        message: msg,
-        state,
-        tenantFirstName: params.tenantFirstName,
-      });
-    } else if (intent === 'topic_change_candidate') {
+    if (intent === 'topic_change_candidate') {
       const label =
         detectedTopicLabelForConfirmation(msg, state.category) ??
         'un autre sujet';
-      state = {
-        ...state,
-        topicChangePending: true,
-        pendingTopicLabel: label,
-      };
-      acknowledgment = buildJarvisReassurance({
-        message: msg,
-        state,
-        tenantFirstName: params.tenantFirstName,
-      });
-      const confirmQ = buildTopicChangeConfirmationQuestion(label);
       return {
-        state,
-        acknowledgment,
-        nextQuestionText: confirmQ,
+        state: {
+          ...state,
+          topicChangePending: true,
+          pendingTopicLabel: label,
+        },
+        acknowledgment: buildJarvisReassurance({
+          message: msg,
+          state,
+          tenantFirstName: params.tenantFirstName,
+        }),
+        nextQuestionText: buildTopicChangeConfirmationQuestion(label),
       };
     }
 
-    const pending = this.intake.getCurrentQuestion(state);
-    if (pending && !state.answers[pending.id]?.trim()) {
-      state = this.intake.recordAnswer(state, msg);
-      state = applyJarvis360ToState(
-        state,
-        params.title,
-        params.description,
-        msg,
-      );
-    }
-
-    state = this.intake.reconcileStepIndex(state);
-
-    const llm =
-      state.intakeMode === 'legacy' || state.organizer
-        ? null
-        : await this.tryLlmAnalysis(
-            state,
-            msg,
-            params.title,
-            params.description,
-          );
-    if (llm) {
-      state = llm.state;
-      state = this.intake.reconcileStepIndex(state);
-    }
-
-    let uiStatus = undefined as IntakeReactiveTurn['uiStatus'];
-
-    if (!acknowledgment) {
-      const pocket = await this.expertPocket.buildReply({
-        tenantFirstName: params.tenantFirstName,
-        title: params.title,
-        description: params.description,
-        message: msg,
-        state,
-      });
-      state = { ...state, preferredLanguage: pocket.language };
-      acknowledgment = llm?.acknowledgment ?? pocket.text;
-      uiStatus = pocket.uiStatus;
-    }
-
-    if (
-      state.category === 'ELECTRICITY' &&
-      (state.phase === 'DONE' || isElectricityLightingIntakeSaturated(state))
-    ) {
-      acknowledgment = buildMarieElectricityAcknowledgment({
-        title: params.title,
-        description: params.description,
-        answers: state.answers,
-        tenantFirstName: params.tenantFirstName,
-      });
-    }
-
-    if (state.phase === 'DONE' && !uiStatus) {
-      const lang = state.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
-      uiStatus = analyzingStatus(lang);
-    }
-
-    const next = this.intake.getCurrentQuestion(state);
-    let nextQuestionText: string | null = null;
-    if (state.phase === 'INTAKE' && next) {
-      nextQuestionText = this.intake.questionText(state, next);
-    } else if (state.phase === 'AWAITING_PHOTO') {
-      nextQuestionText = this.intake.photoRequestMessage(state);
-    }
-
-    return { state, acknowledgment, nextQuestionText, uiStatus };
-  }
-
-  private buildJarvisAcknowledgment(
-    state: LiaIntakeState,
-    message: string,
-    tenantFirstName?: string,
-  ): string | null {
-    if (
-      state.category === 'ELECTRICITY' &&
-      isElectricityLightingIntakeSaturated(state)
-    ) {
-      return buildMarieElectricityAcknowledgment({
-        title: state.intakeTitle ?? '',
-        description: state.intakeDescription ?? '',
-        answers: state.answers,
-        tenantFirstName,
-      });
-    }
-
-    const facts = Object.keys(state.jarvisFacts ?? {});
-    if (facts.length > 0 && state.phase === 'DONE') {
-      return (
-        `${tenantFirstName?.trim() || 'Merci'} — j’ai bien noté ` +
-        `${facts.slice(0, 3).join(', ')}. Je lance l’analyse.`
-      );
-    }
-
-    if (state.jarvisFacts?.nouveau_locataire && state.jarvisFacts?.localisation) {
-      return (
-        'C’est noté : nouveau locataire et problème sous l’évier. ' +
-        'Je ne vous ferai pas répéter ce que vous avez déjà précisé.'
-      );
-    }
-
-    const t = message.toLowerCase();
-    if (tenantAlreadyChangedBulb(`${message} ${Object.values(state.answers).join(' ')}`, state.answers)) {
-      return 'Ampoule déjà changée : je ne vous le redemanderai pas.';
-    }
-    if (/depuis|semaine|hier|jour|mois/.test(t)) {
-      return 'Merci, c’est noté.';
-    }
-    if (state.organizer || state.intakeMode === 'jarvis') {
-      return 'Merci pour cette précision — je l’intègre au diagnostic.';
-    }
-    return null;
-  }
-
-  private async tryLlmAnalysis(
-    state: LiaIntakeState,
-    message: string,
-    title: string,
-    description: string,
-  ): Promise<{ state: LiaIntakeState; acknowledgment: string } | null> {
-    const list = getIntakeQuestionsForState(state);
-    const system = [
-      'Tu es Lia, technicienne logement autonome. JSON uniquement.',
-      'Le fichier panne-diagnostic est une BASE DE CONNAISSANCES, pas un script à suivre dans l’ordre.',
-      'Extraction 360° : tout ce que le locataire dit est acquis ; ne redemande jamais.',
-      'Pose une question UNIQUEMENT si une info CRITIQUE manque pour le diagnostic.',
-      'Si contestation ou colère, réassure (pas de changement de sujet automatique).',
-      'Format JSON :',
-      '{ "acknowledgment": "...", "newAnswers": {}, "skipQuestionIds": [], "intakeComplete": false }',
-    ].join('\n');
-
-    const user = JSON.stringify({
-      category: state.category,
-      title,
-      description,
-      jarvisFacts: state.jarvisFacts ?? {},
-      currentAnswers: state.answers,
-      tenantMessage: message.slice(0, 600),
-      questions: list.map((q) => ({ id: q.id, text: q.text })),
+    const turn = await this.llmFirst.comprehendTenantTurn({
+      state,
+      message: msg,
+      title: params.title,
+      description: params.description,
+      tenantFirstName: params.tenantFirstName,
     });
 
-    const raw = await this.host.chatStructured(system, user, 400);
-    if (!raw) return null;
-
-    try {
-      const parsed = JSON.parse(raw) as {
-        acknowledgment?: string;
-        newAnswers?: Record<string, string>;
-        skipQuestionIds?: string[];
-        intakeComplete?: boolean;
-      };
-      const answers = { ...state.answers, ...parsed.newAnswers };
-      const skipped = new Set([
-        ...(state.skippedQuestionIds ?? []),
-        ...(parsed.skipQuestionIds ?? []),
-      ]);
-      let next: LiaIntakeState = { ...state, answers, skippedQuestionIds: [...skipped] };
-      if (parsed.intakeComplete) {
-        next = {
-          ...next,
-          phase: this.intake.needsPhoto(next) ? 'AWAITING_PHOTO' : 'DONE',
-        };
-      }
-      const ack = parsed.acknowledgment?.trim();
-      if (!ack) return null;
-      return { state: next, acknowledgment: ack };
-    } catch (e) {
-      this.logger.warn('Intake Jarvis JSON invalide', e);
-      return null;
+    if (intent === 'reassurance' || intent === 'meta_question') {
+      const reassurance = buildJarvisReassurance({
+        message: msg,
+        state: turn.state,
+        tenantFirstName: params.tenantFirstName,
+      });
+      return this.toReactiveTurn({
+        ...turn,
+        acknowledgment: reassurance,
+      });
     }
+
+    return this.toReactiveTurn(turn);
+  }
+
+  private toReactiveTurn(
+    turn: import('../../comprehension/lia-llm-first.types').LlmFirstComprehensionResult,
+  ): IntakeReactiveTurn {
+    let state = turn.state;
+    if (state.phase === 'DONE' && !turn.uiStatus) {
+      const lang = state.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
+      return {
+        state,
+        acknowledgment: turn.acknowledgment,
+        nextQuestionText: turn.nextQuestion,
+        uiStatus: analyzingStatus(lang),
+      };
+    }
+    return {
+      state,
+      acknowledgment: turn.acknowledgment,
+      nextQuestionText: turn.nextQuestion,
+      uiStatus: turn.uiStatus,
+    };
   }
 }

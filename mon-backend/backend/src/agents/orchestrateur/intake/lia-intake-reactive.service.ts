@@ -1,5 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { LiaLlmFirstComprehensionService } from '../../comprehension/lia-llm-first-comprehension.service';
+import { Injectable } from '@nestjs/common';
 import { analyzingStatus } from '../conversation/lia-message-ui-status';
 import {
   type IntakeReactiveTurn,
@@ -13,25 +12,22 @@ import {
   resolveLanguageFromGreeting,
 } from '../../shared/lia-tenant-greeting';
 import {
-  applyJarvis360ToState,
-  buildJarvisReassurance,
   buildTopicChangeConfirmationQuestion,
   detectJarvisDialogueIntent,
   detectedTopicLabelForConfirmation,
   parseTopicChangeConfirmation,
 } from './lia-jarvis-intake.engine';
+import { buildJarvisReassurance } from './lia-jarvis-intake.engine';
+import { LiaJarvisPilotService } from './lia-jarvis-pilot.service';
 
 /**
- * Intake réactif — mode LLM-first par défaut.
- * Les règles scriptées (questions GENERIC, extracteurs métier) ne s’appliquent plus au dialogue.
+ * Intake réactif — pilote unique : Jarvis (lia-jarvis-intake.engine + pilot).
  */
 @Injectable()
 export class LiaIntakeReactiveService {
-  private readonly logger = new Logger(LiaIntakeReactiveService.name);
-
   constructor(
     private readonly intake: LiaIntakeService,
-    private readonly llmFirst: LiaLlmFirstComprehensionService,
+    private readonly jarvis: LiaJarvisPilotService,
   ) {}
 
   async processTenantReply(params: {
@@ -40,6 +36,7 @@ export class LiaIntakeReactiveService {
     title: string;
     description: string;
     tenantFirstName?: string;
+    ticketId?: number;
   }): Promise<IntakeReactiveTurn> {
     const msg = params.message.trim();
     if (!msg) {
@@ -50,27 +47,6 @@ export class LiaIntakeReactiveService {
       };
     }
 
-    const mode = params.state.intakeMode ?? 'llm_first';
-    if (mode === 'llm_first') {
-      return this.processLlmFirst(params, msg);
-    }
-
-    this.logger.warn(
-      `Intake mode « ${mode} » : basculez vers llm_first. Traitement minimal.`,
-    );
-    return this.processLlmFirst(params, msg);
-  }
-
-  private async processLlmFirst(
-    params: {
-      state: LiaIntakeState;
-      message: string;
-      title: string;
-      description: string;
-      tenantFirstName?: string;
-    },
-    msg: string,
-  ): Promise<IntakeReactiveTurn> {
     if (
       isSkipPhotoIntent(msg) &&
       (params.state.phase === 'AWAITING_PHOTO' ||
@@ -78,18 +54,18 @@ export class LiaIntakeReactiveService {
     ) {
       const done = this.intake.markDone({
         ...params.state,
-        intakeMode: 'llm_first',
+        intakeMode: 'jarvis',
         answers: {
           ...params.state.answers,
           photo_unavailable: msg,
-          llm_intake_complete: 'oui',
+          jarvis_intake_complete: 'oui',
         },
       });
       const lang = done.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
       return {
         state: done,
         acknowledgment:
-          'C’est noté — je lance l’analyse avec votre description, sans photo.',
+          'C’est noté — j’analyse votre dossier avec votre description, sans photo.',
         nextQuestionText: null,
         uiStatus: analyzingStatus(lang),
       };
@@ -102,26 +78,27 @@ export class LiaIntakeReactiveService {
       const language = resolveLanguageFromGreeting(msg);
       let state: LiaIntakeState = {
         ...params.state,
-        intakeMode: 'llm_first',
+        intakeMode: 'jarvis',
         preferredLanguage: language,
         answers: {
           ...params.state.answers,
           [INTAKE_LANGUAGE_ANSWER_ID]: msg,
         },
       };
-      const turn = await this.llmFirst.comprehendTenantTurn({
+      const turn = await this.jarvis.runTenantTurn({
         state,
         message: msg,
         title: params.title,
         description: params.description,
         tenantFirstName: params.tenantFirstName,
+        ticketId: params.ticketId,
       });
       return this.toReactiveTurn(turn);
     }
 
     let state: LiaIntakeState = {
       ...params.state,
-      intakeMode: 'llm_first',
+      intakeMode: 'jarvis',
     };
 
     if (state.topicChangePending) {
@@ -172,44 +149,23 @@ export class LiaIntakeReactiveService {
       };
     }
 
-    const turn = await this.llmFirst.comprehendTenantTurn({
+    const turn = await this.jarvis.runTenantTurn({
       state,
       message: msg,
       title: params.title,
       description: params.description,
       tenantFirstName: params.tenantFirstName,
+      ticketId: params.ticketId,
     });
-
-    if (intent === 'reassurance' || intent === 'meta_question') {
-      const reassurance = buildJarvisReassurance({
-        message: msg,
-        state: turn.state,
-        tenantFirstName: params.tenantFirstName,
-      });
-      return this.toReactiveTurn({
-        ...turn,
-        acknowledgment: reassurance,
-      });
-    }
 
     return this.toReactiveTurn(turn);
   }
 
   private toReactiveTurn(
-    turn: import('../../comprehension/lia-llm-first.types').LlmFirstComprehensionResult,
+    turn: import('./lia-jarvis-pilot.service').JarvisPilotTurn,
   ): IntakeReactiveTurn {
-    let state = turn.state;
-    if (state.phase === 'DONE' && !turn.uiStatus) {
-      const lang = state.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
-      return {
-        state,
-        acknowledgment: turn.acknowledgment,
-        nextQuestionText: turn.nextQuestion,
-        uiStatus: analyzingStatus(lang),
-      };
-    }
     return {
-      state,
+      state: turn.state,
       acknowledgment: turn.acknowledgment,
       nextQuestionText: turn.nextQuestion,
       uiStatus: turn.uiStatus,

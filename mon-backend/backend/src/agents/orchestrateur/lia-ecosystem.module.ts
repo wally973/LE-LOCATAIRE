@@ -17,8 +17,8 @@ import { LiaAgentService } from './conversation/lia-agent.service';
 import { LiaIntakeService } from './intake/lia-intake.service';
 import { LiaIntakeReactiveService } from './intake/lia-intake-reactive.service';
 import { LiaExpertPocketService } from './conversation/lia-expert-pocket.service';
-import { LiaLlmFirstComprehensionService } from '../comprehension/lia-llm-first-comprehension.service';
-import { LiaGoldenRunnerService } from '../golden/lia-golden-runner.service';
+import { LiaJarvisPilotService } from './intake/lia-jarvis-pilot.service';
+import { LiaJarvisHandoffService } from './intake/lia-jarvis-handoff.service';
 import { LiaResearchService } from '../chercheur/research/lia-research.service';
 import { LiaHousingWarrantyService } from '../chercheur/research/lia-housing-warranty';
 import { LiaDiagnosticCapabilityService } from '../diagnostiqueur/capability/lia-diagnostic-capability.service';
@@ -26,7 +26,7 @@ import { LiaProBriefingService } from '../diagnostiqueur/briefing/lia-pro-briefi
 import { LiaExpertRectificationService } from '../diagnostiqueur/briefing/lia-expert-rectification.service';
 import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-marches.module';
 
-/** Écosystème Lia — orchestrateur + chercheur + diagnostiqueur (ex-src/lia). */
+/** Écosystème Lia — Agent Jarvis (visualisation systémique + escalade humaine). */
 @Module({
   imports: [
     AgentsSharedModule,
@@ -54,8 +54,8 @@ import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-march
     LiaExpertRectificationService,
     LiaIntakeReactiveService,
     LiaExpertPocketService,
-    LiaLlmFirstComprehensionService,
-    LiaGoldenRunnerService,
+    LiaJarvisPilotService,
+    LiaJarvisHandoffService,
     LiaOrchestratorService,
   ],
   exports: [

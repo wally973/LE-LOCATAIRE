@@ -253,6 +253,7 @@ export class LiaAgentService {
         title: state.title,
         description: state.description,
         tenantFirstName: state.tenantFirstName,
+        ticketId: state.ticketId,
       });
       intake = turn.state;
       const parts: string[] = [];
@@ -299,16 +300,6 @@ export class LiaAgentService {
     } else if (trigger === 'TICKET_OPENED') {
       let nextIntake = intake;
       if (nextIntake.phase === 'INTAKE') {
-        if ((nextIntake.intakeMode ?? 'llm_first') !== 'llm_first') {
-          const q = this.comprehension.currentQuestion(nextIntake);
-          if (q) {
-            await this.conversation.appendMessage(
-              state.ticketId,
-              'LIA_HOST',
-              q.text,
-            );
-          }
-        }
         await this.persistIntake(state.ticketId, nextIntake, 'OPEN');
         return {
           state: { ...state, intake: nextIntake },

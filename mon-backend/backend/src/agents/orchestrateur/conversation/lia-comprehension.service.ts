@@ -6,14 +6,13 @@ import {
 } from '../intake/lia-intake.service';
 import { LiaIntakeReactiveService } from '../intake/lia-intake-reactive.service';
 import { LiaConversationService } from './lia-conversation.service';
-import { LiaExpertPocketService } from './lia-expert-pocket.service';
-import { LiaLlmFirstComprehensionService } from '../../comprehension/lia-llm-first-comprehension.service';
+import { LiaJarvisPilotService } from '../intake/lia-jarvis-pilot.service';
 import { categoryLabel } from '../../chercheur/knowledge/lia-multi-claim';
 import { isConfirmedTopicChange } from '../intake/lia-jarvis-intake.engine';
 
 /**
- * Capacité « compréhension » — intake, cadrage, multi-sujet (40 jours de logique métier).
- * Ne tranche pas la responsabilité juridique.
+ * Capacité « compréhension » — pilotée par Jarvis (visualisation systémique).
+ * Ne tranche pas la responsabilité juridique (délégué au diagnostic).
  */
 @Injectable()
 export class LiaComprehensionService {
@@ -21,12 +20,11 @@ export class LiaComprehensionService {
     private readonly intake: LiaIntakeService,
     private readonly intakeReactive: LiaIntakeReactiveService,
     private readonly conversation: LiaConversationService,
-    private readonly expertPocket: LiaExpertPocketService,
-    private readonly llmFirst: LiaLlmFirstComprehensionService,
+    private readonly jarvis: LiaJarvisPilotService,
   ) {}
 
   createInitialIntake(title: string, description: string): LiaIntakeState {
-    return this.intake.createInitialState(title, description);
+    return this.jarvis.bootstrapState(title, description);
   }
 
   skipIntake(
@@ -61,78 +59,39 @@ export class LiaComprehensionService {
     if (state.answers.situation_analysis_sent === 'oui') {
       return state;
     }
-    const lines = this.situationAnalysisLines(
-      firstName,
-      title,
-      description,
-      state,
-    );
-    if ((state.intakeMode ?? 'llm_first') === 'llm_first') {
-      const turn = await this.llmFirst.comprehendOpening({
-        state,
-        title,
-        description,
-        tenantFirstName: firstName,
-      });
-      const locale =
-        turn.state.preferredLanguage === 'gcf' ? 'gcf-GP' : 'fr-FR';
-      await this.conversation.appendMessage(
-        ticketId,
-        'LIA_HOST',
-        turn.acknowledgment,
-        locale,
-        { uiStatus: turn.uiStatus },
-      );
-      if (turn.nextQuestion) {
-        await this.conversation.appendMessage(
-          ticketId,
-          'LIA_HOST',
-          turn.nextQuestion,
-          locale,
-        );
-      }
-      return {
-        ...turn.state,
-        answers: {
-          ...turn.state.answers,
-          situation_analysis_sent: 'oui',
-        },
-      };
-    }
 
-    const opening = this.expertPocket.buildOpeningAck({
-      tenantFirstName: firstName,
+    const turn = await this.jarvis.runOpening({
+      state: { ...state, intakeMode: 'jarvis' },
       title,
       description,
-      state,
+      tenantFirstName: firstName,
+      ticketId,
     });
-    if (opening) {
-      await this.conversation.appendMessage(
-        ticketId,
-        'LIA_HOST',
-        opening.text,
-        opening.language === 'gcf' ? 'gcf-GP' : 'fr-FR',
-        { uiStatus: opening.uiStatus },
-      );
-      return {
-        ...state,
-        answers: { ...state.answers, situation_analysis_sent: 'oui' },
-      };
-    }
-    if (lines.length === 0) {
-      return {
-        ...state,
-        answers: { ...state.answers, situation_analysis_sent: 'oui' },
-      };
-    }
+
+    const locale =
+      turn.state.preferredLanguage === 'gcf' ? 'gcf-GP' : 'fr-FR';
     await this.conversation.appendMessage(
       ticketId,
       'LIA_HOST',
-      lines.join('\n\n'),
+      turn.acknowledgment,
+      locale,
+      { uiStatus: turn.uiStatus },
     );
+    if (turn.nextQuestion) {
+      await this.conversation.appendMessage(
+        ticketId,
+        'LIA_HOST',
+        turn.nextQuestion,
+        locale,
+      );
+    }
+
     return {
-      ...state,
-      answers: { ...state.answers, situation_analysis_sent: 'oui' },
+      ...turn.state,
+      answers: {
+        ...turn.state.answers,
+        situation_analysis_sent: 'oui',
+      },
     };
   }
 
@@ -140,13 +99,13 @@ export class LiaComprehensionService {
     return this.intake.recordAnswer(state, answer);
   }
 
-  /** Intake réactif : analyse la réponse avant la prochaine question. */
   processTenantReply(params: {
     state: LiaIntakeState;
     message: string;
     title: string;
     description: string;
     tenantFirstName?: string;
+    ticketId?: number;
   }): Promise<IntakeReactiveTurn> {
     return this.intakeReactive.processTenantReply(params);
   }

@@ -42,6 +42,20 @@ Synthèse affichée : *« Suite à l’expertise terrain de [Nom]… »*.
 
 `COMPREHEND_SITUATION` → `COLLECT_MISSING_FACTS` → `OBTAIN_VISUAL_EVIDENCE` → `RUN_DIAGNOSTIC` → … selon **SharedState**, pas `étape 1 / étape 2` en dur.
 
+## Jarvis — Intelligence de terrain (mai 2026)
+
+Lia **visualise** le bâtiment avant de parler (`VISUAL_LOGIC.md`) :
+
+- **Exutoire** (3 verres) — amont / logement / aval  
+- **Dalle froide** — R-1 commerce → condensation R+1  
+- **Enveloppe** — toiture terrasse → pathologie étages bas  
+
+**Protocole Marie** : extraction 360°, FR/créole, pas de formulaire.  
+**Diagnostic** : `panne-diagnostic-logique.json` = KB pour valider, pas script.  
+**Handoff** : `BAILLEUR_SECTOR_TECH` si physique contradictoire ou blocage.
+
+Pilote dialogue : `lia-jarvis-intake.engine.ts` + `lia-jarvis-pilot.service.ts`.
+
 ---
 
-*Dernière mise à jour : mai 2026 — aligné sur NestJS Lia + Pro Briefing + rectification expert.*
+*Dernière mise à jour : mai 2026 — Jarvis + Pro Briefing + rectification expert.*

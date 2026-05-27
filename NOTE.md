@@ -1,7 +1,18 @@
 # LE LOCATAIRE — Notes de projet
 
 Document de synthèse regroupant les **résumés de fin de session** (assistant + développement backend).  
-Dernière mise à jour : **22 mai 2026** — **V1 du cœur technique validée et testée**.
+Dernière mise à jour : **27 mai 2026**.
+
+**SYSTÈME JARVIS OPÉRATIONNEL — MODE VISUALISATION & ESCALADE HUMAINE ACTIVÉ**
+
+Lia n’est plus un programme de scripts linéaires : c’est un **Agent de Raisonnement Systémique** piloté par `lia-jarvis-intake.engine.ts` (+ `lia-jarvis-pilot.service.ts`).
+
+| Pilier | Référence |
+|--------|-----------|
+| Visualisation 3D / flux | [`VISUAL_LOGIC.md`](VISUAL_LOGIC.md) — Exutoire (3 verres), Dalle froide R-1/R+1, Enveloppe R+6 |
+| Dialogue locataire | Jarvis — extraction 360°, protocole Marie, Groq |
+| Validation technique | DTU, CCTP, `panne-diagnostic-logique.json`, pipeline `ai-routing` |
+| Sixième sens | Handoff `BAILLEUR_SECTOR_TECH` → `lia-jarvis-handoff.service.ts` |
 
 **Manifeste produit / architecture IA** : voir [`MANIFESTE_FINAL.md`](MANIFESTE_FINAL.md) (rectification expert, Goals + SharedState, mapping stack réelle).
 

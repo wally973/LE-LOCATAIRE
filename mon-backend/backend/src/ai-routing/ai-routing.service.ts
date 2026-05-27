@@ -51,6 +51,7 @@ import { LiaCompanionService } from '../agents/orchestrateur/conversation/lia-co
 import { toCompanionUiState } from '../agents/orchestrateur/conversation/lia-companion.types';
 import type { IntakeCategory } from '../agents/orchestrateur/intake/lia-intake.service';
 import { isSavonneuseR1RefoulementSensors } from '../agents/shared/refoulement-eu-context';
+import { buildJarvisDiagnosticEnrichment } from '../agents/orchestrateur/intake/lia-jarvis-reasoning';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -148,12 +149,18 @@ export class AiRoutingService {
       opts.tenantFeedback,
     );
     const { tenantSupplement } = splitPipelineFeedback(tenantFeedback);
-    const caseContextForRules = buildTenantCaseContext({
-      title: ticketWithDocs.title,
-      description: ticketWithDocs.description,
-      intake: intakeState,
-      tenantSupplement,
-    });
+    const jarvisEnrichment = buildJarvisDiagnosticEnrichment(intakeState);
+    const caseContextForRules = [
+      buildTenantCaseContext({
+        title: ticketWithDocs.title,
+        description: ticketWithDocs.description,
+        intake: intakeState,
+        tenantSupplement,
+      }),
+      jarvisEnrichment,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
     const dxContext = this.diagnosticContext.fromParts({
       ticketId,
       title: ticketWithDocs.title,

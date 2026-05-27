@@ -13,7 +13,7 @@ describe('lia-intake-carpentry-extract', () => {
     expect(isCarpentryDoorIssueText(marie)).toBe(true);
   });
 
-  it('extrait lieu et élément sans questionnaire scripté (llm_first)', () => {
+  it('extrait lieu et élément — intake Jarvis sans file GENERIC', () => {
     const ex = extractCarpentryIntakeFromText(marie, marie);
     expect(ex.skippedQuestionIds).toContain('location_detail');
     expect(ex.skippedQuestionIds).toContain('worsening');
@@ -22,7 +22,7 @@ describe('lia-intake-carpentry-extract', () => {
 
     const intake = new LiaIntakeService();
     const state = intake.createInitialState(marie, marie);
-    expect(state.intakeMode).toBe('llm_first');
+    expect(state.intakeMode).toBe('jarvis');
     expect(intake.getCurrentQuestion(state)).toBeNull();
     expect(isCarpentryDoorIssueSaturated(state)).toBe(true);
   });

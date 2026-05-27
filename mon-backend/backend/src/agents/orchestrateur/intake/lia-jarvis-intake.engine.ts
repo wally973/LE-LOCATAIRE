@@ -1,5 +1,6 @@
 /**
- * Moteur d’intake autonome (mode Jarvis) — base de connaissances, pas script linéaire.
+ * Moteur Jarvis — Agent de Raisonnement Systémique (seul pilote dialogue intake).
+ * Visualisation 3D + flux (VISUAL_LOGIC) ; panne-diagnostic = KB, pas file de questions.
  */
 import { detectMultipleClaims } from '../../chercheur/knowledge/lia-multi-claim';
 import {
@@ -372,13 +373,23 @@ export function buildJarvisReassurance(params: {
   if (META_QUESTION_RE.test(params.message)) {
     return (
       `${name}, oui — j’ai bien lu votre signalement initial et vos réponses. ` +
-      'Je m’appuie sur tout ce que vous avez déjà écrit pour ne pas vous faire répéter.'
+      'Je visualise le logement (réseaux d’eau, enveloppe du bâtiment, confort) à partir de ce que vous avez déjà écrit — pas besoin de répéter.'
+    );
+  }
+
+  const viz = params.state.jarvisFacts?.visualization;
+  if (viz) {
+    return (
+      `${name}, excusez-moi pour la confusion. ` +
+      `Je m’étais appuyée sur cette visualisation : ${viz}. ` +
+      'Je reprends uniquement votre signalement initial, sans vous faire répéter.'
     );
   }
 
   return (
-    `${name}, merci pour votre retour — je comprends. ` +
-    'Je reprends votre dossier avec ce que vous venez de préciser.'
+    `${name}, excusez-moi si ma question semblait hors sujet. ` +
+    'Je simule les flux dans le logement (eau, air, électricité) pour cibler la bonne cause — ' +
+    'je reprends votre dossier avec ce que vous venez de préciser.'
   );
 }
 

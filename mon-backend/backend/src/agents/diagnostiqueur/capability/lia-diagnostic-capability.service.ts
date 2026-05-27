@@ -6,10 +6,12 @@ import { LiaConversationService } from '../../orchestrateur/conversation/lia-con
 import { LiaResearchService } from '../../chercheur/research/lia-research.service';
 import { isExpertValidated } from '../briefing/lia-expert-rectification.types';
 import { parseIntakeState } from '../../orchestrateur/intake/lia-intake.service';
+import { buildJarvisDiagnosticEnrichment } from '../../orchestrateur/intake/lia-jarvis-reasoning';
 import { uiStatusForResponsibility } from '../../orchestrateur/conversation/lia-message-ui-status';
 
 /**
- * Capacité « diagnostic » — pathologiste + juriste (pipeline existant).
+ * Capacité « diagnostic » — agents de raisonnement (pathologiste + juriste).
+ * Le contexte Jarvis (simulation physique) enrichit l’analyse ; pas de chemin de questions.
  */
 @Injectable()
 export class LiaDiagnosticCapabilityService {
@@ -62,10 +64,13 @@ export class LiaDiagnosticCapabilityService {
         ? await this.featureFlags.getQualificationFlags(ticket.landlordProfileId)
         : await this.featureFlags.pickQualificationFlags({});
 
-      let feedback = tenantFeedback;
+      const intake = parseIntakeState(ticket?.aiLastDecision);
+      const jarvisCtx = buildJarvisDiagnosticEnrichment(intake);
+
+      let feedback = [jarvisCtx, tenantFeedback].filter(Boolean).join('\n\n');
       if (flags.liaAutoResearchEnabled) {
         const brief = await this.research.buildInternalBrief(ticketId);
-        feedback = [brief, tenantFeedback].filter(Boolean).join('\n\n');
+        feedback = [jarvisCtx, brief, tenantFeedback].filter(Boolean).join('\n\n');
       }
 
       const updated = await this.aiRouting.analyzeTicket(ticketId, {

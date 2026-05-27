@@ -26,6 +26,7 @@ import AdminPaymentsPage from '@pages/admin/AdminPaymentsPage';
 import AdminTicketDetailPage from '@pages/admin/AdminTicketDetailPage';
 import AdminAvatarsPage from '@pages/admin/AdminAvatarsPage';
 import AdminIaStatsPage from '@pages/admin/AdminIaStatsPage';
+import LiaLabPage from '@pages/admin/LiaLabPage';
 import LandlordDashboardPage from '@pages/bailleur/LandlordDashboardPage';
 import LandlordHousingsPage from '@pages/bailleur/LandlordHousingsPage';
 import LandlordHousingDetailPage from '@pages/bailleur/LandlordHousingDetailPage';
@@ -82,6 +83,7 @@ function App() {
             <Route path="payments" element={<AdminPaymentsPage />} />
             <Route path="avatars" element={<AdminAvatarsPage />} />
             <Route path="ia-stats" element={<AdminIaStatsPage />} />
+            <Route path="lia-lab" element={<LiaLabPage />} />
           </Route>
         </Route>
 

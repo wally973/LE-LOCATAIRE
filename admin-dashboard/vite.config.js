@@ -92,6 +92,10 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      '/lia-lab': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
 });

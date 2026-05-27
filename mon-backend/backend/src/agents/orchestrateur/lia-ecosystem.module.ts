@@ -66,6 +66,7 @@ import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-march
     LiaExpertRectificationService,
     LiaSharedStateService,
     LiaCompanionService,
+    LiaJarvisPilotService,
     MaintenanceMarchesModule,
   ],
 })

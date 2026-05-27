@@ -91,6 +91,9 @@ const AdminLayout: React.FC = () => {
             <Link to="/admin/ia-stats" className="nav-link">
               Statistiques IA
             </Link>
+            <Link to="/admin/lia-lab" className="nav-link">
+              Lia-Lab (Jarvis)
+            </Link>
           </nav>
         </aside>
 

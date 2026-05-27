@@ -28,6 +28,7 @@ import { ArtisanRequestsModule } from './artisan-requests/artisan-requests.modul
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { AgentsModule } from './agents/agents.module';
 import { LegalReferencesModule } from './legal-references/legal-references.module';
+import { LiaLabModule } from './lia-lab/lia-lab.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { LegalReferencesModule } from './legal-references/legal-references.modul
     FeatureFlagsModule,
     AgentsModule,
     LegalReferencesModule,
+    LiaLabModule,
   ],
 })
 export class AppModule {}

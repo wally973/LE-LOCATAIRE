@@ -25,6 +25,9 @@ import {
   extractPlumbingIntakeFromText,
   isPlumbingSinkLeakSaturated,
 } from './lia-intake-plumbing-extract';
+import {
+  isSimulationIntakeComplete,
+} from './lia-jarvis-simulation.engine';
 import type { IntakeCategory, LiaIntakeState } from './lia-intake.service';
 import { ORG_QUESTION_PREFIX } from './lia-intake-organizer';
 import { detectLanguageFromTenantText } from '../../shared/lia-tenant-language';
@@ -247,9 +250,16 @@ function scoreCausePriority(
 /**
  * Choisit UNE question critique manquante (consulte la KB, ignore l’ordre du JSON).
  */
+/**
+ * @deprecated Ancien moteur arbre JSON — remplacé par lia-jarvis-simulation.engine.
+ * Conservé pour compatibilité tests legacy ; retourne null en mode Jarvis.
+ */
 export function pickJarvisCriticalQuestion(
   state: LiaIntakeState,
 ): { id: string; text: string; causeId: string } | null {
+  if (state.intakeMode === 'jarvis') {
+    return null;
+  }
   if (state.phase !== 'INTAKE' || !state.organizer) {
     return null;
   }
@@ -304,6 +314,9 @@ export function pickJarvisCriticalQuestion(
 }
 
 export function isJarvisReadyForImmediateVerdict(state: LiaIntakeState): boolean {
+  if (state.intakeMode === 'jarvis' && isSimulationIntakeComplete(state)) {
+    return true;
+  }
   if (state.category === 'ELECTRICITY') {
     return isElectricityLightingIntakeSaturated(state);
   }
@@ -315,11 +328,7 @@ export function isJarvisReadyForImmediateVerdict(state: LiaIntakeState): boolean
   }
 
   if (!state.organizer) return false;
-  const tree = getPanneTreeById(state.organizer.panneId);
-  if (!tree) return false;
-
-  const q = pickJarvisCriticalQuestion(state);
-  return q === null;
+  return false;
 }
 
 export function buildJarvisReassurance(params: {

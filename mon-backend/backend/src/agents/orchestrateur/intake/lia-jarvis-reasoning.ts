@@ -3,21 +3,46 @@
  */
 import type { LiaIntakeState } from './lia-intake.service';
 import { loadVisualLogicBrief } from './lia-jarvis-visual-logic';
+import { parseSimulationFromState } from './lia-jarvis-simulation.engine';
 
 /** Enrichit le contexte envoyé au pathologiste / juriste (KB, pas script). */
 export function buildJarvisDiagnosticEnrichment(
   intake?: LiaIntakeState | null,
 ): string {
   if (!intake) return '';
+  const sim = parseSimulationFromState(intake);
   const lines: string[] = [
     '--- Agent Jarvis — simulation physique (Savoir-Voir) ---',
     'Modèles : Exutoire (3 verres), Dalle froide (R-1/R+1), Enveloppe (toiture → étages bas).',
   ];
+
+  if (sim) {
+    lines.push(`Domaine simulation : ${sim.domain}`);
+    if (sim.scene.floorLevel) lines.push(`Altimétrie : ${sim.scene.floorLevel}`);
+    if (sim.scene.room) lines.push(`Pièce : ${sim.scene.room}`);
+    if (sim.scene.above) lines.push(`Au-dessus : ${sim.scene.above}`);
+    if (sim.scene.below) lines.push(`En-dessous : ${sim.scene.below}`);
+    lines.push(`Flux actifs : ${sim.activeFlows.join(', ')}`);
+    if (sim.mentalModels.length) {
+      lines.push('Modèles mentaux :', ...sim.mentalModels.map((m) => `- ${m}`));
+    }
+    const activeHypos = sim.hypotheses.filter((h) => h.active);
+    if (activeHypos.length) {
+      lines.push(
+        'Hypothèses simulées :',
+        ...activeHypos.map((h) => `- ${h.label} : ${h.visualization}`),
+      );
+    }
+    if (sim.visualizationSummary) {
+      lines.push(`Synthèse visualisation : ${sim.visualizationSummary}`);
+    }
+  }
+
   if (intake.jarvisFacts?.visualization) {
     lines.push(`Visualisation retenue : ${intake.jarvisFacts.visualization}`);
   }
   const facts = Object.entries(intake.jarvisFacts ?? {})
-    .filter(([k]) => k !== 'visualization')
+    .filter(([k]) => !['visualization', 'jarvis_simulation'].includes(k))
     .map(([k, v]) => `${k}: ${v}`);
   if (facts.length) {
     lines.push('Faits acquis (extraction 360°) :', ...facts);
@@ -28,7 +53,7 @@ export function buildJarvisDiagnosticEnrichment(
   return lines.join('\n');
 }
 
-/** Contexte court pour prompts Groq (dialogue). */
+/** Contexte court pour prompts Groq (polish optionnel). */
 export function buildJarvisDialogueContext(
   intake?: LiaIntakeState | null,
   signalement?: string,
@@ -42,7 +67,6 @@ export function buildJarvisDialogueContext(
 
 /**
  * Détecte une contradiction physique évidente → handoff humain recommandé.
- * (Complément au jugement LLM — filet de sécurité déterministe.)
  */
 export function detectJarvisPhysicalContradiction(
   signalementText: string,
@@ -52,19 +76,9 @@ export function detectJarvisPhysicalContradiction(
 
   const localPlumbing =
     /sous.*(evier|évier|lavabo)|fuite.*(evier|évier|lavabo)/.test(t);
-  const roofOnlyHypothesis =
-    intake?.organizer?.eliminatedCauseIds?.length === 0 &&
-    /toiture|colonne|plafond/.test(
-      Object.values(intake?.answers ?? {}).join(' '),
-    ) &&
-    localPlumbing;
 
-  if (roofOnlyHypothesis) {
-    return {
-      contradictory: true,
-      reason:
-        'Fuite localisée sous équipement mais piste toiture/colonne sans lien dans le récit — expertise terrain requise.',
-    };
+  if (intake?.answers.jarvis_handoff === 'oui') {
+    return { contradictory: true, reason: 'Handoff Jarvis déjà déclenché.' };
   }
 
   if (
@@ -77,10 +91,6 @@ export function detectJarvisPhysicalContradiction(
       reason:
         'Signalement étage courant vs mention toiture terrasse sans trajet d’eau décrit — visualisation enveloppe incomplète.',
     };
-  }
-
-  if (intake?.answers.jarvis_handoff === 'oui') {
-    return { contradictory: true, reason: 'Handoff Jarvis déjà déclenché.' };
   }
 
   return { contradictory: false };

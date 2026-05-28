@@ -15,6 +15,9 @@ export interface LiaLabVisualization {
   afpolRefs: string[];
   intakePhase: string;
   handoffRecommended: boolean;
+  simulationDomain?: string | null;
+  scene3D?: Record<string, string | null>;
+  physicalHypotheses?: string[];
 }
 
 export interface LabChatMessage {

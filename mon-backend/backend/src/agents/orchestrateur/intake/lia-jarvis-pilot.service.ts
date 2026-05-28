@@ -11,18 +11,18 @@ import {
   buildJarvisReassurance,
   detectJarvisDialogueIntent,
   ensureJarvisOrganizer,
-  isJarvisReadyForImmediateVerdict,
-  pickJarvisCriticalQuestion,
 } from './lia-jarvis-intake.engine';
-import {
-  jarvisSystemPromptPrefix,
-  JARVIS_HANDOFF_TENANT_MESSAGE_FR,
-} from './lia-jarvis-visual-logic';
+import { JARVIS_HANDOFF_TENANT_MESSAGE_FR } from './lia-jarvis-visual-logic';
 import { LiaJarvisHandoffService } from './lia-jarvis-handoff.service';
+import { detectJarvisPhysicalContradiction } from './lia-jarvis-reasoning';
 import {
-  buildJarvisDialogueContext,
-  detectJarvisPhysicalContradiction,
-} from './lia-jarvis-reasoning';
+  attachSimulationToState,
+  buildJarvisConsultation,
+  isSimulationIntakeComplete,
+  parseSimulationFromState,
+  runJarvisSimulation,
+  syncJarvisSimulationOnState,
+} from './lia-jarvis-simulation.engine';
 
 export interface JarvisPilotTurn {
   state: LiaIntakeState;
@@ -44,20 +44,10 @@ interface JarvisLlmPayload {
   handoffReason?: string;
 }
 
-const JARVIS_JSON_SYSTEM = [
-  jarvisSystemPromptPrefix(),
-  '',
-  'Réponds en JSON uniquement :',
-  '{',
-  '  "language": "fr" | "gcf",',
-  '  "acknowledgment": "2 à 4 phrases",',
-  '  "nextQuestion": null ou une question critique unique",',
-  '  "intakeComplete": boolean,',
-  '  "acquiredFacts": { "cle": "valeur" },',
-  '  "visualizationNote": "quelle analogie (dalle/vases/enveloppe) et flux simulés",',
-  '  "handoffRequired": boolean,',
-  '  "handoffReason": "si handoffRequired"',
-  '}',
+const JARVIS_POLISH_SYSTEM = [
+  'Tu es Lia — Agent Jarvis. Tu reformules UNIQUEMENT le ton (empathie, créole si indiqué).',
+  'Ne change PAS les faits, la visualisation physique ni la question discriminante.',
+  'Réponds en JSON : { "acknowledgment": "...", "nextQuestion": "..." | null }',
 ].join('\n');
 
 @Injectable()
@@ -70,7 +60,6 @@ export class LiaJarvisPilotService {
     private readonly handoff: LiaJarvisHandoffService,
   ) {}
 
-  /** État initial Jarvis (organisateur KB + extraction 360°). */
   bootstrapState(title: string, description: string): LiaIntakeState {
     let state = this.intake.createInitialState(title, description);
     state = ensureJarvisOrganizer(
@@ -79,6 +68,7 @@ export class LiaJarvisPilotService {
       description,
     );
     state = applyJarvis360ToState(state, title, description);
+    state = syncJarvisSimulationOnState(state, title, description);
     state = {
       ...state,
       skippedQuestionIds: [
@@ -103,7 +93,9 @@ export class LiaJarvisPilotService {
       params.title,
       params.description,
     );
-    const intentTurn = await this.runLlmTurn({
+    state = syncJarvisSimulationOnState(state, params.title, params.description);
+
+    const turn = await this.runSimulationConsultation({
       mode: 'opening',
       state,
       title: params.title,
@@ -111,15 +103,16 @@ export class LiaJarvisPilotService {
       message: '',
       tenantFirstName: params.tenantFirstName,
     });
-    if (intentTurn.handoffTriggered && params.ticketId) {
+
+    if (turn.handoffTriggered && params.ticketId) {
       await this.handoff.dispatchSectorTechnician({
         ticketId: params.ticketId,
-        intake: intentTurn.state,
-        reason: intentTurn.state.jarvisFacts?.handoff_reason ?? 'Situation complexe',
-        visualizationNote: intentTurn.state.jarvisFacts?.visualization,
+        intake: turn.state,
+        reason: turn.state.jarvisFacts?.handoff_reason ?? 'Situation complexe',
+        visualizationNote: turn.state.jarvisFacts?.visualization,
       });
     }
-    return intentTurn;
+    return turn;
   }
 
   async runTenantTurn(params: {
@@ -132,6 +125,12 @@ export class LiaJarvisPilotService {
   }): Promise<JarvisPilotTurn> {
     let state = applyJarvis360ToState(
       params.state,
+      params.title,
+      params.description,
+      params.message,
+    );
+    state = syncJarvisSimulationOnState(
+      state,
       params.title,
       params.description,
       params.message,
@@ -149,17 +148,27 @@ export class LiaJarvisPilotService {
         state,
         tenantFirstName: params.tenantFirstName,
       });
-      const lang = state.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
+      const sim = parseSimulationFromState(state);
+      const lang = sim?.language ?? (state.preferredLanguage === 'gcf' ? 'gcf' : 'fr');
+      const nextQ = sim
+        ? buildJarvisConsultation({
+            simulation: sim,
+            title: params.title,
+            description: params.description,
+            tenantFirstName: params.tenantFirstName,
+            mode: 'tenant_turn',
+          }).nextQuestion
+        : null;
       return {
         state,
         acknowledgment: reassurance,
-        nextQuestion: null,
+        nextQuestion: nextQ,
         fromLlm: false,
         uiStatus: analyzingStatus(lang),
       };
     }
 
-    const turn = await this.runLlmTurn({
+    const turn = await this.runSimulationConsultation({
       mode: 'tenant_turn',
       state,
       title: params.title,
@@ -182,7 +191,8 @@ export class LiaJarvisPilotService {
     return turn;
   }
 
-  private async runLlmTurn(params: {
+  /** Consultation Jarvis — simulation physique d’abord, polish LLM optionnel. */
+  private async runSimulationConsultation(params: {
     mode: 'opening' | 'tenant_turn';
     state: LiaIntakeState;
     title: string;
@@ -204,120 +214,96 @@ export class LiaJarvisPilotService {
       });
     }
 
-    const user = JSON.stringify({
-      mode: params.mode,
-      tenantFirstName: params.tenantFirstName ?? 'Bonjour',
-      signalement: { title: params.title, description: params.description },
-      messageLocataire: params.message.slice(0, 800),
-      category: params.state.category,
-      jarvisFacts: params.state.jarvisFacts ?? {},
-      answers: params.state.answers,
-      organizerPanneId: params.state.organizer?.panneId ?? null,
-      contexteVisuel: buildJarvisDialogueContext(params.state, signalement).slice(
-        0,
-        2000,
-      ),
+    const prior = parseSimulationFromState(params.state);
+    const simulation = runJarvisSimulation({
+      title: params.title,
+      description: params.description,
+      message: params.message,
+      prior,
+      preferredLanguage: params.state.preferredLanguage,
     });
 
-    const raw = await this.host.chatStructured(JARVIS_JSON_SYSTEM, user, 560);
-    if (!raw) {
-      return this.fallbackTurn(params);
+    let state = attachSimulationToState(params.state, simulation);
+    const consultation = buildJarvisConsultation({
+      simulation,
+      title: params.title,
+      description: params.description,
+      tenantFirstName: params.tenantFirstName,
+      mode: params.mode,
+    });
+
+    let acknowledgment = consultation.acknowledgment;
+    let nextQuestion = consultation.nextQuestion;
+    let fromLlm = false;
+
+    const polished = await this.maybePolishConsultation({
+      consultation,
+      tenantFirstName: params.tenantFirstName,
+    });
+    if (polished) {
+      acknowledgment = polished.acknowledgment;
+      nextQuestion = polished.nextQuestion ?? nextQuestion;
+      fromLlm = true;
     }
 
-    try {
-      const parsed = JSON.parse(raw) as JarvisLlmPayload;
-      if (!parsed.acknowledgment?.trim()) {
-        return this.fallbackTurn(params);
-      }
-
-      if (parsed.handoffRequired) {
-        return this.buildHandoffTurn(params.state, parsed);
-      }
-
-      return this.applyLlmPayload(params.state, parsed, params.title, params.description);
-    } catch (e) {
-      this.logger.warn('Jarvis JSON invalide', e);
-      return this.fallbackTurn(params);
-    }
-  }
-
-  private applyLlmPayload(
-    state: LiaIntakeState,
-    parsed: JarvisLlmPayload,
-    title: string,
-    description: string,
-  ): JarvisPilotTurn {
-    const lang = parsed.language === 'gcf' ? 'gcf' : 'fr';
-    const facts = {
-      ...(state.jarvisFacts ?? {}),
-      ...(parsed.acquiredFacts ?? {}),
-    };
-    if (parsed.visualizationNote) {
-      facts.visualization = parsed.visualizationNote;
-    }
-
-    let next: LiaIntakeState = {
-      ...state,
-      intakeMode: 'jarvis',
-      preferredLanguage: lang,
-      jarvisFacts: facts,
-      answers: {
-        ...state.answers,
-        jarvis_summary: parsed.acknowledgment.slice(0, 500),
-        ...Object.fromEntries(
-          Object.entries(parsed.acquiredFacts ?? {}).map(([k, v]) => [
-            `fact_${k}`,
-            v,
-          ]),
-        ),
-      },
-      skippedQuestionIds: [
-        ...new Set([
-          ...(state.skippedQuestionIds ?? []),
-          ...this.intake.allScriptQuestionIds(state.category),
-        ]),
-      ],
-    };
-
-    let nextQuestion = parsed.nextQuestion?.trim() || null;
-    let intakeComplete =
-      parsed.intakeComplete === true || isJarvisReadyForImmediateVerdict(next);
-
-    if (!intakeComplete && !nextQuestion) {
-      const critical = pickJarvisCriticalQuestion(next);
-      if (critical) {
-        nextQuestion = critical.text;
-      } else {
-        intakeComplete = true;
-      }
-    }
-
+    let intakeComplete = consultation.intakeComplete;
     if (intakeComplete) {
-      next = {
-        ...next,
+      state = {
+        ...state,
         phase: 'DONE',
         stepIndex: 0,
-        answers: { ...next.answers, jarvis_intake_complete: 'oui' },
+        answers: { ...state.answers, jarvis_intake_complete: 'oui' },
       };
       nextQuestion = null;
     } else {
-      next = { ...next, phase: 'INTAKE' };
+      state = { ...state, phase: 'INTAKE' };
     }
 
-    const uiStatus =
-      intakeComplete
-        ? analyzingStatus(lang)
-        : /bailleur|technicien|transmets/i.test(parsed.acknowledgment)
-          ? landlordHandoffStatus(lang)
-          : undefined;
-
+    const lang = consultation.language;
     return {
-      state: next,
-      acknowledgment: parsed.acknowledgment.trim(),
+      state: {
+        ...state,
+        preferredLanguage: lang,
+        answers: {
+          ...state.answers,
+          jarvis_summary: acknowledgment.slice(0, 500),
+        },
+      },
+      acknowledgment,
       nextQuestion,
-      uiStatus,
-      fromLlm: true,
+      fromLlm,
+      uiStatus: intakeComplete ? analyzingStatus(lang) : undefined,
     };
+  }
+
+  private async maybePolishConsultation(params: {
+    consultation: ReturnType<typeof buildJarvisConsultation>;
+    tenantFirstName?: string;
+  }): Promise<{ acknowledgment: string; nextQuestion: string | null } | null> {
+    if (process.env.LIA_HOST_ENABLED === 'false') return null;
+
+    const user = JSON.stringify({
+      tenantFirstName: params.tenantFirstName ?? 'Marie',
+      language: params.consultation.language,
+      acknowledgment: params.consultation.acknowledgment,
+      nextQuestion: params.consultation.nextQuestion,
+      visualizationNote: params.consultation.visualizationNote,
+    });
+
+    const raw = await this.host.chatStructured(JARVIS_POLISH_SYSTEM, user, 400);
+    if (!raw) return null;
+
+    try {
+      const parsed = JSON.parse(raw) as JarvisLlmPayload;
+      if (!parsed.acknowledgment?.trim()) return null;
+      return {
+        acknowledgment: parsed.acknowledgment.trim(),
+        nextQuestion: parsed.nextQuestion?.trim() ?? params.consultation.nextQuestion,
+      };
+    } catch {
+      this.logger.warn('Polish Jarvis JSON invalide — consultation simulation conservée');
+      return null;
+    }
   }
 
   private buildHandoffTurn(
@@ -350,35 +336,6 @@ export class LiaJarvisPilotService {
       handoffTriggered: true,
     };
   }
-
-  private fallbackTurn(params: {
-    state: LiaIntakeState;
-    title: string;
-    description: string;
-    tenantFirstName?: string;
-  }): JarvisPilotTurn {
-    const name = params.tenantFirstName?.trim() || 'Bonjour';
-    const critical = pickJarvisCriticalQuestion(params.state);
-    const intakeComplete = !critical && isJarvisReadyForImmediateVerdict(params.state);
-    const lang = params.state.preferredLanguage === 'gcf' ? 'gcf' : 'fr';
-
-    let next = params.state;
-    if (intakeComplete) {
-      next = {
-        ...next,
-        phase: 'DONE',
-        answers: { ...next.answers, jarvis_intake_complete: 'oui' },
-      };
-    }
-
-    return {
-      state: next,
-      acknowledgment:
-        `${name}, j’ai bien lu votre signalement et je visualise le logement ` +
-        '(réseaux d’eau, enveloppe, confort). Je ne vous ferai pas répéter ce que vous avez déjà précisé.',
-      nextQuestion: critical?.text ?? null,
-      fromLlm: false,
-      uiStatus: intakeComplete ? analyzingStatus(lang) : undefined,
-    };
-  }
 }
+
+export { isSimulationIntakeComplete };

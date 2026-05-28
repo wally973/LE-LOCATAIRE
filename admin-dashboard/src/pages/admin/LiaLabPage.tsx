@@ -90,24 +90,48 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
       </section>
 
       <section>
-        <h4>KB panne (AFPOL)</h4>
-        {viz.kbPanneLabel ? (
+        <h4>Simulation 3D (Jarvis Engine)</h4>
+        {viz.simulationDomain ? (
           <>
-            <p style={{ margin: '4px 0' }}>
-              {viz.kbPanneId} — {viz.kbPanneLabel}
-            </p>
-            <p style={{ margin: '4px 0', color: 'var(--lab-muted)' }}>
-              Causes actives : {viz.kbCausesActive.join(' · ') || '—'}
-            </p>
-            {viz.kbCausesEliminated.length > 0 ? (
-              <p style={{ margin: '4px 0', color: 'var(--lab-muted)' }}>
-                Éliminées : {viz.kbCausesEliminated.join(', ')}
-              </p>
+            <span className="lia-lab-tag flow">{viz.simulationDomain}</span>
+            {viz.scene3D ? (
+              <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
+                {Object.entries(viz.scene3D)
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => (
+                    <li key={k}>
+                      {k} : {v}
+                    </li>
+                  ))}
+              </ul>
             ) : null}
           </>
         ) : (
-          <p style={{ margin: 0, color: 'var(--lab-muted)' }}>Organisateur non verrouillé</p>
+          <p style={{ margin: 0, color: 'var(--lab-muted)' }}>Scène en cours d’instanciation…</p>
         )}
+      </section>
+
+      {viz.physicalHypotheses && viz.physicalHypotheses.length > 0 ? (
+        <section>
+          <h4>Ce que Lia visualise (hypothèses physiques)</h4>
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            {viz.physicalHypotheses.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section>
+        <h4>Hypothèses actives / écartées</h4>
+        <p style={{ margin: '4px 0', color: 'var(--lab-muted)' }}>
+          Actives : {viz.kbCausesActive.join(' · ') || '—'}
+        </p>
+        {viz.kbCausesEliminated.length > 0 ? (
+          <p style={{ margin: '4px 0', color: 'var(--lab-muted)' }}>
+            Écartées : {viz.kbCausesEliminated.join(', ')}
+          </p>
+        ) : null}
       </section>
 
       <section>

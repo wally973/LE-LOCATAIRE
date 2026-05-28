@@ -2,11 +2,13 @@ import {
   applyJarvis360ToState,
   isConfirmedTopicChange,
   isContestationOrReassurance,
-  isJarvisReadyForImmediateVerdict,
-  pickJarvisCriticalQuestion,
 } from './lia-jarvis-intake.engine';
 import { LiaIntakeService } from './lia-intake.service';
 import { extractPlumbingIntakeFromText } from './lia-intake-plumbing-extract';
+import {
+  buildJarvisConsultation,
+  runJarvisSimulation,
+} from './lia-jarvis-simulation.engine';
 
 describe('lia-jarvis-intake.engine', () => {
   const intakeService = new LiaIntakeService();
@@ -38,16 +40,42 @@ describe('lia-jarvis-intake.engine', () => {
     ).toBe(true);
   });
 
-  it('sature l’intake plomberie évier et saute la question colonne', () => {
+  it('simulation porte — visualise affaissement et question cadre/sol', () => {
+    const sim = runJarvisSimulation({
+      title: 'Porte ne ferme plus',
+      description: 'Ma porte ne ferme plus, la serrure accroche.',
+    });
+    const consult = buildJarvisConsultation({
+      simulation: sim,
+      title: 'Porte ne ferme plus',
+      description: 'Ma porte ne ferme plus, la serrure accroche.',
+      tenantFirstName: 'Marie',
+      mode: 'opening',
+    });
+    expect(consult.acknowledgment).toMatch(/visualis/i);
+    expect(consult.nextQuestion).toMatch(/sol|cadre/i);
+    expect(consult.nextQuestion).not.toMatch(/pleut/i);
+  });
+
+  it('simulation évier — question timing avant pluie', () => {
     let state = intakeService.createInitialState(
       'Fuite évier',
-      'Je viens d’emménager, l’évier fuit dessous',
+      'Fuite sous l’évier depuis emménagement',
     );
     state = applyJarvis360ToState(state, state.intakeTitle!, state.intakeDescription!);
-    expect(isJarvisReadyForImmediateVerdict(state)).toBe(true);
-    const q = pickJarvisCriticalQuestion(state);
-    if (q) {
-      expect(q.causeId).not.toBe('cause_colonne_collective');
-    }
+    const sim = runJarvisSimulation({
+      title: state.intakeTitle!,
+      description: state.intakeDescription!,
+    });
+    const consult = buildJarvisConsultation({
+      simulation: sim,
+      title: state.intakeTitle!,
+      description: state.intakeDescription!,
+      tenantFirstName: 'Marie',
+      mode: 'opening',
+    });
+    expect(consult.nextQuestion).toMatch(/moment|ouvrez|vidé/i);
+    expect(consult.nextQuestion).not.toMatch(/pleut/i);
+    expect(sim.intakeComplete).toBe(false);
   });
 });

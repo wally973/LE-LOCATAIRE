@@ -29,6 +29,7 @@ import {
   isJarvisReadyForImmediateVerdict,
   pickJarvisCriticalQuestion,
 } from './lia-jarvis-intake.engine';
+import { isSimulationIntakeComplete } from './lia-jarvis-simulation.engine';
 import { isPlumbingSinkLeakSaturated } from './lia-intake-plumbing-extract';
 import {
   INTAKE_LANGUAGE_ANSWER_ID,
@@ -666,18 +667,6 @@ export class LiaIntakeService {
   getCurrentQuestion(state: LiaIntakeState): IntakeQuestion | null {
     if (state.phase !== 'INTAKE') return null;
     if (state.intakeMode === 'jarvis') {
-      const critical = pickJarvisCriticalQuestion(state);
-      if (critical) {
-        return { id: critical.id, text: critical.text };
-      }
-      return null;
-    }
-
-    if (state.organizer && state.intakeMode !== 'legacy') {
-      const jarvisQ = pickJarvisCriticalQuestion(state);
-      if (jarvisQ) {
-        return { id: jarvisQ.id, text: jarvisQ.text };
-      }
       return null;
     }
 
@@ -735,16 +724,12 @@ export class LiaIntakeService {
       ) {
         return { ...state, phase: 'DONE', stepIndex: 0 };
       }
-      if (isJarvisReadyForImmediateVerdict(state) && !this.needsPhoto(state)) {
+      if (
+        (isSimulationIntakeComplete(state) ||
+          isJarvisReadyForImmediateVerdict(state)) &&
+        !this.needsPhoto(state)
+      ) {
         return { ...state, phase: 'DONE', stepIndex: 0 };
-      }
-      const critical = pickJarvisCriticalQuestion(state);
-      if (!critical) {
-        return {
-          ...state,
-          phase: this.needsPhoto(state) ? 'AWAITING_PHOTO' : 'DONE',
-          stepIndex: 0,
-        };
       }
       return { ...state, phase: 'INTAKE', stepIndex: 0 };
     }

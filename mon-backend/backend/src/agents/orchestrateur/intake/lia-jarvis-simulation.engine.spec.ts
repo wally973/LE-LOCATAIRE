@@ -312,8 +312,8 @@ describe('lia-jarvis-simulation.engine — tests de vérité Marie', () => {
       expect(sim.domain).toBe('generic');
       expect(sim.activeFlows).toContain('signal');
       expect(sim.mentalModels.some((m) => /chaîne signal|amont/i.test(m))).toBe(true);
-      expect(consult.nextQuestion).toMatch(/visualis|amont|liaison|poste local/i);
-      expect(consult.nextQuestion).not.toMatch(/sans tout répéter/i);
+      expect(consult.nextQuestion).toMatch(/antenne|box|câble|prise|décodeur|endroit/i);
+      expect(consult.nextQuestion).not.toMatch(/sans tout répéter|visualis|hésite entre|«/i);
     });
 
     it('preset TV : flux signal + hypothèses chaîne', () => {
@@ -333,7 +333,10 @@ describe('lia-jarvis-simulation.engine — tests de vérité Marie', () => {
       expect(sim.domain).toBe('generic');
       expect(sim.activeFlows).toContain('signal');
       expect(sim.hypotheses.some((h) => h.id.startsWith('chain_signal_'))).toBe(true);
-      expect(consult.nextQuestion).toMatch(/visualis|amont|liaison|poste local|logement/i);
+      expect(consult.acknowledgment).toMatch(/réception télé|reception/i);
+      expect(consult.acknowledgment).not.toMatch(/visualis|signalement/i);
+      expect(consult.nextQuestion).toMatch(/antenne|box|câble|prise|endroit/i);
+      expect(consult.nextQuestion).not.toMatch(/visualis|hésite entre|«/i);
     });
   });
 });

@@ -56,6 +56,29 @@ describe('lia-jarvis-council.engine — écho chauve-souris', () => {
     expect(savoir?.suggestedQuestion).toMatch(/poste|TV|autre/i);
   });
 
+  it('pickCouncilSpokenQuestion préfère Savoir aux questions « visualisation »', () => {
+    const sim = runJarvisSimulation({
+      title: 'Pas de réception TV',
+      description: 'Depuis hier, aucun signal.',
+      preferredLanguage: 'fr',
+    });
+    const round = runCouncilRound({
+      title: 'Pas de réception TV',
+      description: 'Depuis hier, aucun signal.',
+      message: '',
+      state: emptyState,
+      simulation: sim,
+      housing: inferHousingPerspective('5F'),
+      chainQuestion: pickChainQuestion(sim, 'fr'),
+    });
+
+    const meta =
+      'En visualisant votre logement, je hésite entre deux pistes : plutôt « Amont », ou plutôt « Logement » ?';
+    const spoken = pickCouncilSpokenQuestion(meta, round);
+    expect(spoken).toMatch(/voisin|communes|éclairage/i);
+    expect(spoken).not.toMatch(/visualis|hésite entre|«/i);
+  });
+
   it('pickCouncilSpokenQuestion évite la question générique en boucle', () => {
     const sim = runJarvisSimulation({
       title: 'Pas de réception TV',
@@ -76,6 +99,6 @@ describe('lia-jarvis-council.engine — écho chauve-souris', () => {
     expect(isGenericFallbackQuestion(generic)).toBe(true);
     const spoken = pickCouncilSpokenQuestion(generic, round);
     expect(spoken).not.toMatch(/sans tout répéter/i);
-    expect(spoken).toMatch(/voisin|visualis|amont|poste/i);
+    expect(spoken).toMatch(/voisin|communes|éclairage/i);
   });
 });

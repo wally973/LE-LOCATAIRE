@@ -13,6 +13,7 @@ import {
   jarvisOpeningDoor,
   jarvisOpeningGeneric,
   jarvisOpeningPlumbing,
+  jarvisOpeningSignal,
   jarvisPlumbingPivot,
   jarvisQuestionDoorHinge,
   jarvisQuestionDoorLockClarify,
@@ -722,6 +723,11 @@ export function buildJarvisConsultation(params: {
     } else if (sim.domain === 'plumbing_sink') {
       const anchor = sim.scene.symptomAnchor ?? 'au point d’eau';
       acknowledgment = jarvisOpeningPlumbing(name, anchor, lang);
+    } else if (
+      sim.activeFlows.includes('signal') ||
+      /\btv\b|television|tele|reception|signal|chaine|canal/.test(signalementCtx)
+    ) {
+      acknowledgment = jarvisOpeningSignal(name, lang);
     } else {
       acknowledgment = jarvisOpeningGeneric(name, lang);
     }

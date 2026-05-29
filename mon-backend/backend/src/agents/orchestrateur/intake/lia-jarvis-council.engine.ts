@@ -171,18 +171,47 @@ export function isGenericFallbackQuestion(question: string | null | undefined): 
   );
 }
 
-/** Jarvis choisit la question à prononcer — priorité aux murmures pertinents. */
+/** Questions « métier interne » — restent en console expert, pas au locataire. */
+export function isMetaDiagnosticQuestion(question: string | null | undefined): boolean {
+  if (!question?.trim()) return false;
+  const n = norm(question);
+  return (
+    /visualis|vizualiz|hesite entre|hésite entre|comparer amont|je compare amont/i.test(
+      n,
+    ) ||
+    /«[^»]+».*«[^»]+»/.test(question) ||
+    /amont.*antenne.*box.*logement.*cabl/i.test(n)
+  );
+}
+
+/** Jarvis choisit la question à prononcer — ton technicien, pas le jargon console. */
 export function pickCouncilSpokenQuestion(
   consultationQuestion: string | null,
   round: CouncilRound,
 ): string | null {
-  if (consultationQuestion && !isGenericFallbackQuestion(consultationQuestion)) {
+  const practicalEchoes = round.echoes
+    .filter(
+      (e) =>
+        e.suggestedQuestion?.trim() &&
+        !isMetaDiagnosticQuestion(e.suggestedQuestion),
+    )
+    .sort((a, b) => b.confidence - a.confidence);
+
+  const savoir = practicalEchoes.find((e) => e.agent === 'savoir');
+  if (savoir?.suggestedQuestion) {
+    return savoir.suggestedQuestion;
+  }
+
+  if (
+    consultationQuestion &&
+    !isGenericFallbackQuestion(consultationQuestion) &&
+    !isMetaDiagnosticQuestion(consultationQuestion)
+  ) {
     return consultationQuestion;
   }
 
-  const withQuestion = round.echoes.filter((e) => e.suggestedQuestion?.trim());
-  if (withQuestion.length) {
-    return withQuestion[0]!.suggestedQuestion!;
+  if (practicalEchoes.length) {
+    return practicalEchoes[0]!.suggestedQuestion!;
   }
 
   return consultationQuestion;

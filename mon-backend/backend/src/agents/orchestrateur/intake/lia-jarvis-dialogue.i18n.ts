@@ -57,12 +57,28 @@ export function jarvisOpeningGeneric(name: string, lang: L): string {
     jarvisOpeningHeard(name, lang) +
     ' ' +
     pick(lang, {
-      fr: 'J’ai bien pris en compte votre signalement.',
-      gcf: 'Mwen pran an kont sa ou di.',
-      en: 'I have noted your report.',
-      pt: 'Anotei o seu relato.',
-      es: 'He tomado nota de su reporte.',
-      hat: 'Mwen pran sa ou di an kont.',
+      fr: 'Dites-moi ce qui se passe chez vous, je vais vous poser quelques questions.',
+      gcf: 'Di m sa k ap pase lakay ou, m ap poze ou kèk kesyon.',
+      en: 'Tell me what is going on at home — I will ask a few questions.',
+      pt: 'Diga-me o que se passa em casa — vou fazer algumas perguntas.',
+      es: 'Cuénteme qué ocurre en la vivienda — le haré unas preguntas.',
+      hat: 'Di m sa k ap pase lakay ou, m ap poze ou kèk kesyon.',
+    })
+  );
+}
+
+/** Ouverture réception TV / signal — ton technicien, pas de jargon interne. */
+export function jarvisOpeningSignal(name: string, lang: L): string {
+  return (
+    jarvisOpeningHeard(name, lang) +
+    ' ' +
+    pick(lang, {
+      fr: 'Vous n’avez plus de réception télé — je vais vous poser deux ou trois questions pour localiser la panne.',
+      gcf: 'Ou pa gen resepsyon televizyon — m ap poze ou de-twa kesyon pou nou lokalize pan-an.',
+      en: 'You have no TV reception — I will ask a few questions to locate the fault.',
+      pt: 'Sem recepção de TV — vou fazer algumas perguntas para localizar a avaria.',
+      es: 'Sin recepción de TV — le haré unas preguntas para localizar la avería.',
+      hat: 'Ou pa gen resepsyon televizyon — m ap poze ou kèk kesyon pou nou jwenn kote pan an ye.',
     })
   );
 }
@@ -189,17 +205,22 @@ export function jarvisQuestionGeneric(lang: L): string {
 }
 
 export function jarvisChainCompareQuestion(
-  labelA: string,
-  labelB: string,
+  _labelA: string,
+  _labelB: string,
   lang: L,
 ): string {
+  return jarvisSignalUpstreamVsLocalQuestion(lang);
+}
+
+/** Amont vs local — formulation technicien (sans « visualiser » ni étiquettes internes). */
+export function jarvisSignalUpstreamVsLocalQuestion(lang: L): string {
   return pick(lang, {
-    fr: `En visualisant votre logement, je hésite entre deux pistes : plutôt « ${labelA} », ou plutôt « ${labelB} » ?`,
-    gcf: `Mwen vizualize kay ou, mwen ezite ant de piste : plito « ${labelA} », ou plito « ${labelB} » ?`,
-    en: `Visualizing your home, I am weighing two paths: rather « ${labelA} », or rather « ${labelB} »?`,
-    pt: `Ao visualizar a sua casa, hesito entre: « ${labelA} » ou « ${labelB} »?`,
-    es: `Al visualizar su vivienda, dudo entre: « ${labelA} » o « ${labelB} »?`,
-    hat: `M ap vizualize kay ou, mwen ezite ant: « ${labelA} » oswa « ${labelB} »?`,
+    fr: 'Pour cibler la panne : plutôt avant le logement (antenne, box, réseau), ou plutôt chez vous (câble, prise, décodeur) ?',
+    gcf: 'Pou lokalize pan-an : plito anvan kay-la (antèn, box, rezo), ou plito lakay ou (fil, priz, décodeur) ?',
+    en: 'To locate the fault: rather before your home (aerial, box, network), or at your place (cable, socket, decoder)?',
+    pt: 'Para localizar: antes da fração (antena, box, rede) ou aí em casa (cabo, tomada, descodificador)?',
+    es: 'Para localizar: ¿antes de la vivienda (antena, box, red) o en su casa (cable, toma, decodificador)?',
+    hat: 'Pou jwenn kote pan an ye: anvan kay la (antèn, box, rezo) oswa lakay ou (fil, priz, dekòdè)?',
   });
 }
 
@@ -216,12 +237,12 @@ export function jarvisChainScopeQuestion(lang: L): string {
 
 export function jarvisChainPivot(lang: L): string {
   return pick(lang, {
-    fr: ' Je compare amont, logement et poste local — même méthode pour tout signalement.',
-    gcf: ' Mwen konpare amont, kay ak pòs lokal — menm metòd pou tout siyalman.',
-    en: ' I am comparing upstream, dwelling and local point — same method for every report.',
-    pt: ' Comparo montante, logamento e ponto local — o mesmo método para todo o relato.',
-    es: ' Comparo montante, vivienda y punto local — mismo método para todo aviso.',
-    hat: ' M ap konpare amont, kay ak pwen lokal — menm metòd pou tout siyalman.',
+    fr: ' Je note votre réponse.',
+    gcf: ' Mwen note sa ou di.',
+    en: ' I note your answer.',
+    pt: ' Anoto a sua resposta.',
+    es: ' Tomo nota de su respuesta.',
+    hat: ' Mwen note sa ou di.',
   });
 }
 

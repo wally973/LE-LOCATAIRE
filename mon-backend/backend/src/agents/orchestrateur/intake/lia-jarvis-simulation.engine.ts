@@ -3,10 +3,43 @@
  * Instancie la scène 3D, simule les flux physiques, produit la Consultation Jarvis.
  * Ne s'appuie PAS sur pickJarvisCriticalQuestion ni sur l'ordre du JSON panne.
  */
-import { detectLanguageFromTenantText } from '../../shared/lia-tenant-language';
+import { normalizeCompanionLanguage } from '../../shared/lia-dialogue-languages';
+import type { CompanionLanguage } from '../conversation/lia-companion.types';
+import {
+  jarvisClosingDoorLock,
+  jarvisClosingGeneric,
+  jarvisClosingPlumbing,
+  jarvisChainPivot,
+  jarvisOpeningDoor,
+  jarvisOpeningGeneric,
+  jarvisOpeningPlumbing,
+  jarvisPlumbingPivot,
+  jarvisQuestionDoorHinge,
+  jarvisQuestionDoorLockClarify,
+  jarvisQuestionGeneric,
+  jarvisQuestionPlumbingPlug,
+  jarvisQuestionPlumbingSupplyDrain,
+  jarvisQuestionPlumbingTiming,
+  jarvisThanks,
+  buildPostIntakeReply,
+  signalementSuggestsDoorLock,
+} from './lia-jarvis-dialogue.i18n';
+import {
+  applyChainDiscrimination,
+  buildVisualChainHypotheses,
+  inferChainMentalModels,
+  pickChainQuestion,
+  refreshGenericSimulation,
+} from './lia-jarvis-visual-chain';
 import type { LiaIntakeState } from './lia-intake.service';
 
-export type JarvisFlowKind = 'eau' | 'air' | 'chaleur' | 'mécanique' | 'étanchéité';
+export type JarvisFlowKind =
+  | 'eau'
+  | 'air'
+  | 'chaleur'
+  | 'mécanique'
+  | 'étanchéité'
+  | 'signal';
 
 export type JarvisSimulationDomain =
   | 'plumbing_sink'
@@ -37,7 +70,7 @@ export interface PhysicalHypothesis {
 
 export interface JarvisSimulationState {
   domain: JarvisSimulationDomain;
-  language: 'fr' | 'gcf';
+  language: CompanionLanguage;
   scene: JarvisScene3D;
   activeFlows: JarvisFlowKind[];
   mentalModels: string[];
@@ -90,6 +123,21 @@ function detectDomain(ctx: string): JarvisSimulationDomain {
   return 'generic';
 }
 
+/** Permet de basculer hors « générique » quand le locataire précise le sujet dans le fil. */
+function resolveSimulationDomain(
+  prior: JarvisSimulationState | null | undefined,
+  ctx: string,
+): JarvisSimulationDomain {
+  const detected = detectDomain(ctx);
+  if (!prior?.domain || prior.domain === 'generic') {
+    return detected;
+  }
+  if (detected !== 'generic' && detected !== prior.domain) {
+    return detected;
+  }
+  return prior.domain;
+}
+
 function inferScene(ctx: string, domain: JarvisSimulationDomain): JarvisScene3D {
   const climate =
     /saison seche|sec|canicule/.test(ctx) ? 'dry_season' : 'tropical_humid';
@@ -131,6 +179,13 @@ function inferScene(ctx: string, domain: JarvisSimulationDomain): JarvisScene3D 
     if (/gache|gâche/.test(ctx)) symptomAnchor = 'gâche / serrure';
     else if (/frotte|sol|bas/.test(ctx)) symptomAnchor = 'bas de porte / sol';
     else symptomAnchor = 'fermeture / cadre';
+  }
+
+  if (domain === 'generic' && /\btv\b|television|t[eé]l[eé]vision/.test(ctx)) {
+    element = 'téléviseur';
+    symptomAnchor = /aucun signal|pas de signal/.test(ctx)
+      ? 'écran « aucun signal »'
+      : 'réception / chaînes';
   }
 
   return {
@@ -224,6 +279,12 @@ function buildHypotheses(
     ].filter((h) => h.active);
   }
 
+  if (domain === 'generic') {
+    const flows = inferFlows(domain, ctx);
+    const scene = inferScene(ctx, domain);
+    return buildVisualChainHypotheses(flows, ctx, scene);
+  }
+
   return [
     {
       id: 'generic_observe',
@@ -239,6 +300,13 @@ function inferFlows(domain: JarvisSimulationDomain, ctx: string): JarvisFlowKind
   const flows = new Set<JarvisFlowKind>();
   if (domain === 'plumbing_sink' || /eau|fuit|coule|dlo/.test(ctx)) flows.add('eau');
   if (domain === 'carpentry_door') flows.add('mécanique');
+  if (
+    /\btv\b|television|tnt|antenne|decodeur|d[eé]codeur|box|chaine|signal|r[eé]ception/.test(
+      ctx,
+    )
+  ) {
+    flows.add('signal');
+  }
   if (/humid|moisi|condens|vmc/.test(ctx)) flows.add('air');
   if (/chauff|radiateur|clim|froid|chaleur/.test(ctx)) flows.add('chaleur');
   if (domain === 'roof_envelope' || /infiltr|toit|facade/.test(ctx)) {
@@ -252,12 +320,19 @@ function inferFlows(domain: JarvisSimulationDomain, ctx: string): JarvisFlowKind
 function inferMentalModels(
   domain: JarvisSimulationDomain,
   scene: JarvisScene3D,
+  ctx: string,
 ): string[] {
   const models: string[] = [];
   if (domain === 'plumbing_sink') {
     models.push('Exutoire (3 verres) — ici : zoom amont / logement / aval local sous l’évier');
   }
-  if (domain === 'carpentry_door' && (scene.below || /humid|moisi|gonfl/.test(''))) {
+  if (domain === 'carpentry_door') {
+    models.push('Mécanique — porte, gonds, gâche (priorité serrure si clé bloquée)');
+  }
+  if (domain === 'generic') {
+    return inferChainMentalModels(inferFlows(domain, ctx));
+  }
+  if (domain === 'carpentry_door' && (scene.below || /humid|moisi|gonfl/.test(ctx))) {
     models.push('Enveloppe — humidité chronique peut gonfler cadre ou sol');
   }
   if (scene.below?.includes('commerce')) {
@@ -269,11 +344,123 @@ function inferMentalModels(
   return models;
 }
 
+function mergePriorHypotheses(
+  fresh: PhysicalHypothesis[],
+  prior: PhysicalHypothesis[] | undefined,
+): PhysicalHypothesis[] {
+  if (!prior?.length) return fresh;
+  const priorById = new Map(prior.map((h) => [h.id, h]));
+  return fresh.map((h) => {
+    const prev = priorById.get(h.id);
+    if (!prev) return h;
+    return { ...h, active: prev.active, confidence: prev.confidence };
+  });
+}
+
+function isNegativeReply(msg: string): boolean {
+  return (
+    /\b(non|nan|pas|pa\b|aucun|jamais)\b/.test(msg) || /\bne .{0,48} pas\b/.test(msg)
+  );
+}
+
+function mentionsDoorBottom(msg: string): boolean {
+  return /\b(bas|sol|par terre|en bas)\b/.test(msg) || /frott.*sol|sol.*frott/.test(msg);
+}
+
+function mentionsDoorTop(msg: string): boolean {
+  return /\b(haut|cadre|montant|en haut)\b/.test(msg) || /bloqu.*cadre|cadre.*bloqu/.test(msg);
+}
+
+function applyCarpentryDiscriminators(
+  msg: string,
+  resolved: string[],
+  hypotheses: PhysicalHypothesis[],
+  deactivate: (id: string) => void,
+): { resolved: string[]; hypotheses: PhysicalHypothesis[]; intakeComplete: boolean } {
+  let intakeComplete = false;
+  let hypos = hypotheses;
+
+  const keyTurnIssue =
+    /cl[eé]s?\b|clef|tourner|verrouill|serrure|pe[cç]ne|gache|gâche|targette|accroch/.test(
+      msg,
+    ) &&
+    (/tourner|verrouill|arrive pas|n.arrive|bloqu.*cl|coinc.*cl|pas.*tourner|ne .*tourner/.test(
+      msg,
+    ) ||
+      /ferme (bien|correctement|normalement)|impossible.*verrouill|ferme mais/.test(
+        msg,
+      ) ||
+      /pe[cç]ne.*rentre.*pas|rentre.*pas.*gache|rentre.*pas.*gâche/.test(msg));
+
+  if (keyTurnIssue) {
+    if (!resolved.includes('lock_focus')) resolved.push('lock_focus');
+    deactivate('hinge_sag');
+    deactivate('floor_swell');
+    deactivate('frame_warp');
+    hypos = hypos.map((h) =>
+      h.id === 'lock_misalign'
+        ? { ...h, active: true, confidence: Math.min(h.confidence + 0.35, 0.95) }
+        : h,
+    );
+    intakeComplete = true;
+    return { resolved, hypotheses: hypos, intakeComplete };
+  }
+
+  const answersHingeQuestion =
+    /frott|bloqu|coinc/.test(msg) && (mentionsDoorBottom(msg) || mentionsDoorTop(msg));
+
+  if (answersHingeQuestion) {
+    if (!resolved.includes('hinge_vs_floor')) resolved.push('hinge_vs_floor');
+    const neg = isNegativeReply(msg);
+
+    if (mentionsDoorBottom(msg)) {
+      if (neg) {
+        deactivate('hinge_sag');
+        deactivate('floor_swell');
+      } else {
+        deactivate('lock_misalign');
+        hypos = hypos.map((h) =>
+          h.id === 'hinge_sag' || h.id === 'floor_swell'
+            ? { ...h, confidence: h.confidence + 0.2 }
+            : h,
+        );
+      }
+    }
+
+    if (mentionsDoorTop(msg)) {
+      if (neg) {
+        deactivate('frame_warp');
+      } else {
+        deactivate('hinge_sag');
+        deactivate('floor_swell');
+        hypos = hypos.map((h) =>
+          h.id === 'frame_warp' || h.id === 'lock_misalign'
+            ? { ...h, confidence: h.confidence + 0.2 }
+            : h,
+        );
+      }
+    }
+
+    if (!neg && mentionsDoorBottom(msg) && mentionsDoorTop(msg)) {
+      deactivate('lock_misalign');
+    }
+
+    intakeComplete = true;
+  }
+
+  if (/bloqu|plus du tout|ne ferme plus du tout|coince complet/.test(msg)) {
+    resolved.push('severity');
+  }
+
+  return { resolved, hypotheses: hypos, intakeComplete };
+}
+
 /** Met à jour la simulation selon les réponses locataire (discrimination physique). */
 function applyDiscriminators(
   sim: JarvisSimulationState,
-  ctx: string,
+  messageCtx: string,
 ): JarvisSimulationState {
+  const msg = norm(messageCtx);
   const resolved = [...sim.resolvedSteps];
   let hypotheses = sim.hypotheses.map((h) => ({ ...h }));
   let intakeComplete = sim.intakeComplete;
@@ -287,41 +474,41 @@ function applyDiscriminators(
   if (sim.domain === 'plumbing_sink') {
     const underFixture = Boolean(sim.scene.symptomAnchor?.includes('sous'));
 
-    if (/continu|permanent|tout le temps|meme robinet ferme|même fermé|toujours/.test(ctx)) {
+    if (/continu|permanent|tout le temps|meme robinet ferme|même fermé|toujours/.test(msg)) {
       if (!resolved.includes('timing')) resolved.push('timing');
       deactivate('drain_siphon');
       deactivate('roof_infiltration');
     }
 
     if (
-      /utilis|ouvr|ouvre|mitigeur|robinet|quand j|kan m|leve dlo/.test(ctx) &&
-      !/evacu|vid|se vide|coule dans|bonde|siphon/.test(ctx)
+      /utilis|ouvr|ouvre|mitigeur|robinet|quand j|kan m|leve dlo/.test(msg) &&
+      !/evacu|vid|se vide|coule dans|bonde|siphon/.test(msg)
     ) {
       if (!resolved.includes('timing')) resolved.push('timing');
       deactivate('continuous_leak');
       deactivate('roof_infiltration');
     }
 
-    if (/evacu|vid|se vide|s.?écoule|coule dans|bonde|siphon|debarras/.test(ctx)) {
+    if (/evacu|vid|se vide|s.?écoule|coule dans|bonde|siphon|debarras/.test(msg)) {
       if (!resolved.includes('supply_vs_drain')) resolved.push('supply_vs_drain');
       deactivate('supply_flexible');
       deactivate('continuous_leak');
     }
 
     if (
-      /ouvr.*eau|mitigeur|robinet|eau chaude|eau froide|coule quand/.test(ctx) &&
-      !/evacu|vid/.test(ctx)
+      /ouvr.*eau|mitigeur|robinet|eau chaude|eau froide|coule quand/.test(msg) &&
+      !/evacu|vid/.test(msg)
     ) {
       if (!resolved.includes('supply_vs_drain')) resolved.push('supply_vs_drain');
       deactivate('drain_siphon');
       deactivate('roof_infiltration');
     }
 
-    if (/bouchon|bouch|plug|obtur/.test(ctx)) {
+    if (/bouchon|bouch|plug|obtur/.test(msg)) {
       resolved.push('plug_test');
     }
 
-    if (/non.*pluie|pas.*pluie|pas lie.*pluie|pas quand il pleut/.test(ctx)) {
+    if (/non.*pluie|pas.*pluie|pas lie.*pluie|pas quand il pleut/.test(msg)) {
       deactivate('roof_infiltration');
     }
 
@@ -342,43 +529,28 @@ function applyDiscriminators(
   }
 
   if (sim.domain === 'carpentry_door') {
-    if (/bas|sol|frotte.*sol|par terre|en bas/.test(ctx)) {
-      if (!resolved.includes('hinge_vs_floor')) resolved.push('hinge_vs_floor');
-      deactivate('lock_misalign');
-      hypotheses = hypotheses.map((h) =>
-        h.id === 'hinge_sag' || h.id === 'floor_swell'
-          ? { ...h, confidence: h.confidence + 0.2 }
-          : h,
-      );
-    }
-    if (/haut|cadre|montant|en haut|plafond.*porte/.test(ctx)) {
-      if (!resolved.includes('hinge_vs_floor')) resolved.push('hinge_vs_floor');
-      deactivate('hinge_sag');
-      deactivate('floor_swell');
-      hypotheses = hypotheses.map((h) =>
-        h.id === 'frame_warp' || h.id === 'lock_misalign'
-          ? { ...h, confidence: h.confidence + 0.2 }
-          : h,
-      );
-    }
-    if (/bloqu|plus du tout|ne ferme plus du tout|coince complet/.test(ctx)) {
-      resolved.push('severity');
-    }
-    if (resolved.includes('hinge_vs_floor')) {
-      intakeComplete = true;
-    }
+    const carp = applyCarpentryDiscriminators(msg, resolved, hypotheses, deactivate);
+    resolved.splice(0, resolved.length, ...carp.resolved);
+    hypotheses = carp.hypotheses;
+    if (carp.intakeComplete) intakeComplete = true;
   }
 
-  const activeHypos = hypotheses.filter((h) => h.active);
-  const visualizationSummary = buildVisualizationSummary(activeHypos, sim.scene);
-
-  return {
+  let nextSim: JarvisSimulationState = {
     ...sim,
     hypotheses,
     resolvedSteps: resolved,
     intakeComplete,
-    visualizationSummary,
+    visualizationSummary: buildVisualizationSummary(
+      hypotheses.filter((h) => h.active),
+      sim.scene,
+    ),
   };
+
+  if (sim.domain === 'generic') {
+    nextSim = applyChainDiscrimination(nextSim, messageCtx);
+  }
+
+  return nextSim;
 }
 
 function buildVisualizationSummary(
@@ -393,47 +565,66 @@ function buildVisualizationSummary(
   return parts.join(' · ');
 }
 
-function pickPhysicalQuestion(sim: JarvisSimulationState): string | null {
+function pickPhysicalQuestion(
+  sim: JarvisSimulationState,
+  signalementCtx: string,
+): string | null {
   if (sim.intakeComplete) return null;
 
   const lang = sim.language;
 
   if (sim.domain === 'plumbing_sink') {
     if (!sim.resolvedSteps.includes('timing')) {
-      return lang === 'gcf'
-        ? 'A ki moman dlo parèt anba évier-la : tout tan, lè ou ouvè dlo-a, ou lè li vidé ?'
-        : 'À quel moment l’eau apparaît-elle sous l’évier : en permanence, quand vous ouvrez l’eau, ou surtout quand l’évier se vide ?';
+      return jarvisQuestionPlumbingTiming(lang);
     }
     if (!sim.resolvedSteps.includes('supply_vs_drain')) {
-      return lang === 'gcf'
-        ? 'Lè ou ouvè mitigè-a évier-la vidé toujou, ou sé lè dlo ap koule épi li vidé ?'
-        : 'L’eau sort-elle surtout quand vous ouvrez le mitigeur, ou quand l’évier se vide (évacuation) ?';
+      return jarvisQuestionPlumbingSupplyDrain(lang);
     }
     if (!sim.resolvedSteps.includes('plug_test')) {
       const active = sim.hypotheses.find(
         (h) => h.active && h.id === 'supply_flexible',
       );
       if (active) {
-        return lang === 'gcf'
-          ? 'Ou ka mete yon bouchon nan évier-la, ouvè dlo-a, épi di m si li toujou koule anba ?'
-          : 'Pouvez-vous mettre un bouchon dans l’évier, rouvrir l’eau, et me dire si ça fuit encore dessous ?';
+        return jarvisQuestionPlumbingPlug(lang);
       }
     }
     return null;
   }
 
   if (sim.domain === 'carpentry_door') {
+    if (sim.resolvedSteps.includes('lock_focus')) return null;
+    if (
+      signalementSuggestsDoorLock(signalementCtx) &&
+      sim.resolvedSteps.length === 0
+    ) {
+      return jarvisQuestionDoorLockClarify(lang);
+    }
     if (!sim.resolvedSteps.includes('hinge_vs_floor')) {
-      return lang === 'gcf'
-        ? 'Lè ou pouse pòt-la, li frotté anba sou sol-la, ou li bloke anlè nan kad-la ?'
-        : 'Quand vous poussez la porte, frotte-t-elle en bas contre le sol, ou bloque-t-elle plutôt en haut du cadre ?';
+      return jarvisQuestionDoorHinge(lang);
     }
     return null;
   }
 
-  return lang === 'gcf'
-    ? 'Ka ou di m plis sou sa ou wè, san repété tout ?'
-    : 'Pouvez-vous préciser ce que vous observez, sans tout répéter ?';
+  if (sim.domain === 'generic') {
+    const chainQ = pickChainQuestion(sim, lang);
+    if (chainQ) return chainQ;
+  }
+
+  return jarvisQuestionGeneric(lang);
+}
+
+/** Langue de dialogue — choix explicite du locataire (pas de miroir auto sur le texte). */
+export function resolveJarvisDialogueLanguage(params: {
+  preferredLanguage?: string;
+  prior?: JarvisSimulationState | null;
+}): CompanionLanguage {
+  if (params.preferredLanguage) {
+    return normalizeCompanionLanguage(params.preferredLanguage);
+  }
+  if (params.prior?.language) {
+    return params.prior.language;
+  }
+  return 'fr';
 }
 
 export function runJarvisSimulation(params: {
@@ -444,19 +635,24 @@ export function runJarvisSimulation(params: {
   preferredLanguage?: string;
 }): JarvisSimulationState {
   const ctx = fullContext(params.title, params.description, params.message ?? '');
-  const langFromText = detectLanguageFromTenantText(
-    params.message ?? '',
-    params.title,
-    params.description,
-  );
-  const language: 'fr' | 'gcf' =
-    params.preferredLanguage === 'gcf' || langFromText === 'gcf' ? 'gcf' : 'fr';
+  const language = resolveJarvisDialogueLanguage({
+    preferredLanguage: params.preferredLanguage,
+    prior: params.prior,
+  });
 
-  const domain = params.prior?.domain ?? detectDomain(ctx);
-  const scene = inferScene(ctx, domain);
+  const domain = resolveSimulationDomain(params.prior, ctx);
+  const domainChanged = Boolean(
+    params.prior?.domain && params.prior.domain !== domain,
+  );
+  const scene =
+    params.prior && !domainChanged
+      ? params.prior.scene
+      : inferScene(ctx, domain);
   const activeFlows = inferFlows(domain, ctx);
-  const mentalModels = inferMentalModels(domain, scene);
-  let hypotheses = buildHypotheses(domain, ctx);
+  const mentalModels = inferMentalModels(domain, scene, ctx);
+  let hypotheses = domainChanged
+    ? buildHypotheses(domain, ctx)
+    : mergePriorHypotheses(buildHypotheses(domain, ctx), params.prior?.hypotheses);
 
   let sim: JarvisSimulationState = {
     domain,
@@ -465,8 +661,8 @@ export function runJarvisSimulation(params: {
     activeFlows,
     mentalModels,
     hypotheses,
-    resolvedSteps: params.prior?.resolvedSteps ?? [],
-    intakeComplete: false,
+    resolvedSteps: domainChanged ? [] : (params.prior?.resolvedSteps ?? []),
+    intakeComplete: domainChanged ? false : (params.prior?.intakeComplete ?? false),
     visualizationSummary: '',
   };
 
@@ -475,10 +671,18 @@ export function runJarvisSimulation(params: {
     scene,
   );
 
+  if (domain === 'generic') {
+    sim = refreshGenericSimulation(sim, ctx);
+  }
+
   if (params.message?.trim()) {
-    sim = applyDiscriminators(sim, ctx);
+    sim = applyDiscriminators(sim, params.message.trim());
   } else if (params.prior) {
-    sim = { ...sim, resolvedSteps: params.prior.resolvedSteps, intakeComplete: params.prior.intakeComplete };
+    sim = {
+      ...sim,
+      resolvedSteps: params.prior.resolvedSteps,
+      intakeComplete: params.prior.intakeComplete,
+    };
   }
 
   return sim;
@@ -489,83 +693,71 @@ export interface JarvisConsultation {
   nextQuestion: string | null;
   visualizationNote: string;
   intakeComplete: boolean;
-  language: 'fr' | 'gcf';
+  language: CompanionLanguage;
 }
 
-/** Consultation Jarvis : empathie + reformulation + visualisation + question physique. */
+/** Consultation Jarvis : parole locataire (sans pensées internes — celles-ci restent en console). */
 export function buildJarvisConsultation(params: {
   simulation: JarvisSimulationState;
   title: string;
   description: string;
   tenantFirstName?: string;
   mode: 'opening' | 'tenant_turn';
+  /** Dossier déjà transmis — ne pas répéter le message de clôture. */
+  postIntake?: boolean;
+  message?: string;
+  lastAcknowledgment?: string;
 }): JarvisConsultation {
   const name = params.tenantFirstName?.trim() || 'Bonjour';
   const lang = params.simulation.language;
-  const ctx = fullContext(params.title, params.description);
   const sim = params.simulation;
-  const topHypos = sim.hypotheses
-    .filter((h) => h.active)
-    .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, 2);
+  const lieu = sim.scene.room ? ` (${sim.scene.room})` : '';
+  const signalementCtx = fullContext(params.title, params.description);
 
-  let empathy =
-    lang === 'gcf'
-      ? `${name}, mwen tande ou. Mwen li sa ou écri épi mwen pa kay fè ou répété.`
-      : `${name}, je vous entends. J’ai bien lu votre signalement et je ne vous ferai pas répéter ce que vous avez déjà précisé.`;
+  let acknowledgment = '';
 
-  let reformulation = '';
-  let visualization = '';
-
-  if (sim.domain === 'carpentry_door') {
-    const element = sim.scene.symptomAnchor ?? 'la fermeture de la porte';
-    const lieu = sim.scene.room ? ` (${sim.scene.room})` : '';
-    reformulation =
-      lang === 'gcf'
-        ? ` Ou di m : pòt-la pa fèmen kòrèkteman${lieu}.`
-        : ` Vous me dites : la porte ne ferme plus correctement${lieu}.`;
-    const vizParts = topHypos.map((h) => h.visualization);
-    visualization =
-      lang === 'gcf'
-        ? ` Mwen vizualizé : ${vizParts.join(' Oswa ')}`
-        : ` En visualisant la scène : ${vizParts.join(' — ou ')}`;
-  } else if (sim.domain === 'plumbing_sink') {
-    const anchor = sim.scene.symptomAnchor ?? 'au point d’eau';
-    const el = sim.scene.element ?? 'évier';
-    reformulation =
-      lang === 'gcf'
-        ? ` Ou gen yon fuite dlo ${anchor === `sous l’${el}` ? `anba ${el}-la` : anchor}.`
-        : ` Vous signalez une fuite d’eau ${anchor}.`;
-    visualization =
-      lang === 'gcf'
-        ? ` Mwen vizualizé poste dlo-a — mitigè, flexib, siphon anba ${el}-la.`
-        : ` Je visualise le poste d’eau — mitigeur, flexibles, siphon sous l’${el} — pas le toit pour l’instant.`;
+  if (params.mode === 'opening') {
+    if (sim.domain === 'carpentry_door') {
+      acknowledgment = jarvisOpeningDoor(name, lieu, lang);
+    } else if (sim.domain === 'plumbing_sink') {
+      const anchor = sim.scene.symptomAnchor ?? 'au point d’eau';
+      acknowledgment = jarvisOpeningPlumbing(name, anchor, lang);
+    } else {
+      acknowledgment = jarvisOpeningGeneric(name, lang);
+    }
+  } else if (sim.intakeComplete) {
+    if (params.postIntake && params.message?.trim()) {
+      acknowledgment = buildPostIntakeReply({
+        message: params.message,
+        name,
+        lang,
+        domain: sim.domain,
+        lastAck: params.lastAcknowledgment,
+      });
+    } else if (sim.domain === 'carpentry_door') {
+      acknowledgment = jarvisClosingDoorLock(name, lang);
+    } else if (sim.domain === 'plumbing_sink') {
+      acknowledgment = jarvisClosingPlumbing(name, lang);
+    } else {
+      acknowledgment = jarvisClosingGeneric(name, lang);
+    }
   } else {
-    reformulation =
-      lang === 'gcf'
-        ? ` Mwen pran an kont sa ou di.`
-        : ` Je retiens ce que vous décrivez.`;
-    visualization = ` ${sim.visualizationSummary}`;
-  }
-
-  if (params.mode === 'tenant_turn' && sim.resolvedSteps.includes('timing')) {
-    empathy =
-      lang === 'gcf'
-        ? `${name}, mèsi pou presizyon-an.`
-        : `${name}, merci pour cette précision.`;
-    if (sim.domain === 'plumbing_sink' && !sim.resolvedSteps.includes('supply_vs_drain')) {
-      visualization =
-        lang === 'gcf'
-          ? ' Mwen éliminé fuite ki pa sispann — ann nou wè si sé mitigè ou vidaj.'
-          : ' J’écarte une fuite permanente ou la pluie — restons sur l’usage du point d’eau.';
+    acknowledgment = jarvisThanks(name, lang);
+    if (sim.domain === 'plumbing_sink' && sim.resolvedSteps.includes('timing')) {
+      acknowledgment += jarvisPlumbingPivot(lang);
+    }
+    if (
+      sim.domain === 'generic' &&
+      sim.hypotheses.some((h) => h.active && h.id.startsWith('chain_'))
+    ) {
+      acknowledgment += jarvisChainPivot(lang);
     }
   }
 
-  const nextQuestion = pickPhysicalQuestion(sim);
-  const acknowledgment = `${empathy}${reformulation}${visualization}`.trim();
+  const nextQuestion = pickPhysicalQuestion(sim, signalementCtx);
 
   return {
-    acknowledgment,
+    acknowledgment: acknowledgment.trim(),
     nextQuestion,
     visualizationNote: sim.visualizationSummary,
     intakeComplete: sim.intakeComplete && !nextQuestion,
@@ -596,6 +788,8 @@ export function attachSimulationToState(
       ...(state.jarvisFacts ?? {}),
       jarvis_simulation: JSON.stringify(simulation),
       visualization: simulation.visualizationSummary,
+      liaison_langue: simulation.language,
+      locataire_langue: simulation.language,
       ...(simulation.scene.element
         ? { equipement: simulation.scene.element }
         : {}),

@@ -34,6 +34,11 @@ export class LiaLabController {
     return this.lab.createSession(dto);
   }
 
+  @Post('sessions/start')
+  startSession(@Body() dto: CreateLabSessionDto) {
+    return this.lab.startSession(dto);
+  }
+
   @Post('sessions/:id/opening')
   openSession(@Param('id') id: string) {
     return this.lab.runOpening(id);
@@ -65,7 +70,6 @@ export class LiaLabController {
 
   @Post('tts')
   async tts(@Body() dto: LabTtsDto) {
-    const lang = dto.language === 'gcf' ? 'gcf' : 'fr';
-    return this.lab.synthesizeSpeech(dto.text, lang);
+    return this.lab.synthesizeSpeech(dto.text, dto.language ?? 'fr');
   }
 }

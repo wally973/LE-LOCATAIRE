@@ -30,6 +30,7 @@ import {
 } from './lia-jarvis-simulation.engine';
 import type { IntakeCategory, LiaIntakeState } from './lia-intake.service';
 import { ORG_QUESTION_PREFIX } from './lia-intake-organizer';
+import { resolveLanguageForIntake } from '../../shared/lia-dialogue-languages';
 import { detectLanguageFromTenantText } from '../../shared/lia-tenant-language';
 
 export type JarvisDialogueIntent =
@@ -127,14 +128,16 @@ export function applyJarvis360ToState(
   message = '',
 ): LiaIntakeState {
   const lang = message.trim()
-    ? detectLanguageFromTenantText(
+    ? resolveLanguageForIntake(
+        state,
         message,
         title,
         description,
         state.intakeTitle,
         state.intakeDescription,
       )
-    : detectLanguageFromTenantText(
+    : resolveLanguageForIntake(
+        state,
         title,
         description,
         state.intakeTitle,

@@ -37,6 +37,7 @@ export class LiaIntakeReactiveService {
     description: string;
     tenantFirstName?: string;
     ticketId?: number;
+    residenceUnitNumber?: string | null;
   }): Promise<IntakeReactiveTurn> {
     const msg = params.message.trim();
     if (!msg) {
@@ -92,6 +93,7 @@ export class LiaIntakeReactiveService {
         description: params.description,
         tenantFirstName: params.tenantFirstName,
         ticketId: params.ticketId,
+        residenceUnitNumber: params.residenceUnitNumber ?? undefined,
       });
       return this.toReactiveTurn(turn);
     }
@@ -156,6 +158,7 @@ export class LiaIntakeReactiveService {
       description: params.description,
       tenantFirstName: params.tenantFirstName,
       ticketId: params.ticketId,
+      residenceUnitNumber: params.residenceUnitNumber ?? undefined,
     });
 
     return this.toReactiveTurn(turn);

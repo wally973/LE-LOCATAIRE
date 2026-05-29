@@ -31,6 +31,7 @@ interface LabSession {
   title: string;
   description: string;
   tenantFirstName: string;
+  residenceUnitNumber?: string;
   state: LiaIntakeState;
   messages: LabChatMessage[];
 }
@@ -46,19 +47,39 @@ export class LiaLabService {
     title: string;
     description: string;
     tenantFirstName?: string;
+    language?: string;
+    residenceUnitNumber?: string;
   }): LabSessionView {
     const id = randomUUID();
-    const state = this.jarvis.bootstrapState(params.title, params.description);
+    const state = this.jarvis.bootstrapState(
+      params.title,
+      params.description,
+      params.language ?? 'fr',
+      params.residenceUnitNumber,
+    );
     const session: LabSession = {
       id,
       title: params.title,
       description: params.description,
       tenantFirstName: params.tenantFirstName?.trim() || 'Marie',
+      residenceUnitNumber: params.residenceUnitNumber?.trim(),
       state,
       messages: [],
     };
     this.sessions.set(id, session);
     return this.toView(session);
+  }
+
+  /** Crée la session et lance l’ouverture Jarvis en un seul appel (Lia-Lab). */
+  async startSession(params: {
+    title: string;
+    description: string;
+    tenantFirstName?: string;
+    language?: string;
+    residenceUnitNumber?: string;
+  }): Promise<LabSessionView> {
+    const view = this.createSession(params);
+    return this.runOpening(view.sessionId);
   }
 
   async runOpening(sessionId: string): Promise<LabSessionView> {
@@ -68,6 +89,7 @@ export class LiaLabService {
       title: session.title,
       description: session.description,
       tenantFirstName: session.tenantFirstName,
+      residenceUnitNumber: session.residenceUnitNumber,
     });
     session.state = turn.state;
     const parts = [turn.acknowledgment, turn.nextQuestion].filter(Boolean) as string[];
@@ -102,6 +124,7 @@ export class LiaLabService {
       title: session.title,
       description: session.description,
       tenantFirstName: session.tenantFirstName,
+      residenceUnitNumber: session.residenceUnitNumber,
     });
     session.state = turn.state;
 
@@ -167,7 +190,7 @@ export class LiaLabService {
 
   async synthesizeSpeech(
     text: string,
-    language: 'fr' | 'gcf' = 'fr',
+    language = 'fr',
   ): Promise<{ audioBase64: string; mimeType: string }> {
     const apiKey = process.env.ELEVENLABS_API_KEY;
     const voiceId =
@@ -178,10 +201,15 @@ export class LiaLabService {
       );
     }
 
-    const prompt =
-      language === 'gcf'
-        ? `[Créole guadeloupéen, ton technicien bienveillant] ${text}`
-        : text;
+    const langHints: Record<string, string> = {
+      gcf: '[Créole guyanais, ton technicien bienveillant]',
+      hat: '[Kreyòl ayisyen, ton technicien bienveillant]',
+      en: '[English, calm housing technician]',
+      pt: '[Português brasileiro, técnico habitacional calmo]',
+      es: '[Español caribeño, técnico habitacional calmado]',
+    };
+    const hint = langHints[language] ?? '';
+    const prompt = hint ? `${hint} ${text}` : text;
 
     const res = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,

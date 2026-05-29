@@ -226,6 +226,7 @@ export class LiaAgentService {
         state.title,
         state.description,
         intake,
+        state.residenceUnitNumber,
       );
     }
     this.scheduleCompanion(state, intake);
@@ -254,6 +255,7 @@ export class LiaAgentService {
         description: state.description,
         tenantFirstName: state.tenantFirstName,
         ticketId: state.ticketId,
+        residenceUnitNumber: state.residenceUnitNumber,
       });
       intake = turn.state;
       const parts: string[] = [];

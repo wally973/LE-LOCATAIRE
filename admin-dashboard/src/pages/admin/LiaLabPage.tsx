@@ -1,33 +1,58 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  createLabSession,
-  runLabOpening,
+  getLabErrorMessage,
+  LAB_DIALOGUE_LANGUAGES,
+  startLabSession,
   sendLabMessage,
   synthesizeLabSpeech,
   transcribeLabAudio,
+  type LabDialogueLanguage,
   type LabSessionView,
   type LiaLabVisualization,
 } from '@services/liaLabApi';
 import { getErrorMessage } from '@services/apiClient';
+import authService from '@services/authService';
 import './LiaLabPage.css';
 
-const PRESETS: { label: string; title: string; description: string }[] = [
+const PRESETS: {
+  label: string;
+  title: string;
+  description: string;
+  suggestedLanguage?: LabDialogueLanguage;
+  suggestedUnit?: string;
+}[] = [
   {
     label: 'Créole — urgence plomberie',
     title: 'Eau qui coule',
     description: 'Bonjou, dlo ap koule anpil sou lavabo la, mwen pa konnen ki koté li soti.',
+    suggestedLanguage: 'gcf',
+    suggestedUnit: '5F',
   },
   {
     label: 'Marie — porte gâchée',
     title: 'Porte qui ne ferme plus',
     description:
       'Ma porte d’entrée ne ferme plus correctement, la serrure accroche et le pêne ne rentre pas.',
+    suggestedUnit: '5F',
   },
   {
     label: 'Condensation / VMC',
     title: 'Humidité chambre',
     description:
       'Forte condensation sur les fenêtres, odeur de moisi, VMC qui semble ne plus tourner.',
+    suggestedUnit: '5F',
+  },
+  {
+    label: 'TV — pas de réception',
+    title: 'Pas de réception TV',
+    description: 'Depuis hier, la TV affiche « aucun signal », je ne reçois plus les chaînes.',
+    suggestedUnit: '5F',
+  },
+  {
+    label: 'TV villa — lot 26',
+    title: 'Pas de réception TV',
+    description: 'Depuis hier, la TV affiche « aucun signal », je ne reçois plus les chaînes.',
+    suggestedUnit: '26',
   },
 ];
 
@@ -55,10 +80,10 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
 
       <section>
         <h4>Flux actifs</h4>
-        {viz.activeFlows.length === 0 ? (
+        {(viz.activeFlowLabels ?? viz.activeFlows).length === 0 ? (
           <span className="lia-lab-tag">aucun détecté</span>
         ) : (
-          viz.activeFlows.map((f) => (
+          (viz.activeFlowLabels ?? viz.activeFlows).map((f) => (
             <span key={f} className="lia-lab-tag flow">
               {f}
             </span>
@@ -82,19 +107,59 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
       <section>
         <h4>Capteurs</h4>
         <span className="lia-lab-tag">Lot : {viz.detectedLot}</span>
-        <span className="lia-lab-tag">Langue : {viz.language}</span>
-        <span className="lia-lab-tag">Phase : {viz.intakePhase}</span>
+        <span className="lia-lab-tag">
+          Langue dialogue (choix locataire) : {viz.dialogueLanguageLabel ?? viz.language}
+        </span>
+        {viz.tenantLanguageLabel &&
+        viz.tenantLanguageLabel !== viz.dialogueLanguageLabel ? (
+          <span className="lia-lab-tag">Locataire : {viz.tenantLanguageLabel}</span>
+        ) : null}
+        <span className="lia-lab-tag">
+          Phase : {viz.intakePhaseLabel ?? viz.intakePhase}
+        </span>
         {viz.handoffRecommended ? (
           <span className="lia-lab-tag urgent">Handoff secteur</span>
         ) : null}
       </section>
 
+      {viz.housingPerspective ? (
+        <section>
+          <h4>Perspective logement (inscription)</h4>
+          <p style={{ margin: 0, color: 'var(--lab-muted)', fontSize: 13 }}>{viz.housingPerspective}</p>
+        </section>
+      ) : null}
+
+      {viz.councilEchoes && viz.councilEchoes.length > 0 ? (
+        <section className="lia-lab-council">
+          <h4>Conseil IA — murmures (Jarvis parle seul)</h4>
+          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+            {viz.councilEchoes.map((e, i) => (
+              <li key={`${e.agent}-${i}`} className="lia-lab-council-echo">
+                <strong>{e.agent}</strong>
+                <span className="lia-lab-tag flow">{e.heard}</span>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--lab-muted)' }}>{e.insight}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section>
         <h4>Simulation 3D (Jarvis Engine)</h4>
         {viz.simulationDomain ? (
           <>
-            <span className="lia-lab-tag flow">{viz.simulationDomain}</span>
-            {viz.scene3D ? (
+            <span className="lia-lab-tag flow">
+              {viz.simulationDomainLabel ?? viz.simulationDomain}
+            </span>
+            {viz.scene3DRows && viz.scene3DRows.length > 0 ? (
+              <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
+                {viz.scene3DRows.map((row) => (
+                  <li key={row.label}>
+                    {row.label} : {row.value}
+                  </li>
+                ))}
+              </ul>
+            ) : viz.scene3D ? (
               <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
                 {Object.entries(viz.scene3D)
                   .filter(([, v]) => v)
@@ -153,8 +218,15 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
       <section>
         <h4>jarvisFacts (état partagé)</h4>
         <dl className="lia-lab-facts">
-          {Object.keys(viz.jarvisFacts).length === 0 ? (
+          {(viz.jarvisFactsConsole ?? Object.entries(viz.jarvisFacts)).length === 0 ? (
             <dd style={{ margin: 0, color: 'var(--lab-muted)' }}>vide</dd>
+          ) : viz.jarvisFactsConsole ? (
+            viz.jarvisFactsConsole.map((row) => (
+              <React.Fragment key={row.label}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </React.Fragment>
+            ))
           ) : (
             Object.entries(viz.jarvisFacts).map(([k, v]) => (
               <React.Fragment key={k}>
@@ -173,6 +245,8 @@ const LiaLabPage: React.FC = () => {
   const [title, setTitle] = useState(PRESETS[0].title);
   const [description, setDescription] = useState(PRESETS[0].description);
   const [tenantFirstName, setTenantFirstName] = useState('Marie');
+  const [residenceUnitNumber, setResidenceUnitNumber] = useState(PRESETS[0].suggestedUnit ?? '5F');
+  const [dialogueLanguage, setDialogueLanguage] = useState<LabDialogueLanguage>('fr');
   const [session, setSession] = useState<LabSessionView | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -192,15 +266,34 @@ const LiaLabPage: React.FC = () => {
   const applyPreset = (p: (typeof PRESETS)[0]) => {
     setTitle(p.title);
     setDescription(p.description);
+    if (p.suggestedLanguage) {
+      setDialogueLanguage(p.suggestedLanguage);
+    }
+    if (p.suggestedUnit) {
+      setResidenceUnitNumber(p.suggestedUnit);
+    }
     setSession(null);
     setDraft('');
     setError(null);
   };
 
+  const resetConversation = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setSpeaking(false);
+    setRecording(false);
+    setSession(null);
+    setDraft('');
+    setError(null);
+    setBusy(false);
+  };
+
   const sessionIdRef = useRef<string | null>(null);
   sessionIdRef.current = session?.sessionId ?? null;
 
-  const playTts = useCallback(async (text: string, language: 'fr' | 'gcf') => {
+  const playTts = useCallback(async (text: string, language: LabDialogueLanguage) => {
     if (!text.trim()) return;
     setSpeaking(true);
     try {
@@ -231,10 +324,10 @@ const LiaLabPage: React.FC = () => {
         setDraft('');
         const lastLia = [...view.messages].reverse().find((m) => m.role === 'lia');
         if (lastLia?.text) {
-          void playTts(lastLia.text, view.visualization.language === 'gcf' ? 'gcf' : 'fr');
+          void playTts(lastLia.text, view.visualization.language);
         }
       } catch (e) {
-        setError(getErrorMessage(e, 'Erreur envoi message.'));
+        setError(getLabErrorMessage(e, 'Erreur envoi message.'));
       } finally {
         setBusy(false);
       }
@@ -243,26 +336,43 @@ const LiaLabPage: React.FC = () => {
   );
 
   const startSession = async () => {
+    const t = title.trim();
+    const d = description.trim();
+    if (!t || !d) {
+      setError('Renseignez le titre et la description avant de démarrer Jarvis.');
+      return;
+    }
+    if (!authService.isAuthenticated()) {
+      setError('Connectez-vous avec un compte ADMIN pour utiliser Lia-Lab.');
+      return;
+    }
+    if (authService.getRole() !== 'ADMIN') {
+      setError('Lia-Lab est réservé aux comptes ADMIN.');
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
-      let view = await createLabSession({
-        title: title.trim(),
-        description: description.trim(),
+      const view = await startLabSession({
+        title: t,
+        description: d,
         tenantFirstName: tenantFirstName.trim() || 'Marie',
+        language: dialogueLanguage,
+        residenceUnitNumber: residenceUnitNumber.trim() || undefined,
       });
-      view = await runLabOpening(view.sessionId);
+      if (!view.messages?.length) {
+        setError('Jarvis n’a renvoyé aucun message — redémarrez le backend puis réessayez.');
+        return;
+      }
       setSession(view);
       setDraft('');
       const openingLia = [...view.messages].reverse().find((m) => m.role === 'lia');
       if (openingLia?.text) {
-        void playTts(
-          openingLia.text,
-          view.visualization.language === 'gcf' ? 'gcf' : 'fr',
-        );
+        void playTts(openingLia.text, view.visualization.language);
       }
     } catch (e) {
-      setError(getErrorMessage(e, 'Impossible de démarrer la session Lia-Lab.'));
+      setError(getLabErrorMessage(e, 'Impossible de démarrer la session Lia-Lab.'));
     } finally {
       setBusy(false);
     }
@@ -303,10 +413,7 @@ const LiaLabPage: React.FC = () => {
               setDraft('');
               const lastLia = [...view.messages].reverse().find((m) => m.role === 'lia');
               if (lastLia?.text) {
-                void playTts(
-                  lastLia.text,
-                  view.visualization.language === 'gcf' ? 'gcf' : 'fr',
-                );
+                void playTts(lastLia.text, view.visualization.language);
               }
             });
           }
@@ -343,6 +450,11 @@ const LiaLabPage: React.FC = () => {
           </p>
         </div>
         <div className="lia-lab-presets">
+          {session ? (
+            <button type="button" className="lia-lab-reset-btn" onClick={resetConversation}>
+              Reset — nouvelle conversation
+            </button>
+          ) : null}
           {PRESETS.map((p) => (
             <button key={p.label} type="button" onClick={() => applyPreset(p)}>
               {p.label}
@@ -365,6 +477,37 @@ const LiaLabPage: React.FC = () => {
                 placeholder="Prénom locataire"
                 aria-label="Prénom"
               />
+              <label className="lia-lab-lang-label" htmlFor="lia-lab-lang">
+                Langue du dialogue Jarvis (choix locataire)
+              </label>
+              <select
+                id="lia-lab-lang"
+                value={dialogueLanguage}
+                onChange={(e) =>
+                  setDialogueLanguage(e.target.value as LabDialogueLanguage)
+                }
+                aria-label="Langue du dialogue"
+              >
+                {LAB_DIALOGUE_LANGUAGES.map((opt) => (
+                  <option key={opt.code} value={opt.code}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <label className="lia-lab-lang-label" htmlFor="lia-lab-unit">
+                Lot locataire (inscription)
+              </label>
+              <input
+                id="lia-lab-unit"
+                value={residenceUnitNumber}
+                onChange={(e) => setResidenceUnitNumber(e.target.value)}
+                placeholder="Ex. 5F (collectif) ou 26 (plein pied)"
+                aria-label="Numéro de lot"
+                title="5F ≈ bâtiment collectif · 26 ≈ plein pied"
+              />
+              <p className="lia-lab-unit-hint">
+                5F → collectif (voisins, parties communes) · 26 → plein pied (piste locale)
+              </p>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -378,7 +521,11 @@ const LiaLabPage: React.FC = () => {
                 aria-label="Description"
               />
               <div className="lia-lab-setup-actions">
-                <button type="button" disabled={busy} onClick={() => void startSession()}>
+                <button
+                  type="button"
+                  disabled={busy || !title.trim() || !description.trim()}
+                  onClick={() => void startSession()}
+                >
                   {busy ? 'Connexion…' : 'Démarrer Jarvis'}
                 </button>
                 <button
@@ -443,10 +590,7 @@ const LiaLabPage: React.FC = () => {
                   className={`lia-lab-icon-btn ${speaking ? 'speaking' : ''}`}
                   disabled={!lastLiaMessage?.text || busy}
                   onClick={() =>
-                    void playTts(
-                      lastLiaMessage!.text,
-                      session.visualization.language === 'gcf' ? 'gcf' : 'fr',
-                    )
+                    void playTts(lastLiaMessage!.text, session.visualization.language)
                   }
                   title="Relire dernière réponse (TTS)"
                   aria-label="Haut-parleur"
@@ -469,7 +613,9 @@ const LiaLabPage: React.FC = () => {
         </div>
 
         <div className="lia-lab-panel">
-          <div className="lia-lab-panel-title">Console de visualisation (ce que Jarvis voit)</div>
+          <div className="lia-lab-panel-title">
+            Console de visualisation (expert — français)
+          </div>
           <VisualizationConsole viz={session?.visualization ?? null} />
         </div>
       </div>

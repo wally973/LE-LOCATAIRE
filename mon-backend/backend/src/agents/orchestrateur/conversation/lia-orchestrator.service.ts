@@ -10,6 +10,7 @@ import { FeatureFlagsService } from '../../../feature-flags/feature-flags.servic
 import type { QualificationFlags } from '../../../feature-flags/qualification-flags.types';
 import { LiaAgentService } from './lia-agent.service';
 import { LiaSharedStateService } from './lia-shared-state.service';
+import { LiaComprehensionService } from './lia-comprehension.service';
 import { LiaDiagnosticCapabilityService } from '../../diagnostiqueur/capability/lia-diagnostic-capability.service';
 
 /**
@@ -27,6 +28,7 @@ export class LiaOrchestratorService {
     private readonly featureFlags: FeatureFlagsService,
     private readonly agent: LiaAgentService,
     private readonly sharedState: LiaSharedStateService,
+    private readonly comprehension: LiaComprehensionService,
     private readonly diagnostic: LiaDiagnosticCapabilityService,
   ) {}
 
@@ -44,7 +46,13 @@ export class LiaOrchestratorService {
     const ticket = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
       include: {
-        tenant: { include: { user: true } },
+        tenant: {
+          include: {
+            user: true,
+            housing: { select: { residenceUnitNumber: true } },
+          },
+        },
+        housing: { select: { residenceUnitNumber: true } },
       },
     });
     if (!ticket) throw new Error('Ticket introuvable');
@@ -78,8 +86,17 @@ export class LiaOrchestratorService {
       );
     }
 
+    const residenceUnitNumber =
+      ticket.housing?.residenceUnitNumber ??
+      ticket.tenant.housing?.residenceUnitNumber ??
+      undefined;
+
     const intakeState = flags.liaConversationEnabled
-      ? this.intake.createInitialState(ticket.title, ticket.description)
+      ? this.comprehension.createInitialIntake(
+          ticket.title,
+          ticket.description,
+          residenceUnitNumber,
+        )
       : this.intake.skipConversationIntake(
           ticket.title,
           ticket.description,

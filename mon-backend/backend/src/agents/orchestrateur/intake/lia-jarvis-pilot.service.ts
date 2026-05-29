@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LiaHostService } from '../conversation/lia-host.service';
 import type { LiaMessageUiStatus } from '../conversation/lia-message-ui-status';
-import { analyzingStatus, landlordHandoffStatus } from '../conversation/lia-message-ui-status';
+import {
+  analyzingStatus,
+  dossierTransmisStatus,
+  landlordHandoffStatus,
+} from '../conversation/lia-message-ui-status';
+import { normalizeCompanionLanguage } from '../../shared/lia-dialogue-languages';
 import {
   LiaIntakeService,
   type LiaIntakeState,
@@ -16,6 +21,18 @@ import { JARVIS_HANDOFF_TENANT_MESSAGE_FR } from './lia-jarvis-visual-logic';
 import { LiaJarvisHandoffService } from './lia-jarvis-handoff.service';
 import { detectJarvisPhysicalContradiction } from './lia-jarvis-reasoning';
 import {
+  buildPostIntakeReply,
+  jarvisComprehensionEcho,
+} from './lia-jarvis-dialogue.i18n';
+import {
+  buildComprehensionFragments,
+  pickCouncilSpokenQuestion,
+  runCouncilRound,
+  serializeCouncilRound,
+} from './lia-jarvis-council.engine';
+import type { CouncilRound } from './lia-jarvis-council.types';
+import { inferHousingPerspective } from './lia-housing-perspective';
+import {
   attachSimulationToState,
   buildJarvisConsultation,
   isSimulationIntakeComplete,
@@ -23,6 +40,7 @@ import {
   runJarvisSimulation,
   syncJarvisSimulationOnState,
 } from './lia-jarvis-simulation.engine';
+import { pickChainQuestion } from './lia-jarvis-visual-chain';
 
 export interface JarvisPilotTurn {
   state: LiaIntakeState;
@@ -31,6 +49,8 @@ export interface JarvisPilotTurn {
   uiStatus?: LiaMessageUiStatus;
   fromLlm: boolean;
   handoffTriggered?: boolean;
+  /** Murmures du conseil (console expert / Lia-Lab) */
+  councilRound?: CouncilRound;
 }
 
 interface JarvisLlmPayload {
@@ -45,7 +65,7 @@ interface JarvisLlmPayload {
 }
 
 const JARVIS_POLISH_SYSTEM = [
-  'Tu es Lia — Agent Jarvis. Tu reformules UNIQUEMENT le ton (empathie, créole si indiqué).',
+  'Tu es Lia — Agent Jarvis. Reformule UNIQUEMENT le ton dans la langue indiquée (fr ou gcf).',
   'Ne change PAS les faits, la visualisation physique ni la question discriminante.',
   'Réponds en JSON : { "acknowledgment": "...", "nextQuestion": "..." | null }',
 ].join('\n');
@@ -60,13 +80,29 @@ export class LiaJarvisPilotService {
     private readonly handoff: LiaJarvisHandoffService,
   ) {}
 
-  bootstrapState(title: string, description: string): LiaIntakeState {
+  bootstrapState(
+    title: string,
+    description: string,
+    preferredLanguage = 'fr',
+    residenceUnitNumber?: string,
+  ): LiaIntakeState {
+    const lang = preferredLanguage.trim() || 'fr';
+    const housing = inferHousingPerspective(residenceUnitNumber);
     let state = this.intake.createInitialState(title, description);
-    state = ensureJarvisOrganizer(
-      { ...state, intakeMode: 'jarvis' },
-      title,
-      description,
-    );
+    state = {
+      ...state,
+      intakeMode: 'jarvis',
+      preferredLanguage: lang,
+      answers: { ...state.answers, language_preference: lang },
+      jarvisFacts: {
+        ...(state.jarvisFacts ?? {}),
+        langue_choisie: 'oui',
+        housing_unit: residenceUnitNumber?.trim() ?? '',
+        housing_kind: housing.kind,
+        housing_visual: housing.visualNote,
+      },
+    };
+    state = ensureJarvisOrganizer(state, title, description);
     state = applyJarvis360ToState(state, title, description);
     state = syncJarvisSimulationOnState(state, title, description);
     state = {
@@ -87,6 +123,7 @@ export class LiaJarvisPilotService {
     description: string;
     tenantFirstName?: string;
     ticketId?: number;
+    residenceUnitNumber?: string;
   }): Promise<JarvisPilotTurn> {
     let state = applyJarvis360ToState(
       params.state,
@@ -102,6 +139,7 @@ export class LiaJarvisPilotService {
       description: params.description,
       message: '',
       tenantFirstName: params.tenantFirstName,
+      residenceUnitNumber: params.residenceUnitNumber,
     });
 
     if (turn.handoffTriggered && params.ticketId) {
@@ -122,15 +160,12 @@ export class LiaJarvisPilotService {
     description: string;
     tenantFirstName?: string;
     ticketId?: number;
+    residenceUnitNumber?: string;
   }): Promise<JarvisPilotTurn> {
+    const wasAlreadyComplete = this.isIntakeAlreadyComplete(params.state);
+
     let state = applyJarvis360ToState(
       params.state,
-      params.title,
-      params.description,
-      params.message,
-    );
-    state = syncJarvisSimulationOnState(
-      state,
       params.title,
       params.description,
       params.message,
@@ -141,6 +176,39 @@ export class LiaJarvisPilotService {
       params.title,
       params.description,
     );
+
+    if (wasAlreadyComplete) {
+      const name = params.tenantFirstName?.trim() || 'Bonjour';
+      const lang = normalizeCompanionLanguage(state.preferredLanguage);
+      const sim = parseSimulationFromState(params.state);
+      const acknowledgment = buildPostIntakeReply({
+        message: params.message,
+        name,
+        lang,
+        domain: sim?.domain ?? 'generic',
+        lastAck: state.answers.jarvis_last_ack,
+      });
+      state = syncJarvisSimulationOnState(
+        state,
+        params.title,
+        params.description,
+        params.message,
+      );
+      return {
+        state: {
+          ...state,
+          phase: 'DONE',
+          answers: {
+            ...state.answers,
+            jarvis_last_ack: acknowledgment.slice(0, 500),
+            jarvis_summary: acknowledgment.slice(0, 500),
+          },
+        },
+        acknowledgment,
+        nextQuestion: null,
+        fromLlm: false,
+      };
+    }
 
     if (intent === 'reassurance' || intent === 'meta_question') {
       const reassurance = buildJarvisReassurance({
@@ -175,6 +243,9 @@ export class LiaJarvisPilotService {
       description: params.description,
       message: params.message,
       tenantFirstName: params.tenantFirstName,
+      wasAlreadyComplete,
+      lastAcknowledgment: params.state.answers.jarvis_last_ack,
+      residenceUnitNumber: params.residenceUnitNumber,
     });
 
     if (turn.handoffTriggered && params.ticketId) {
@@ -192,6 +263,14 @@ export class LiaJarvisPilotService {
   }
 
   /** Consultation Jarvis — simulation physique d’abord, polish LLM optionnel. */
+  private isIntakeAlreadyComplete(state: LiaIntakeState): boolean {
+    return (
+      state.phase === 'DONE' ||
+      state.answers.jarvis_intake_complete === 'oui' ||
+      parseSimulationFromState(state)?.intakeComplete === true
+    );
+  }
+
   private async runSimulationConsultation(params: {
     mode: 'opening' | 'tenant_turn';
     state: LiaIntakeState;
@@ -199,6 +278,9 @@ export class LiaJarvisPilotService {
     description: string;
     message: string;
     tenantFirstName?: string;
+    wasAlreadyComplete?: boolean;
+    lastAcknowledgment?: string;
+    residenceUnitNumber?: string;
   }): Promise<JarvisPilotTurn> {
     const signalement = `${params.title} ${params.description}`;
     const contradiction = detectJarvisPhysicalContradiction(
@@ -215,6 +297,9 @@ export class LiaJarvisPilotService {
     }
 
     const prior = parseSimulationFromState(params.state);
+    const wasAlreadyComplete =
+      params.wasAlreadyComplete ?? this.isIntakeAlreadyComplete(params.state);
+
     const simulation = runJarvisSimulation({
       title: params.title,
       description: params.description,
@@ -224,16 +309,54 @@ export class LiaJarvisPilotService {
     });
 
     let state = attachSimulationToState(params.state, simulation);
+    const housing = inferHousingPerspective(
+      params.residenceUnitNumber ?? params.state.jarvisFacts?.housing_unit,
+    );
+    const chainQuestion =
+      simulation.domain === 'generic' ? pickChainQuestion(simulation, simulation.language) : null;
+    const councilRound = runCouncilRound({
+      title: params.title,
+      description: params.description,
+      message: params.message,
+      state: params.state,
+      simulation,
+      housing,
+      chainQuestion,
+    });
+
     const consultation = buildJarvisConsultation({
       simulation,
       title: params.title,
       description: params.description,
       tenantFirstName: params.tenantFirstName,
       mode: params.mode,
+      postIntake: wasAlreadyComplete && params.mode === 'tenant_turn',
+      message: params.message,
+      lastAcknowledgment: params.lastAcknowledgment,
     });
 
     let acknowledgment = consultation.acknowledgment;
-    let nextQuestion = consultation.nextQuestion;
+    let nextQuestion = pickCouncilSpokenQuestion(consultation.nextQuestion, councilRound);
+
+    if (params.message.trim() && params.mode === 'tenant_turn') {
+      const fragments = buildComprehensionFragments(councilRound);
+      acknowledgment += jarvisComprehensionEcho(fragments, simulation.language);
+    }
+
+    state = {
+      ...state,
+      jarvisFacts: {
+        ...(state.jarvisFacts ?? {}),
+        housing_unit:
+          params.residenceUnitNumber?.trim() ??
+          params.state.jarvisFacts?.housing_unit ??
+          '',
+        housing_kind: housing.kind,
+        housing_visual: housing.visualNote,
+        council_last: serializeCouncilRound(councilRound),
+      },
+    };
+
     let fromLlm = false;
 
     const polished = await this.maybePolishConsultation({
@@ -246,7 +369,8 @@ export class LiaJarvisPilotService {
       fromLlm = true;
     }
 
-    let intakeComplete = consultation.intakeComplete;
+    let intakeComplete = consultation.intakeComplete || wasAlreadyComplete;
+    const newlyComplete = consultation.intakeComplete && !wasAlreadyComplete;
     if (intakeComplete) {
       state = {
         ...state,
@@ -259,7 +383,7 @@ export class LiaJarvisPilotService {
       state = { ...state, phase: 'INTAKE' };
     }
 
-    const lang = consultation.language;
+    const lang = normalizeCompanionLanguage(consultation.language);
     return {
       state: {
         ...state,
@@ -267,12 +391,14 @@ export class LiaJarvisPilotService {
         answers: {
           ...state.answers,
           jarvis_summary: acknowledgment.slice(0, 500),
+          jarvis_last_ack: acknowledgment.slice(0, 500),
         },
       },
       acknowledgment,
       nextQuestion,
       fromLlm,
-      uiStatus: intakeComplete ? analyzingStatus(lang) : undefined,
+      uiStatus: newlyComplete ? dossierTransmisStatus(lang) : undefined,
+      councilRound,
     };
   }
 
@@ -281,6 +407,7 @@ export class LiaJarvisPilotService {
     tenantFirstName?: string;
   }): Promise<{ acknowledgment: string; nextQuestion: string | null } | null> {
     if (process.env.LIA_HOST_ENABLED === 'false') return null;
+    if (process.env.JARVIS_LLM_POLISH !== 'true') return null;
 
     const user = JSON.stringify({
       tenantFirstName: params.tenantFirstName ?? 'Marie',

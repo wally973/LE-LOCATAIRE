@@ -34,7 +34,14 @@ export class LiaSharedStateService {
   ): Promise<LiaSharedState> {
     const ticket = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
-      include: { tenant: true },
+      include: {
+        tenant: {
+          include: {
+            housing: { select: { residenceUnitNumber: true } },
+          },
+        },
+        housing: { select: { residenceUnitNumber: true } },
+      },
     });
     if (!ticket) throw new Error('Ticket introuvable');
 
@@ -83,6 +90,10 @@ export class LiaSharedStateService {
       savoirVoirPhase: dx.savoirVoirPhase,
       caseContext: dx.caseContext,
       lastTenantMessage: opts?.lastTenantMessage,
+      residenceUnitNumber:
+        ticket.housing?.residenceUnitNumber ??
+        ticket.tenant.housing?.residenceUnitNumber ??
+        null,
     };
   }
 

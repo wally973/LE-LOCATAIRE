@@ -54,6 +54,16 @@
   border-color: var(--lab-accent);
 }
 
+.lia-lab-reset-btn {
+  border-color: var(--lab-warn) !important;
+  color: var(--lab-warn) !important;
+}
+
+.lia-lab-reset-btn:hover {
+  border-color: #fbbf24 !important;
+  color: #fbbf24 !important;
+}
+
 .lia-lab-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -90,6 +100,22 @@
   display: grid;
   gap: 8px;
   border-bottom: 1px solid var(--lab-border);
+}
+
+.lia-lab-lang-label {
+  font-size: 11px;
+  color: var(--lab-muted);
+  margin-top: 4px;
+}
+
+.lia-lab-setup select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--lab-border);
+  background: var(--lab-input-bg, #0d1117);
+  color: inherit;
+  font-size: 13px;
 }
 
 .lia-lab-setup input,
@@ -280,4 +306,41 @@
   font-size: 11px;
   color: var(--lab-muted);
   padding: 0 12px 8px;
+}
+
+.lia-lab-unit-hint {
+  margin: -4px 0 8px;
+  font-size: 10px;
+  color: var(--lab-muted);
+  line-height: 1.4;
+}
+
+.lia-lab-council {
+  border: 1px solid var(--lab-border);
+  border-radius: 6px;
+  padding: 10px;
+  background: linear-gradient(135deg, #0f1620 0%, #111820 100%);
+}
+
+.lia-lab-council h4 {
+  color: #a7f3ec;
+}
+
+.lia-lab-council-echo {
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--lab-border);
+}
+
+.lia-lab-council-echo:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.lia-lab-council-echo strong {
+  display: inline-block;
+  min-width: 88px;
+  font-size: 11px;
+  color: var(--lab-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }

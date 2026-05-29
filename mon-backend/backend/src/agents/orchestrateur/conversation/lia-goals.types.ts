@@ -66,6 +66,8 @@ export interface LiaSharedState {
   caseContext: string;
   /** Dernier message locataire (déclencheur réactif). */
   lastTenantMessage?: string;
+  /** Lot locataire (inscription) — alimente le conseil IA collectif / plein pied. */
+  residenceUnitNumber?: string | null;
 }
 
 export interface GoalExecutionResult {

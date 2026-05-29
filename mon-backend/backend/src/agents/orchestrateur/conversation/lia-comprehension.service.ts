@@ -23,8 +23,17 @@ export class LiaComprehensionService {
     private readonly jarvis: LiaJarvisPilotService,
   ) {}
 
-  createInitialIntake(title: string, description: string): LiaIntakeState {
-    return this.jarvis.bootstrapState(title, description);
+  createInitialIntake(
+    title: string,
+    description: string,
+    residenceUnitNumber?: string | null,
+  ): LiaIntakeState {
+    return this.jarvis.bootstrapState(
+      title,
+      description,
+      'fr',
+      residenceUnitNumber ?? undefined,
+    );
   }
 
   skipIntake(
@@ -55,6 +64,7 @@ export class LiaComprehensionService {
     title: string,
     description: string,
     state: LiaIntakeState,
+    residenceUnitNumber?: string | null,
   ): Promise<LiaIntakeState> {
     if (state.answers.situation_analysis_sent === 'oui') {
       return state;
@@ -66,6 +76,7 @@ export class LiaComprehensionService {
       description,
       tenantFirstName: firstName,
       ticketId,
+      residenceUnitNumber: residenceUnitNumber ?? undefined,
     });
 
     const locale =
@@ -106,6 +117,7 @@ export class LiaComprehensionService {
     description: string;
     tenantFirstName?: string;
     ticketId?: number;
+    residenceUnitNumber?: string | null;
   }): Promise<IntakeReactiveTurn> {
     return this.intakeReactive.processTenantReply(params);
   }

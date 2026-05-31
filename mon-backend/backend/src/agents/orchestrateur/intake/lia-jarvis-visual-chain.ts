@@ -5,6 +5,8 @@
  */
 import type { CompanionLanguage } from '../conversation/lia-companion.types';
 import { jarvisChainCompareQuestion, jarvisChainScopeQuestion } from './lia-jarvis-dialogue.i18n';
+import { applyClinicalLinkEffects } from './lia-savoir-clinical-links.loader';
+import type { HousingKind } from './lia-housing-perspective';
 import type {
   JarvisFlowKind,
   JarvisScene3D,
@@ -155,6 +157,13 @@ export function pickChainQuestion(
   lang: CompanionLanguage,
 ): string | null {
   if (sim.intakeComplete) return null;
+  if (sim.resolvedSteps.includes('service_meter_link')) return null;
+  if (
+    sim.tenantFacts?.commonsSalubrityLead &&
+    sim.tenantFacts.perimeterResolved
+  ) {
+    return null;
+  }
   if (sim.hypotheses.some((h) => h.id === 'generic_observe' && h.active)) {
     return null;
   }
@@ -198,14 +207,50 @@ function deactivateHypothesis(
 export function applyChainDiscrimination(
   sim: JarvisSimulationState,
   message: string,
+  opts?: { housingKind?: HousingKind; title?: string; description?: string },
 ): JarvisSimulationState {
   const msg = norm(message);
-  const resolved = [...sim.resolvedSteps];
+  let resolved = [...sim.resolvedSteps];
   let hypotheses = sim.hypotheses.map((h) => ({ ...h }));
   let intakeComplete = sim.intakeComplete;
 
   if (sim.domain !== 'generic') {
     return sim;
+  }
+
+  // Réponse au sondage collectif (voisins / parties communes) — TV signal
+  if (
+    /voisin|vwazen|escalier|parties communes|eclairage|éclairage|hall|couloir|commune|palier|ampoule|lumiere|lumière/.test(
+      msg,
+    )
+  ) {
+    if (!resolved.includes('savoir_collective')) resolved.push('savoir_collective');
+  }
+
+  if (
+    /escalier|parties communes|hall|couloir|commune|palier/.test(msg) &&
+    /eclairage|éclairage|lumiere|lumière|souci|panne|marche pas|ne s.?allume|coupe|allume pas/.test(
+      msg,
+    )
+  ) {
+    hypotheses = boostHypothesis(hypotheses, '_amont', 0.35);
+    hypotheses = deactivateHypothesis(hypotheses, '_local');
+    if (!resolved.includes('chain_compare')) resolved.push('chain_compare');
+  }
+
+  if (opts?.housingKind && message.trim()) {
+    const effects = applyClinicalLinkEffects({
+      title: opts.title ?? '',
+      description: opts.description ?? '',
+      message,
+      housingKind: opts.housingKind,
+      activeFlows: sim.activeFlows,
+      resolvedSteps: resolved,
+      hypotheses,
+    });
+    resolved = effects.resolvedSteps;
+    hypotheses = effects.hypotheses;
+    if (effects.intakeComplete) intakeComplete = true;
   }
 
   if (

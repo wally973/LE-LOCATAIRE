@@ -19,6 +19,8 @@ import { LiaIntakeReactiveService } from './intake/lia-intake-reactive.service';
 import { LiaExpertPocketService } from './conversation/lia-expert-pocket.service';
 import { LiaJarvisPilotService } from './intake/lia-jarvis-pilot.service';
 import { LiaJarvisHandoffService } from './intake/lia-jarvis-handoff.service';
+import { LiaJarvisLlmBridgeService } from './intake/lia-jarvis-llm-bridge';
+import { LiaJarvisTeamBriefService } from './intake/lia-jarvis-team-brief.service';
 import { LiaResearchService } from '../chercheur/research/lia-research.service';
 import { LiaHousingWarrantyService } from '../chercheur/research/lia-housing-warranty';
 import { LiaDiagnosticCapabilityService } from '../diagnostiqueur/capability/lia-diagnostic-capability.service';
@@ -56,6 +58,8 @@ import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-march
     LiaExpertPocketService,
     LiaJarvisPilotService,
     LiaJarvisHandoffService,
+    LiaJarvisLlmBridgeService,
+    LiaJarvisTeamBriefService,
     LiaOrchestratorService,
   ],
   exports: [

@@ -60,6 +60,25 @@ export interface LabSessionView {
   visualization: LiaLabVisualization;
 }
 
+export interface LabJuridiquePreset {
+  id: string;
+  label: string;
+  title: string;
+  description: string;
+  housingUnit: string;
+  legalThemeId: string;
+  perimetre: string;
+  tenantTurnHint: string | null;
+}
+
+export async function fetchLabJuridiquePresets(): Promise<LabJuridiquePreset[]> {
+  const { data } = await apiClient.get<{ presets: LabJuridiquePreset[] }>(
+    '/lia-lab/presets/juridique',
+    { timeout: LAB_REQUEST_TIMEOUT_MS },
+  );
+  return data.presets ?? [];
+}
+
 const LAB_REQUEST_TIMEOUT_MS = 30_000;
 
 /** Message d’erreur explicite pour Lia-Lab (auth, backend, rôle). */

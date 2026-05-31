@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-30",
+  "description": "Scénarios reformulés pour entraîner l'équipe Jarvis — signalements locataires typiques (logement, bâtiment, résidence). Sources : réclamations bailleur social, Service Public F31697, parties communes HLM.",
+  "scenarios": [
+    {
+      "id": "marche_escalier_cassee",
+      "theme": "Parties communes — sécurité escalier",
+      "perimetre": "BATIMENT",
+      "source": "Désordre cage d'escalier / insalubrité parties communes (bailleur)",
+      "housingUnit": "5F",
+      "title": "Marche d'escalier abîmée",
+      "description": "Dans la cage d'escalier, une marche est fissurée et bouge quand on monte. J'ai peur de tomber.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["mécanique"],
+        "ackMustNotMatch": ["je visualise", "en visualisant", "intégré à la scène", "hésite entre"],
+        "questionMustMatch": ["marche|escalier|niveau"],
+        "questionMustNotMatch": ["sans tout répéter"],
+        "expectCouncilAgents": ["savoir", "visual"]
+      }
+    },
+    {
+      "id": "poignee_fenetre_alu",
+      "theme": "Menuiserie aluminium — chambre",
+      "perimetre": "LOGEMENT",
+      "source": "Fenêtres / menuiseries — entretien vs vétusté (nuance 87-712)",
+      "housingUnit": "26",
+      "title": "Fenêtre chambre bloquée",
+      "description": "La fenêtre à double vitrage de la chambre ne se ferme plus. Le vent entre par le côté du vantail.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["mécanique"],
+        "ackMustNotMatch": ["visualis", "signalement générique"],
+        "questionMustMatch": ["fenêtre|vantail|poignée|crémone|cremone"],
+        "questionMustNotMatch": ["sans tout répéter", "pleut"],
+        "expectCouncilAgents": ["savoir"]
+      },
+      "tenantTurn": {
+        "message": "C'est surtout la crémone du bas qui est tordue, la vitre ne casse pas.",
+        "expectIntakeComplete": false,
+        "ackMustNotMatch": ["intégré à la scène"]
+      }
+    },
+    {
+      "id": "boite_lettres_bloquee",
+      "theme": "Boîte aux lettres — accès courrier",
+      "perimetre": "LOGEMENT",
+      "source": "Entretien courant locataire vs remplacement vétuste (bailleur)",
+      "housingUnit": "5F",
+      "title": "Boîte aux lettres bloquée",
+      "description": "Ma boîte aux lettres ne s'ouvre plus bien. La clé tourne difficilement et je ne récupère plus mon courrier.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["mécanique"],
+        "ackMustNotMatch": ["visualis", "hésite entre"],
+        "questionMustMatch": ["boîte|lettres|clé|cle|couvercle|courrier"],
+        "questionMustNotMatch": ["sans tout répéter"],
+        "expectCouncilAgents": ["savoir"]
+      }
+    },
+    {
+      "id": "radiateur_salon_froid",
+      "theme": "Chauffage — confort hiver",
+      "perimetre": "LOGEMENT",
+      "source": "Radiateur inopérant — obligation décent (bailleur fréquent)",
+      "housingUnit": "5F",
+      "title": "Radiateur froid",
+      "description": "Depuis trois jours le radiateur du salon reste froid même thermostat au maximum.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["chaleur"],
+        "ackMustNotMatch": ["visualis"],
+        "questionMustMatch": ["radiateur|pièces|chauff|froid"],
+        "questionMustNotMatch": ["sans tout répéter", "télé", "tv"],
+        "expectCouncilAgents": ["savoir"]
+      }
+    },
+    {
+      "id": "infiltration_plafond_pluie",
+      "theme": "Infiltration — toiture / enveloppe",
+      "perimetre": "LOGEMENT",
+      "source": "Taches plafond après pluie — toiture / façade (bailleur)",
+      "housingUnit": "5F",
+      "title": "Tache au plafond",
+      "description": "Quand il pleut fort, une tache brune s'étale au plafond du salon. Le plafond reste humide longtemps après.",
+      "opening": {
+        "expectDomain": "roof_envelope",
+        "expectActiveFlows": ["étanchéité", "eau"],
+        "ackMustNotMatch": ["visualis"],
+        "questionMustMatch": ["pleut|plafond|humide"],
+        "questionMustNotMatch": ["sans tout répéter", "clé", "serrurier"],
+        "expectCouncilAgents": ["savoir"]
+      }
+    },
+    {
+      "id": "interphone_silencieux",
+      "theme": "Interphone — accès bâtiment",
+      "perimetre": "BATIMENT",
+      "source": "Parties communes — interphone / contrôle d'accès",
+      "housingUnit": "5F",
+      "title": "Interphone en panne",
+      "description": "L'interphone ne sonne plus. Les livreurs et les proches ne peuvent pas me prévenir en bas.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["mécanique"],
+        "ackMustNotMatch": ["visualis", "intégré à la scène"],
+        "questionMustMatch": ["interphone|sonne|extérieur"],
+        "questionMustNotMatch": ["sans tout répéter"],
+        "expectCouncilAgents": ["savoir"]
+      }
+    },
+    {
+      "id": "vmc_sdb_bruyante",
+      "theme": "Ventilation — VMC SDB",
+      "perimetre": "LOGEMENT",
+      "source": "VMC bruyante ou arrêtée — extraction humidité",
+      "housingUnit": "26",
+      "title": "VMC très bruyante",
+      "description": "La VMC de la salle de bain fait un bruit de moteur toute la nuit, impossible de dormir.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["air"],
+        "ackMustNotMatch": ["visualis"],
+        "questionMustNotMatch": ["sans tout répéter", "tv", "télé"]
+      }
+    },
+    {
+      "id": "detecteur_fumee_bip",
+      "theme": "Sécurité — détecteur fumée",
+      "perimetre": "LOGEMENT",
+      "source": "Détecteur qui bippe — sécurité lot",
+      "housingUnit": "26",
+      "title": "Détecteur de fumée qui bippe",
+      "description": "Le détecteur de fumée dans le couloir intérieur bippe toutes les dix minutes depuis hier soir.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["mécanique"],
+        "ackMustNotMatch": ["visualis"],
+        "questionMustMatch": ["bip|detecteur|fumée|fumee|vapeur"],
+        "questionMustNotMatch": ["sans tout répéter"],
+        "expectCouncilAgents": ["savoir"]
+      }
+    },
+    {
+      "id": "fuite_colonne_escalier",
+      "theme": "Colonne collective — fuite cage escalier",
+      "perimetre": "BATIMENT",
+      "source": "Colonne d'eau / canalisation collective (bailleur)",
+      "housingUnit": "5F",
+      "title": "Fuite dans l'escalier",
+      "description": "Il y a de l'eau qui coule au plafond de la cage d'escalier, ça sent le refoulement.",
+      "opening": {
+        "expectDomain": "plumbing_sink",
+        "expectActiveFlows": ["eau"],
+        "ackMustNotMatch": ["visualis"],
+        "questionMustMatch": ["moment|ouvrez|vidé|eau|wc|évier"],
+        "questionMustNotMatch": ["sans tout répéter", "clé ne tourne"]
+      }
+    },
+    {
+      "id": "portail_parking_coince",
+      "theme": "Résidence — portail parking",
+      "perimetre": "RESIDENCE",
+      "source": "Parking / accès résidence — équipement collectif",
+      "housingUnit": "5F",
+      "title": "Portail parking bloqué",
+      "description": "Le portail du parking de la résidence reste bloqué à mi-hauteur depuis ce matin.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["mécanique"],
+        "ackMustNotMatch": ["visualis"],
+        "questionMustMatch": ["portail|moteur|bloqu|parking"],
+        "questionMustNotMatch": ["sans tout répéter"],
+        "expectCouncilAgents": ["savoir"]
+      }
+    },
+    {
+      "id": "wc_refoulement",
+      "theme": "Assainissement — refoulement WC",
+      "perimetre": "LOGEMENT",
+      "source": "WC / évacuation — exutoire aval",
+      "housingUnit": "5F",
+      "title": "WC qui refoule",
+      "description": "Les WC refoulent quand je tire la chasse. L'eau remonte dans la cuvette.",
+      "opening": {
+        "expectDomain": "plumbing_sink",
+        "expectActiveFlows": ["eau"],
+        "ackMustNotMatch": ["visualis"],
+        "questionMustMatch": ["moment|ouvrez|vidé|eau|évier|wc"],
+        "questionMustNotMatch": ["sans tout répéter"]
+      }
+    },
+    {
+      "id": "store_salon_bloque",
+      "theme": "Store / occultation — salon",
+      "perimetre": "LOGEMENT",
+      "source": "Menuiseries — store bloqué (entretien courant nuancé)",
+      "housingUnit": "26",
+      "title": "Store bloqué",
+      "description": "Le store du salon ne remonte plus. Il est resté baissé et la pièce est dans le noir.",
+      "opening": {
+        "expectDomain": "generic",
+        "expectActiveFlows": ["mécanique"],
+        "ackMustNotMatch": ["visualis"],
+        "questionMustMatch": ["store|remonte|moitié|bloque"],
+        "questionMustNotMatch": ["sans tout répéter"],
+        "expectCouncilAgents": ["savoir"]
+      }
+    }
+  ]
+}

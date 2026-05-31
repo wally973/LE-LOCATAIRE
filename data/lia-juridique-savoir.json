@@ -1,0 +1,191 @@
+{
+  "version": 2,
+  "updatedAt": "2026-05-29",
+  "description": "Savoir juridique — thèmes et sondes de clarification (faits). Sources : legal-references.json v2. Murmures juriste en console ; Jarvis ne cite pas la loi au locataire à l'intake.",
+  "legalThemes": [
+    {
+      "id": "reparation_boite_lettres_nuance",
+      "contextKeywords": ["boite", "lettre", "courrier", "rouille", "vetuste", "vétusté", "qui paie", "responsabil", "ma faute"],
+      "chargeHint": "NUANCE",
+      "legalRefs": ["87-712", "F31697"],
+      "juristeInsight": "Nuance 87-712 — boîte vétuste / rouille perforante → bailleur ; clé perdue ou petit entretien courant → locataire. Attendre les faits avant conclusion."
+    },
+    {
+      "id": "silence_bailleur_delai",
+      "contextKeywords": ["silence", "repond pas", "répond pas", "pas de reponse", "pas de réponse", "relance", "delai", "délai", "attente", "ne repond plus", "sans reponse"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["loi-89-462", "conciliation"],
+      "juristeInsight": "Silence prolongé du bailleur — relance écrite puis conciliation / mise en demeure possibles. Jarvis transmet le dossier ; ne pas conseiller seul la retenue de loyer."
+    },
+    {
+      "id": "partie_commune_vs_privatif",
+      "contextKeywords": ["parties communes", "partie commune", "escalier", "hall", "couloir", "pas chez moi", "privatif", "immeuble", "commune"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["1719", "parties communes"],
+      "juristeInsight": "Escalier, hall, cage d'escalier = parties communes → entretien bailleur (art. 1719). Ne pas traiter comme réparation locative du seul lot."
+    },
+    {
+      "id": "decence_insalubrite_communs",
+      "contextKeywords": ["insalubre", "salubre", "decence", "décence", "hall sale", "odeur", "poubelle", "salete", "salet"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["decence", "salubrite"],
+      "juristeInsight": "Salubrité et décence — obligation du bailleur sur le logement et les parties communes. Constats datés et relances à conserver."
+    },
+    {
+      "id": "retenue_loyer_risque",
+      "contextKeywords": ["retenir le loyer", "retenir mon loyer", "retenue", "ne plus payer", "suspendre le loyer", "arreter le loyer", "arrêter le loyer"],
+      "chargeHint": "PROCEDURE",
+      "legalRefs": ["F31697", "conciliation"],
+      "juristeInsight": "Suspension unilatérale du loyer = risque contentieux. Orienter relance, conciliation départementale, signalement bailleur social — pas de conseil de non-paiement sans dossier complet."
+    },
+    {
+      "id": "chauffage_obligation_bailleur",
+      "contextKeywords": ["radiateur", "chauffage", "froid", "decence", "décence", "hiver", "temperature", "température"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["1719", "decence"],
+      "juristeInsight": "Chauffage inopérant en période de chauffe — souvent charge bailleur et logement décent. Faits d'abord (toute la maison ou une pièce)."
+    },
+    {
+      "id": "ascenseur_partie_commune",
+      "contextKeywords": ["ascenseur", "cabine", "monte-charge"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["87-713", "parties communes"],
+      "juristeInsight": "Ascenseur = partie commune — remise en service et gros travaux à la charge du bailleur. Entretien courant cabine peut être charge récupérable (87-713), pas à la charge d'un seul locataire."
+    },
+    {
+      "id": "vmc_ventilation_collective",
+      "contextKeywords": ["vmc", "ventilation", "extraction", "aeration", "aération", "condensation", "extracteur"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["decence", "F2042"],
+      "juristeInsight": "VMC et réseaux d'extraction collectifs → entretien bâtiment / bailleur. Bouches accessibles : entretien locataire ; moteur, gaines, équipement collectif : bailleur."
+    },
+    {
+      "id": "nuisibles_decence_logement",
+      "contextKeywords": ["cafard", "rat", "souris", "punaise", "nuisible", "parasite", "desinsect", "desinsectisation"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["decence", "F2042"],
+      "juristeInsight": "Logement décent exempt de nuisibles — traitement et origine structurelle en principe bailleur. Négligence locative avérée seulement si faits contraires."
+    },
+    {
+      "id": "serrure_acces_nuance",
+      "contextKeywords": ["serrure", "cle", "clé", "cle perdue", "clé perdue", "cle cassee", "clé cassée", "verrou", "porte entree", "porte d entree", "porte paliere"],
+      "chargeHint": "NUANCE",
+      "legalRefs": ["decence", "F21105"],
+      "juristeInsight": "Serrure et porte du lot en état de fonctionnement → bailleur (sécurité, décence). Clé perdue ou cassée par le locataire → locataire. Porte palière / digicode → parties communes."
+    },
+    {
+      "id": "humidite_moisissure_nuance",
+      "contextKeywords": ["humidite", "humidité", "moisissure", "moisi", "salpetre", "salpêtre", "condensation mur"],
+      "chargeHint": "NUANCE",
+      "legalRefs": ["decence", "87-712"],
+      "juristeInsight": "Moisissure localisée sans atteinte du bâti → souvent ventilation / entretien locataire. Infiltration toiture, façade, mur porteur → bailleur. Clos et couvert renforcé en outre-mer."
+    },
+    {
+      "id": "detecteur_fumee_obligatoire",
+      "contextKeywords": ["detecteur", "fumee", "fumée", "alarme incendie", "bippe", "bip"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["decence", "F2042"],
+      "juristeInsight": "Détecteur de fumée obligatoire et fonctionnel — installation / remplacement appareil : bailleur. Piles accessibles parfois locataire si bailleur l'a indiqué."
+    },
+    {
+      "id": "colonne_canalisation_collective",
+      "contextKeywords": ["colonne", "canalisation collective", "reseau immeuble", "réseau immeuble", "parties communes", "fuite plafond voisin"],
+      "chargeHint": "BAILLEUR",
+      "legalRefs": ["1719", "parties communes"],
+      "juristeInsight": "Colonnes, canalisations communes et réseaux collectifs → bailleur. Ne pas traiter comme réparation locative d'un seul lot."
+    }
+  ],
+  "legalClarificationProbes": [
+    {
+      "id": "legal_clarify_boite_charge",
+      "linkedThemeId": "reparation_boite_lettres_nuance",
+      "contextKeywords": ["boite", "lettre", "rouille", "vetuste", "vétusté", "courrier"],
+      "questionFr": "Pour orienter le dossier : c'est plutôt de l'usure (rouille, porte affaissée) ou un souci récent (clé perdue, serrure forcée) ?",
+      "questionGcf": "Pou oriente dosye-a : sé plito vétusté (wouy, pòt ki afese) ou yon pwoblèm resan (kle pèdi, seri fòse) ?"
+    },
+    {
+      "id": "legal_clarify_silence_bailleur",
+      "linkedThemeId": "silence_bailleur_delai",
+      "contextKeywords": ["silence", "repond pas", "répond pas", "semaines", "mois", "relance", "delai", "délai"],
+      "questionFr": "Depuis quand avez-vous alerté le bailleur, et par quel moyen (mail, courrier, téléphone) ?",
+      "questionGcf": "Depi ki lè ou avèti Bailleur-la, é ki mwayen (imel, kourie, telefòn) ?"
+    },
+    {
+      "id": "legal_clarify_partie_commune",
+      "linkedThemeId": "partie_commune_vs_privatif",
+      "contextKeywords": ["pas chez moi", "partie commune", "parties communes", "privatif", "escalier", "hall"],
+      "questionFr": "Le problème touche seulement votre logement, ou aussi le couloir / l'escalier partagés avec d'autres locataires ?",
+      "questionGcf": "Pwoblèm-la sé sèlman nan kay ou, ou tou nan kouloir / escalier pataje ak lòt locataire ?"
+    },
+    {
+      "id": "legal_clarify_decence",
+      "linkedThemeId": "decence_insalubrite_communs",
+      "contextKeywords": ["insalubre", "hall sale", "odeur", "decence", "décence", "salete", "salet"],
+      "questionFr": "Le souci est dans votre logement, dans le hall ou les escaliers, ou les deux ?",
+      "questionGcf": "Souci-a nan kay ou, nan hal oswa nan escalier, ou tou de ?"
+    },
+    {
+      "id": "legal_clarify_loyer",
+      "linkedThemeId": "retenue_loyer_risque",
+      "contextKeywords": ["retenir le loyer", "retenir mon loyer", "retenue", "ne plus payer", "suspendre le loyer"],
+      "questionFr": "Avant toute décision sur le loyer : le bailleur a-t-il accusé réception de votre dernier signalement ?",
+      "questionGcf": "Anvan desizyon sou lwaye-a : Bailleur-la rekonèt li resevwa dènye siyalman ou ?"
+    },
+    {
+      "id": "legal_clarify_chauffage_scope",
+      "linkedThemeId": "chauffage_obligation_bailleur",
+      "contextKeywords": ["radiateur", "chauffage", "froid", "qui paie", "responsabil"],
+      "questionFr": "Tous les radiateurs sont froids, ou seulement celui de la pièce que vous signalez ?",
+      "questionGcf": "Tout radiateur frèt, ou sèlman sa nan pyès ou siyale-a ?"
+    },
+    {
+      "id": "legal_clarify_ascenseur",
+      "linkedThemeId": "ascenseur_partie_commune",
+      "contextKeywords": ["ascenseur", "cabine", "monte-charge", "bloque", "panne"],
+      "questionFr": "Depuis quand l'ascenseur est-il en panne, et d'autres locataires du même palier sont-ils aussi bloqués ?",
+      "questionGcf": "Depi ki lè ascenseur-an pa mache, é lòt locataire menm palye bloke tou ?"
+    },
+    {
+      "id": "legal_clarify_vmc",
+      "linkedThemeId": "vmc_ventilation_collective",
+      "contextKeywords": ["vmc", "ventilation", "extraction", "aeration", "aération", "condensation"],
+      "questionFr": "L'extraction d'air manque surtout dans une pièce (SDB, cuisine) ou dans plusieurs pièces à la fois ?",
+      "questionGcf": "Extraction lè manke plito nan yon pyès (SDB, kwizin) ou nan plizyè pyès ansanm ?"
+    },
+    {
+      "id": "legal_clarify_nuisibles",
+      "linkedThemeId": "nuisibles_decence_logement",
+      "contextKeywords": ["cafard", "rat", "souris", "punaise", "nuisible", "parasite"],
+      "questionFr": "Dans quelles pièces voyez-vous les nuisibles, et d'autres logements du bâtiment signalent-ils la même chose ?",
+      "questionGcf": "Nan ki pyès ou wè nuisible-yo, é lòt kay nan bilding siyale menm bagay ?"
+    },
+    {
+      "id": "legal_clarify_serrure",
+      "linkedThemeId": "serrure_acces_nuance",
+      "contextKeywords": ["serrure", "cle perdue", "clé perdue", "cle cassee", "clé cassée", "verrou", "porte entree", "porte d entree"],
+      "questionFr": "C'est plutôt une clé perdue ou cassée, ou la serrure / la porte elle-même qui ne fonctionne plus correctement ?",
+      "questionGcf": "Sé plito yon kle pèdi oswa kase, ou seri / pòt-la ki pa mache byen ankò ?"
+    },
+    {
+      "id": "legal_clarify_humidite",
+      "linkedThemeId": "humidite_moisissure_nuance",
+      "contextKeywords": ["humidite", "humidité", "moisissure", "moisi", "salpetre", "salpêtre"],
+      "questionFr": "Les traces touchent seulement un coin de pièce, ou un mur / plafond avec taches qui s'étendent ?",
+      "questionGcf": "Tras yo sèlman nan yon kwen pyès, ou sou yon mi / plafon ki gaye ?"
+    },
+    {
+      "id": "legal_clarify_detecteur",
+      "linkedThemeId": "detecteur_fumee_obligatoire",
+      "contextKeywords": ["detecteur", "fumee", "fumée", "bippe", "bip", "alarme"],
+      "questionFr": "Le détecteur est absent, il bippe sans fumée (piles ?), ou il ne réagit plus du tout ?",
+      "questionGcf": "Detektè-a absan, li bip san lafimen (pil ?), ou li pa reponn ditou ?"
+    },
+    {
+      "id": "legal_clarify_colonne",
+      "linkedThemeId": "colonne_canalisation_collective",
+      "contextKeywords": ["colonne", "canalisation collective", "reseau immeuble", "réseau immeuble", "fuite plafond"],
+      "questionFr": "La fuite touche seulement votre logement, ou aussi le couloir ou le logement du dessus / du dessous ?",
+      "questionGcf": "Fuit-la sèlman nan kay ou, ou tou nan kouloir oswa kay anba / anlè ?"
+    }
+  ]
+}

@@ -85,7 +85,8 @@
       "category": "CARPENTRY",
       "keywords": [
         "menuiserie", "porte", "fenetre", "fenêtre", "volet", "gond",
-        "poignee", "poignée", "parquet", "plinthe", "cadre", "serrure bois"
+        "poignee", "poignée", "parquet", "plinthe", "cadre", "serrure bois",
+        "clé", "cle", "clef", "clés", "perdu", "perdue", "oublié", "oublie"
       ],
       "criticalSensors": [
         {
@@ -122,9 +123,22 @@
           "label": "Cadre / dormant / structure menuiserie (bailleur)",
           "defaultProbability": 0.25,
           "responsibilityHint": "BAILLEUR"
+        },
+        {
+          "id": "hyp_carp_lost_key",
+          "label": "Clé perdue ou oubliée — accès à rouvrir",
+          "defaultProbability": 0.15,
+          "responsibilityHint": "LOCATAIRE"
         }
       ],
       "eliminationRules": [
+        {
+          "id": "rule_carp_lost_key_tenant",
+          "whenTextMatches": "perdu|perdue|perdus|oublie|oublié|oubliee|sans cle|sans clé|cle perdue|clé perdue",
+          "eliminate": ["hyp_carp_tenant_adjust", "hyp_carp_wear_tenant", "hyp_carp_frame_structure"],
+          "boost": { "hyp_carp_lost_key": 0.88 },
+          "eliminationReason": "Clé perdue par le locataire — charge locative (87-712), pas intervention bailleur gratuite."
+        },
         {
           "id": "rule_carp_humidity_bailleur",
           "whenTextMatches": "gonfle|humid|infiltr|pourrit|moisi|cadre pourri",

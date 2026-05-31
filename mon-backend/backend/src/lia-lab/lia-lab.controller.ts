@@ -29,6 +29,11 @@ import {
 export class LiaLabController {
   constructor(private readonly lab: LiaLabService) {}
 
+  @Get('presets/juridique')
+  juridiquePresets() {
+    return { presets: this.lab.listJuridiquePresets() };
+  }
+
   @Post('sessions')
   createSession(@Body() dto: CreateLabSessionDto) {
     return this.lab.createSession(dto);

@@ -9,6 +9,10 @@ import {
   LEGAL_REFOULEMENT_EU_SUMMARY,
 } from '../agents/shared/refoulement-eu-context';
 import type { DiagnosticSensors } from '../agents/shared/lia-diagnostic-state.types';
+import {
+  buildArchivistBrief,
+  type JarvisArchivistBrief,
+} from '../agents/orchestrateur/intake/lia-jarvis-team-brief';
 
 export interface CollectiveEvacuationLegalBrief {
   ticketId: number;
@@ -89,6 +93,18 @@ export class AiLegalService {
   /**
    * Cite les textes sur l’entretien des colonnes / réseaux collectifs si capteurs REF.
    */
+  /**
+   * Archiviste — contraintes légales pour le pont Jarvis (sans ticket).
+   * S’appuie sur legal-references.json + lia-juridique-savoir.json.
+   */
+  async buildSignalementLegalBrief(params: {
+    title: string;
+    description: string;
+    message: string;
+  }): Promise<JarvisArchivistBrief> {
+    return buildArchivistBrief(this.legalReferences, params);
+  }
+
   async assessCollectiveEvacuationForTicket(
     ticketId: number,
   ): Promise<CollectiveEvacuationLegalBrief> {

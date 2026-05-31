@@ -52,8 +52,10 @@ describe('lia-jarvis-intake.engine', () => {
       tenantFirstName: 'Marie',
       mode: 'opening',
     });
-    expect(consult.acknowledgment).toMatch(/visualis/i);
-    expect(consult.nextQuestion).toMatch(/sol|cadre/i);
+    expect(consult.acknowledgment).not.toMatch(/je visualise|en visualisant|mwen vizualiz/i);
+    expect(consult.acknowledgment).toMatch(/porte|pòt/i);
+    expect(consult.visualizationNote).toMatch(/visualis|affais|gond|accroch/i);
+    expect(consult.nextQuestion).toMatch(/clé|clef|tourne|ferme|key/i);
     expect(consult.nextQuestion).not.toMatch(/pleut/i);
   });
 

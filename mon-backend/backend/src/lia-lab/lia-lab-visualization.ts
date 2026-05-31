@@ -101,6 +101,34 @@ const JARVIS_FACT_LABELS_FR: Record<string, string> = {
   housing_visual: 'Perspective logement',
   housing_kind: 'Type logement (inscription)',
   council_last: 'Dernier tour conseil',
+  tenant_location_scope: 'Périmètre locataire',
+  tenant_perimeter_resolved: 'Périmètre résolu',
+  tenant_common_areas: 'Zones communes citées',
+  tenant_lead: 'Fil métier locataire',
+  refoulement_eu_colonne: 'Refoulement EU — colonne',
+  tenant_safety_urgent: 'Urgence sécurité',
+  tenant_mechanical_issue: 'Fil mécanique',
+  tenant_plumbing_urgent: 'Urgence plomberie',
+  tenant_plumbing_flooding: 'Inondation signalée',
+  intervention_cible: 'Intervention cible',
+  tenant_fait_evier_plein: 'Capteur — évier plein',
+  tenant_fait_cuisine_inondee: 'Capteur — cuisine inondée',
+  tenant_fait_eau_sale: 'Capteur — eau sale (EU)',
+  spatial_perimeter: 'Périmètre spatial',
+  spatial_zone: 'Zone scène 3D',
+  spatial_floor: 'Niveau bâtiment',
+  spatial_element: 'Élément scène',
+  spatial_anchor: 'Ancrage symptôme',
+  spatial_flow: 'Flux actifs (3D)',
+  spatial_lead: 'Fil spatial',
+  reasoning_source: 'Source raisonnement',
+  llm_bridge: 'Pont LLM Groq',
+  archivist_charge: 'Archiviste — charge',
+  diagnostician_responsibility: 'Diagnostiqueur — responsabilité',
+  diagnostician_domain: 'Diagnostiqueur — domaine master',
+  diagnostician_hypothesis: 'Diagnostiqueur — hypothèse',
+  team_constraints: 'Contraintes équipe (LLM)',
+  team_consulted_refs: 'Référentiels consultés',
 };
 
 const PHASE_LABELS_FR: Record<string, string> = {
@@ -171,8 +199,15 @@ export function buildLabVisualization(params: {
 
   let urgencyMode: string | null = null;
   if (
-    (/bonjou|dlo|bokit|vit|anpil|koule/.test(full) || /urgent|press/.test(full)) &&
-    /lavabo|evier|évier|fuit|eau|dlo/.test(full)
+    sim.tenantFacts?.safetyUrgent ||
+    params.state.jarvisFacts?.tenant_safety_urgent === 'oui'
+  ) {
+    urgencyMode = 'URGENCE_SECURITE';
+  } else if (
+    sim.tenantFacts?.plumbingUrgent ||
+    params.state.jarvisFacts?.tenant_plumbing_urgent === 'oui' ||
+    ((/bonjou|dlo|bokit|vit|anpil|koule/.test(full) || /urgent|press/.test(full)) &&
+      /lavabo|evier|évier|fuit|eau|dlo/.test(full))
   ) {
     urgencyMode = 'URGENCE_PLOMBERIE';
   }
@@ -221,9 +256,13 @@ export function buildLabVisualization(params: {
       .filter((h) => !h.active)
       .map((h) => h.label),
     afpolRefs: [
-      'MISSION_JARVIS — simulation physique (pas script JSON)',
-      'VISUAL_LOGIC.md',
-      'Conseil IA — tous écoutent, Jarvis synthétise',
+      ...(params.state.jarvisFacts?.team_consulted_refs
+        ? params.state.jarvisFacts.team_consulted_refs.split(', ')
+        : [
+            'MISSION_JARVIS — simulation physique',
+            'VISUAL_LOGIC.md',
+            'Brief équipe — Archiviste + Diagnostiqueur avant Groq',
+          ]),
       ...(params.state.organizer?.panneId
         ? [`Référentiel validation : ${params.state.organizer.panneId}`]
         : []),
@@ -236,13 +275,17 @@ export function buildLabVisualization(params: {
     scene3D,
     scene3DRows: buildScene3DRows(scene3D),
     physicalHypotheses: activeHypos.map((h) => h.visualization),
-    councilEchoes: (parseCouncilRound(params.state.jarvisFacts?.council_last)?.echoes ?? []).map(
-      (e) => ({
-        agent: councilAgentLabelFr(e.agent),
+    councilEchoes: [...(parseCouncilRound(params.state.jarvisFacts?.council_last)?.echoes ?? [])]
+      .sort((a, b) => {
+        if (a.agent === 'juriste' && b.agent !== 'juriste') return -1;
+        if (b.agent === 'juriste' && a.agent !== 'juriste') return 1;
+        return 0;
+      })
+      .map((e) => ({
+        agent: councilAgentLabelFr(e.agent, e.insight),
         heard: e.heard,
-        insight: e.insight,
-      }),
-    ),
+        insight: e.insight.replace(/^\[(Archiviste|Diagnostiqueur)\]\s*/, ''),
+      })),
     housingPerspective: params.state.jarvisFacts?.housing_visual ?? null,
   };
 }

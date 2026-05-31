@@ -5,10 +5,22 @@
 import type { CompanionLanguage } from '../conversation/lia-companion.types';
 import { detectPanneFromText } from './panne-diagnostic.loader';
 import {
-  jarvisSavoirCollectiveSignalQuestion,
-  jarvisSavoirFloorOrAboveQuestion,
-  jarvisSavoirStandaloneSignalQuestion,
-} from './lia-jarvis-dialogue.i18n';
+  isTenantConfirmedClinicalLink,
+  matchClinicalLinks,
+  pickSavoirProbe,
+  normClinicalText,
+} from './lia-savoir-clinical-links.loader';
+import {
+  matchLegalThemes,
+  pickLegalClarificationProbe,
+  countKeywordMatches,
+  hasLegalChargeContext,
+  shouldUseLegalClarificationProbe,
+} from './lia-juridique-savoir.loader';
+import {
+  isPerimeterQuestionRedundant,
+  type TenantSignalementFacts,
+} from './lia-tenant-signalement-facts';
 import type {
   CouncilEcho,
   CouncilListenParams,
@@ -16,56 +28,140 @@ import type {
 } from './lia-jarvis-council.types';
 
 function norm(raw: string): string {
-  return raw
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '');
+  return normClinicalText(raw);
 }
 
 function fullContext(title: string, description: string, message: string): string {
   return norm(`${title} ${description} ${message}`);
 }
 
+function collectiveProbeAnswered(
+  ctx: string,
+  resolvedSteps: string[],
+  message: string,
+): boolean {
+  if (resolvedSteps.includes('savoir_collective')) return true;
+  if (!message.trim()) return false;
+  return /voisin|escalier|parties communes|eclairage|éclairage|hall|couloir|commune|palier/.test(
+    ctx,
+  );
+}
+
 function listenSavoir(params: CouncilListenParams): CouncilEcho | null {
   const ctx = fullContext(params.title, params.description, params.message);
   const flows = params.simulation.activeFlows;
   const lang = params.simulation.language;
-
-  if (!flows.includes('signal') && !/\btv\b|television|reception|signal|chaine/.test(ctx)) {
-    return null;
-  }
+  const message = params.message.trim();
+  const housingKind = params.housing.kind;
 
   const heard: string[] = [];
-  if (/depuis hier|depuis|hier|ce matin/.test(ctx)) heard.push('depuis hier');
-  if (/\btv\b|television|reception|signal|chaine/.test(ctx)) heard.push('réception TV');
+  if (/escalier|marche|cage d/.test(ctx)) heard.push('escalier / marche');
+  if (/boite|lettre|courrier/.test(ctx)) heard.push('boîte aux lettres');
+  if (/interphone|sonnette|digicode/.test(ctx)) heard.push('interphone');
+  if (/fenetre|vantail|cremone|crémone|vitrage/.test(ctx)) heard.push('fenêtre');
+  if (/store|occultation/.test(ctx)) heard.push('store');
+  if (/portail|parking/.test(ctx)) heard.push('portail / parking');
+  if (/radiateur|chauffage|thermostat/.test(ctx)) heard.push('chauffage');
+  if (/detecteur|fumee|fumée|bip/.test(ctx)) heard.push('détecteur fumée');
+  if (/plafond|pluie|infiltr|tache|humide/.test(ctx)) heard.push('infiltration / plafond');
 
-  if (params.housing.kind === 'collective') {
+  const links = matchClinicalLinks({
+    title: params.title,
+    description: params.description,
+    message,
+    housingKind,
+    activeFlows: flows,
+  });
+  const matchedLink = links[0];
+  const linkConfirmed =
+    matchedLink != null &&
+    isTenantConfirmedClinicalLink(matchedLink, message);
+
+  if (linkConfirmed && matchedLink) {
     return {
       agent: 'savoir',
-      heard: heard.join(', ') || 'réception TV',
-      insight: `${params.housing.visualNote} Piste : antenne collective, amplificateur alimenté (parties communes).`,
-      suggestedQuestion: jarvisSavoirCollectiveSignalQuestion(lang),
+      heard: heard.join(', ') || matchedLink.id,
+      insight: matchedLink.savoirInsight,
+      confidence: 0.92,
+    };
+  }
+
+  const legalProbe = pickLegalClarificationProbe({
+    title: params.title,
+    description: params.description,
+    message: params.message,
+    language: lang,
+    resolvedSteps: params.simulation.resolvedSteps,
+  });
+
+  const probe = pickSavoirProbe({
+    housingKind,
+    activeFlows: flows,
+    resolvedSteps: params.simulation.resolvedSteps,
+    language: lang,
+    title: params.title,
+    description: params.description,
+    message: params.message,
+  });
+
+  const chargeContext = hasLegalChargeContext(ctx);
+  const useLegalProbe = shouldUseLegalClarificationProbe({
+    probe: legalProbe,
+    chargeContext,
+    hasPhysicalProbe: probe != null,
+  });
+
+  if (useLegalProbe && legalProbe) {
+    return {
+      agent: 'savoir',
+      heard: legalProbe.theme.id,
+      insight: `Clarification faits — ${legalProbe.theme.chargeHint} (juriste murmure en parallèle).`,
+      suggestedQuestion: legalProbe.question,
+      confidence: 0.8,
+    };
+  }
+
+  if (probe) {
+    return {
+      agent: 'savoir',
+      heard: heard.join(', ') || probe.probe.id,
+      insight: `${params.housing.visualNote} Sonde Savoir : ${probe.probe.id}.`,
+      suggestedQuestion: probe.question,
       confidence: 0.78,
     };
   }
 
-  if (params.housing.kind === 'standalone') {
-    return {
-      agent: 'savoir',
-      heard: heard.join(', ') || 'réception TV',
-      insight: `${params.housing.visualNote} Piste : poste local ou amont du lot.`,
-      suggestedQuestion: jarvisSavoirStandaloneSignalQuestion(lang),
-      confidence: 0.74,
-    };
+  const isSignalTopic =
+    flows.includes('signal') ||
+    /\btv\b|television|reception|signal|chaine/.test(ctx);
+
+  if (isSignalTopic) {
+    if (/depuis hier|depuis|hier|ce matin/.test(ctx)) heard.push('depuis hier');
+    if (/\btv\b|television|reception|signal|chaine/.test(ctx)) {
+      heard.push('réception TV');
+    }
+    if (
+      /escalier|parties communes|hall|couloir|palier/.test(ctx) &&
+      /eclairage|éclairage|lumiere|lumière|souci|panne/.test(ctx)
+    ) {
+      heard.push('éclairage parties communes');
+    }
+    if (/voisin/.test(ctx) && /absent|part|pas la|ne sais pas/.test(ctx)) {
+      heard.push('voisin absent');
+    }
+
+    if (collectiveProbeAnswered(ctx, params.simulation.resolvedSteps, message)) {
+      return {
+        agent: 'savoir',
+        heard: heard.join(', ') || 'réponse collectif',
+        insight:
+          'Réponse voisinage / parties communes — piste antenne collective ou amplificateur alimenté.',
+        confidence: 0.86,
+      };
+    }
   }
 
-  return {
-    agent: 'savoir',
-    heard: heard.join(', ') || 'réception TV',
-    insight: 'Logement non typé — demander en langage vécu (étage / voisin au-dessus).',
-    suggestedQuestion: jarvisSavoirFloorOrAboveQuestion(lang),
-    confidence: 0.55,
-  };
+  return null;
 }
 
 function listenVisual(params: CouncilListenParams): CouncilEcho | null {
@@ -74,7 +170,7 @@ function listenVisual(params: CouncilListenParams): CouncilEcho | null {
 
   return {
     agent: 'visual',
-    heard: params.message.trim() ? 'message locataire intégré à la scène' : 'ouverture signalement',
+    heard: params.message.trim() ? 'réponse locataire intégrée' : 'ouverture signalement',
     insight: sim.visualizationSummary || 'Scène 3D en construction.',
     suggestedQuestion: params.chainQuestion ?? undefined,
     confidence: params.chainQuestion ? 0.7 : 0.45,
@@ -128,15 +224,29 @@ function listenPathologiste(params: CouncilListenParams): CouncilEcho | null {
 }
 
 function listenJuriste(params: CouncilListenParams): CouncilEcho | null {
+  const themes = matchLegalThemes({
+    title: params.title,
+    description: params.description,
+    message: params.message,
+  });
+  if (!themes.length) return null;
+
   const ctx = fullContext(params.title, params.description, params.message);
-  if (!/charge locataire|ma faute|ma responsabilite|c est moi qui/.test(ctx)) {
-    return null;
+  let theme = themes[0];
+  let bestScore = countKeywordMatches(ctx, theme.contextKeywords);
+  for (const candidate of themes.slice(1)) {
+    const score = countKeywordMatches(ctx, candidate.contextKeywords);
+    if (score > bestScore) {
+      theme = candidate;
+      bestScore = score;
+    }
   }
+
   return {
     agent: 'juriste',
-    heard: 'responsabilité évoquée',
-    insight: 'Nuancer charge — ne pas conclure avant dossier complet.',
-    confidence: 0.5,
+    heard: theme.id,
+    insight: theme.juristeInsight,
+    confidence: 0.74,
   };
 }
 
@@ -184,16 +294,23 @@ export function isMetaDiagnosticQuestion(question: string | null | undefined): b
   );
 }
 
-/** Jarvis choisit la question à prononcer — ton technicien, pas le jargon console. */
+/** Jarvis choisit la question — priorité Savoir (data), pas scripts code. */
 export function pickCouncilSpokenQuestion(
   consultationQuestion: string | null,
   round: CouncilRound,
+  resolvedSteps: string[] = [],
+  tenantFacts?: TenantSignalementFacts | null,
 ): string | null {
+  if (resolvedSteps.includes('service_meter_link')) {
+    return null;
+  }
+
   const practicalEchoes = round.echoes
     .filter(
       (e) =>
         e.suggestedQuestion?.trim() &&
-        !isMetaDiagnosticQuestion(e.suggestedQuestion),
+        !isMetaDiagnosticQuestion(e.suggestedQuestion) &&
+        !isPerimeterQuestionRedundant(e.suggestedQuestion, tenantFacts),
     )
     .sort((a, b) => b.confidence - a.confidence);
 
@@ -202,32 +319,36 @@ export function pickCouncilSpokenQuestion(
     return savoir.suggestedQuestion;
   }
 
+  let consultation = consultationQuestion;
+  if (isPerimeterQuestionRedundant(consultation, tenantFacts)) {
+    consultation = null;
+  }
   if (
-    consultationQuestion &&
-    !isGenericFallbackQuestion(consultationQuestion) &&
-    !isMetaDiagnosticQuestion(consultationQuestion)
+    consultation &&
+    resolvedSteps.includes('savoir_collective') &&
+    /voisin|autres logements|parties communes s.?allume/i.test(norm(consultation))
   ) {
-    return consultationQuestion;
+    consultation = null;
+  }
+
+  if (
+    consultation &&
+    !isGenericFallbackQuestion(consultation) &&
+    !isMetaDiagnosticQuestion(consultation)
+  ) {
+    return consultation;
   }
 
   if (practicalEchoes.length) {
     return practicalEchoes[0]!.suggestedQuestion!;
   }
 
-  return consultationQuestion;
+  return consultation;
 }
 
-export function buildComprehensionFragments(round: CouncilRound): string[] {
-  const parts: string[] = [];
-  for (const e of round.echoes) {
-    if (e.heard && !parts.includes(e.heard)) {
-      parts.push(e.heard);
-    }
-  }
-  return parts.slice(0, 3);
-}
-
-export function councilAgentLabelFr(agent: CouncilEcho['agent']): string {
+export function councilAgentLabelFr(agent: CouncilEcho['agent'], insight?: string): string {
+  if (insight?.startsWith('[Archiviste]')) return 'Archiviste';
+  if (insight?.startsWith('[Diagnostiqueur]')) return 'Diagnostiqueur';
   const map: Record<CouncilEcho['agent'], string> = {
     savoir: 'Savoir',
     visual: 'Visualisation',

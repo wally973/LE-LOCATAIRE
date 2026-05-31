@@ -14,48 +14,6 @@ import { getErrorMessage } from '@services/apiClient';
 import authService from '@services/authService';
 import './LiaLabPage.css';
 
-const PRESETS: {
-  label: string;
-  title: string;
-  description: string;
-  suggestedLanguage?: LabDialogueLanguage;
-  suggestedUnit?: string;
-}[] = [
-  {
-    label: 'Créole — urgence plomberie',
-    title: 'Eau qui coule',
-    description: 'Bonjou, dlo ap koule anpil sou lavabo la, mwen pa konnen ki koté li soti.',
-    suggestedLanguage: 'gcf',
-    suggestedUnit: '5F',
-  },
-  {
-    label: 'Marie — porte gâchée',
-    title: 'Porte qui ne ferme plus',
-    description:
-      'Ma porte d’entrée ne ferme plus correctement, la serrure accroche et le pêne ne rentre pas.',
-    suggestedUnit: '5F',
-  },
-  {
-    label: 'Condensation / VMC',
-    title: 'Humidité chambre',
-    description:
-      'Forte condensation sur les fenêtres, odeur de moisi, VMC qui semble ne plus tourner.',
-    suggestedUnit: '5F',
-  },
-  {
-    label: 'TV — pas de réception',
-    title: 'Pas de réception TV',
-    description: 'Depuis hier, la TV affiche « aucun signal », je ne reçois plus les chaînes.',
-    suggestedUnit: '5F',
-  },
-  {
-    label: 'TV villa — lot 26',
-    title: 'Pas de réception TV',
-    description: 'Depuis hier, la TV affiche « aucun signal », je ne reçois plus les chaînes.',
-    suggestedUnit: '26',
-  },
-];
-
 function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
   if (!viz) {
     return (
@@ -131,10 +89,19 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
 
       {viz.councilEchoes && viz.councilEchoes.length > 0 ? (
         <section className="lia-lab-council">
-          <h4>Conseil IA — murmures (Jarvis parle seul)</h4>
+          <h4>Équipe Lia — brief avant Groq (Jarvis parle seul au locataire)</h4>
           <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
             {viz.councilEchoes.map((e, i) => (
-              <li key={`${e.agent}-${i}`} className="lia-lab-council-echo">
+              <li
+                key={`${e.agent}-${i}`}
+                className={`lia-lab-council-echo${
+                  e.agent === 'Archiviste' || e.agent === 'Juriste (console)'
+                    ? ' lia-lab-council-echo--juriste'
+                    : e.agent === 'Diagnostiqueur'
+                      ? ' lia-lab-council-echo--pathologiste'
+                      : ''
+                }`}
+              >
                 <strong>{e.agent}</strong>
                 <span className="lia-lab-tag flow">{e.heard}</span>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--lab-muted)' }}>{e.insight}</p>
@@ -242,10 +209,10 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
 }
 
 const LiaLabPage: React.FC = () => {
-  const [title, setTitle] = useState(PRESETS[0].title);
-  const [description, setDescription] = useState(PRESETS[0].description);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [tenantFirstName, setTenantFirstName] = useState('Marie');
-  const [residenceUnitNumber, setResidenceUnitNumber] = useState(PRESETS[0].suggestedUnit ?? '5F');
+  const [residenceUnitNumber, setResidenceUnitNumber] = useState('5F');
   const [dialogueLanguage, setDialogueLanguage] = useState<LabDialogueLanguage>('fr');
   const [session, setSession] = useState<LabSessionView | null>(null);
   const [draft, setDraft] = useState('');
@@ -262,20 +229,6 @@ const LiaLabPage: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [session?.messages]);
-
-  const applyPreset = (p: (typeof PRESETS)[0]) => {
-    setTitle(p.title);
-    setDescription(p.description);
-    if (p.suggestedLanguage) {
-      setDialogueLanguage(p.suggestedLanguage);
-    }
-    if (p.suggestedUnit) {
-      setResidenceUnitNumber(p.suggestedUnit);
-    }
-    setSession(null);
-    setDraft('');
-    setError(null);
-  };
 
   const resetConversation = () => {
     if (audioRef.current) {
@@ -449,18 +402,11 @@ const LiaLabPage: React.FC = () => {
             Voice-first · STT Groq · TTS ElevenLabs · sandbox sans ticket réel
           </p>
         </div>
-        <div className="lia-lab-presets">
-          {session ? (
-            <button type="button" className="lia-lab-reset-btn" onClick={resetConversation}>
-              Reset — nouvelle conversation
-            </button>
-          ) : null}
-          {PRESETS.map((p) => (
-            <button key={p.label} type="button" onClick={() => applyPreset(p)}>
-              {p.label}
-            </button>
-          ))}
-        </div>
+        {session ? (
+          <button type="button" className="lia-lab-reset-btn" onClick={resetConversation}>
+            Nouvelle conversation
+          </button>
+        ) : null}
       </header>
 
       {error ? <div className="lia-lab-error">{error}</div> : null}
@@ -511,13 +457,13 @@ const LiaLabPage: React.FC = () => {
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Titre signalement"
+                placeholder="Titre signalement (libre)"
                 aria-label="Titre"
               />
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Description initiale"
+                placeholder="Décrivez votre situation comme le locataire…"
                 aria-label="Description"
               />
               <div className="lia-lab-setup-actions">

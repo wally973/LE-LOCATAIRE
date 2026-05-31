@@ -79,6 +79,45 @@ describe('lia-jarvis-council.engine — écho chauve-souris', () => {
     expect(spoken).not.toMatch(/visualis|hésite entre|«/i);
   });
 
+  it('réponse escalier + voisin absent — ne répète pas la question collectif', () => {
+    let sim = runJarvisSimulation({
+      title: 'Pas de réception TV',
+      description: 'Depuis hier, la TV affiche aucun signal.',
+      preferredLanguage: 'fr',
+    });
+    sim = runJarvisSimulation({
+      title: 'Pas de réception TV',
+      description: 'Depuis hier, la TV affiche aucun signal.',
+      message: "mon voisin est absent, justement on a un souci d'éclairage dans l'escalier",
+      prior: sim,
+      preferredLanguage: 'fr',
+      housingKind: 'collective',
+    });
+
+    expect(sim.resolvedSteps).toContain('savoir_collective');
+
+    const round = runCouncilRound({
+      title: 'Pas de réception TV',
+      description: 'Depuis hier, la TV affiche aucun signal.',
+      message: "mon voisin est absent, justement on a un souci d'éclairage dans l'escalier",
+      state: emptyState,
+      simulation: sim,
+      housing: inferHousingPerspective('5F'),
+      chainQuestion: pickChainQuestion(sim, 'fr'),
+    });
+
+    const savoir = round.echoes.find((e) => e.agent === 'savoir');
+    expect(savoir?.suggestedQuestion).toBeUndefined();
+    expect(savoir?.insight).toMatch(/compteur|amplificateur/i);
+
+    const spoken = pickCouncilSpokenQuestion(
+      'Chez vos voisins ou sur les autres logements du bâtiment, la TV fonctionne-t-elle ? Et l’éclairage des parties communes s’allume-t-il ?',
+      round,
+      sim.resolvedSteps,
+    );
+    expect(spoken).toBeNull();
+  });
+
   it('pickCouncilSpokenQuestion évite la question générique en boucle', () => {
     const sim = runJarvisSimulation({
       title: 'Pas de réception TV',

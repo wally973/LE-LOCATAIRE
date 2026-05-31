@@ -34,34 +34,19 @@
   color: var(--lab-accent);
 }
 
-.lia-lab-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.lia-lab-presets button {
+.lia-lab-reset-btn {
   background: var(--lab-panel);
-  border: 1px solid var(--lab-border);
-  color: var(--lab-text);
-  padding: 6px 10px;
+  border: 1px solid var(--lab-warn);
+  color: var(--lab-warn);
+  padding: 6px 12px;
   font-size: 11px;
   cursor: pointer;
   border-radius: 4px;
 }
 
-.lia-lab-presets button:hover {
-  border-color: var(--lab-accent);
-}
-
-.lia-lab-reset-btn {
-  border-color: var(--lab-warn) !important;
-  color: var(--lab-warn) !important;
-}
-
 .lia-lab-reset-btn:hover {
-  border-color: #fbbf24 !important;
-  color: #fbbf24 !important;
+  border-color: #fbbf24;
+  color: #fbbf24;
 }
 
 .lia-lab-grid {
@@ -343,4 +328,15 @@
   color: var(--lab-accent);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.lia-lab-council-echo--juriste {
+  background: rgba(196, 163, 90, 0.08);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 4px 0;
+}
+
+.lia-lab-council-echo--juriste strong {
+  color: #e8d4a8;
 }

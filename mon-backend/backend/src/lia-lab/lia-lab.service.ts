@@ -7,6 +7,7 @@ import {
 import { randomUUID } from 'crypto';
 import { LiaJarvisPilotService } from '../agents/orchestrateur/intake/lia-jarvis-pilot.service';
 import type { LiaIntakeState } from '../agents/orchestrateur/intake/lia-intake.service';
+import { loadJarvisJuridiqueTrainingScenarios } from '../agents/orchestrateur/intake/lia-jarvis-training-scenarios.loader';
 import { buildLabVisualization, type LiaLabVisualization } from './lia-lab-visualization';
 
 export interface LabChatMessage {
@@ -42,6 +43,29 @@ export class LiaLabService {
   private readonly sessions = new Map<string, LabSession>();
 
   constructor(private readonly jarvis: LiaJarvisPilotService) {}
+
+  /** Presets entraînement juridique — même source que les tests Jarvis. */
+  listJuridiquePresets(): {
+    id: string;
+    label: string;
+    title: string;
+    description: string;
+    housingUnit: string;
+    legalThemeId: string;
+    perimetre: string;
+    tenantTurnHint: string | null;
+  }[] {
+    return loadJarvisJuridiqueTrainingScenarios().map((s) => ({
+      id: s.id,
+      label: s.theme,
+      title: s.title,
+      description: s.description,
+      housingUnit: s.housingUnit,
+      legalThemeId: s.legalThemeId,
+      perimetre: s.perimetre,
+      tenantTurnHint: s.tenantTurn?.message?.trim() ?? null,
+    }));
+  }
 
   createSession(params: {
     title: string;

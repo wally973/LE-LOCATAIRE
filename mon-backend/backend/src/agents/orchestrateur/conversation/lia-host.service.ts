@@ -78,19 +78,21 @@ export class LiaHostService {
     };
   }
 
-  /** Appel Groq avec prompt système personnalisable (Expert-Compagnon, etc.). */
+  /** Appel Groq avec prompt système personnalisable (Expert-Compagnon, pont Jarvis, etc.). */
   async chatStructured(
     systemPrompt: string,
     userPrompt: string,
     maxTokens: number,
+    options?: { json?: boolean; timeoutMs?: number },
   ): Promise<string | null> {
-    return this.chat(userPrompt, maxTokens, systemPrompt);
+    return this.chat(userPrompt, maxTokens, systemPrompt, options);
   }
 
   private async chat(
     userPrompt: string,
     maxTokens: number,
     systemPrompt = 'Tu es Lia, assistante logement en Guyane française. Ton court, humain, rassurant.',
+    options?: { json?: boolean; timeoutMs?: number },
   ): Promise<string | null> {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey || process.env.LIA_HOST_ENABLED === 'false') {
@@ -104,7 +106,12 @@ export class LiaHostService {
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12_000);
+      const timeout = setTimeout(
+        () => controller.abort(),
+        options?.timeoutMs ?? 12_000,
+      );
+      const useJson =
+        options?.json === true || /JSON uniquement/i.test(systemPrompt);
       let res: Response;
       try {
         res = await fetch(`${baseUrl}/chat/completions`, {
@@ -124,10 +131,8 @@ export class LiaHostService {
               { role: 'user', content: userPrompt },
             ],
             max_tokens: maxTokens,
-            temperature: 0.35,
-            response_format: systemPrompt.includes('JSON uniquement')
-              ? { type: 'json_object' }
-              : undefined,
+            temperature: 0.25,
+            response_format: useJson ? { type: 'json_object' } : undefined,
           }),
         });
       } finally {

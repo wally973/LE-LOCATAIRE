@@ -1,11 +1,25 @@
 import { LiaIntakeService } from './lia-intake.service';
+import type { LiaIntakeState } from './lia-intake.service';
 import { isOrganizerQuestionId } from './lia-intake-organizer';
 
 describe('LiaIntakeService + organisateur JSON', () => {
   const intake = new LiaIntakeService();
 
+  /** Parcours organisateur JSON (mode legacy) — distinct du pilotage Jarvis. */
+  function createLegacyOrganizerState(
+    title: string,
+    description: string,
+  ): LiaIntakeState {
+    const raw = intake.createInitialState(title, description);
+    return intake.reconcileStepIndex({
+      ...raw,
+      intakeMode: 'legacy',
+      skippedQuestionIds: raw.organizer ? raw.skippedQuestionIds : [],
+    });
+  }
+
   it('ouvre un parcours organisateur pour éclairage SDB', () => {
-    const state = intake.createInitialState(
+    const state = createLegacyOrganizerState(
       'Lumière SDB',
       'La lumière de la salle de bain ne marche plus, ampoule déjà changée',
     );
@@ -19,7 +33,7 @@ describe('LiaIntakeService + organisateur JSON', () => {
   });
 
   it('enchaîne les questions discriminantes du JSON', () => {
-    let state = intake.createInitialState(
+    let state = createLegacyOrganizerState(
       'Lumière cuisine',
       'Plus de lumière dans la cuisine',
     );
@@ -33,7 +47,7 @@ describe('LiaIntakeService + organisateur JSON', () => {
   });
 
   it('retombe sur questions fixes si pas d’arbre (GENERIC vague)', () => {
-    const state = intake.createInitialState('Souci', 'Il y a un souci');
+    const state = createLegacyOrganizerState('Souci', 'Il y a un souci');
     expect(state.organizer).toBeUndefined();
     const q = intake.getCurrentQuestion(state);
     expect(q?.id).toBe('since_when');

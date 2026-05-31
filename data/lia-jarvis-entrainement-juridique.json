@@ -1,0 +1,237 @@
+{
+  "version": 2,
+  "updatedAt": "2026-05-29",
+  "description": "Scénarios d'entraînement juridique — charge, délais, parties communes, décence. Juriste murmure ; Jarvis pose des faits, pas des articles au locataire. Tours locataire après la sonde d'ouverture.",
+  "scenarios": [
+    {
+      "id": "charge_boite_lettres_vetuste",
+      "theme": "Charge — boîte aux lettres rouillée",
+      "legalThemeId": "reparation_boite_lettres_nuance",
+      "perimetre": "LOGEMENT",
+      "housingUnit": "5F",
+      "title": "Boîte aux lettres rouillée — qui paie ?",
+      "description": "Ma boîte aux lettres est toute rouillée et le couvercle tombe. Le bailleur me dit que c'est une réparation locative à ma charge.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["87-712|vétusté|entretien|bailleur"],
+        "ackMustNotMatch": ["87-712", "art\\.", "décret", "code civil", "1719"],
+        "questionMustMatch": ["usure|rouille|clé|cle|serrure"],
+        "questionMustNotMatch": ["sans tout répéter", "article"]
+      },
+      "tenantTurn": {
+        "message": "C'est surtout la rouille : le métal est percé depuis des années. Je n'ai perdu aucune clé.",
+        "juristeInsightMustMatch": ["87-712|vétusté|bailleur|entretien"],
+        "ackMustNotMatch": ["87-712", "art\\.", "décret", "réparation locative"],
+        "questionMustNotMatch": ["usure|rouille|clé perdue|cle perdue", "sans tout répéter", "article"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "silence_bailleur_fuite",
+      "theme": "Délai — silence du bailleur",
+      "legalThemeId": "silence_bailleur_delai",
+      "perimetre": "LOGEMENT",
+      "housingUnit": "26",
+      "title": "Fuite sans réponse",
+      "description": "J'ai signalé une fuite sous l'évier il y a six semaines par mail. Le bailleur ne répond plus et l'eau continue.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["silence|relance|conciliation|loyer"],
+        "ackMustNotMatch": ["87-712", "art\\.", "mise en demeure"],
+        "questionMustMatch": ["quand|mail|courrier|semaines|alerté"],
+        "questionMustNotMatch": ["sans tout répéter"]
+      },
+      "tenantTurn": {
+        "message": "Premier mail il y a six semaines, puis une relance téléphonique la semaine dernière. Toujours aucune réponse écrite.",
+        "juristeInsightMustMatch": ["silence|relance|conciliation"],
+        "ackMustNotMatch": ["art\\.", "mise en demeure", "retenez votre loyer"],
+        "questionMustNotMatch": ["quand avez-vous alerté", "sans tout répéter"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "partie_commune_escalier_privatif",
+      "theme": "Partie commune vs lot privatif",
+      "legalThemeId": "partie_commune_vs_privatif",
+      "perimetre": "BATIMENT",
+      "housingUnit": "5F",
+      "title": "Escalier pas chez moi ?",
+      "description": "On me dit que la marche cassée dans l'escalier n'est pas chez moi. Pourtant tout le monde passe dessus et j'ai peur de tomber.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["parties communes|1719|bailleur"],
+        "ackMustNotMatch": ["art\\.", "87-712", "réparation locative"],
+        "questionMustMatch": ["logement|couloir|escalier|partag"],
+        "questionMustNotMatch": ["sans tout répéter"]
+      },
+      "tenantTurn": {
+        "message": "Non, c'est bien la cage d'escalier partagée. Tous les voisins montent par là, ce n'est pas dans mon logement.",
+        "juristeInsightMustMatch": ["parties communes|bailleur|1719"],
+        "ackMustNotMatch": ["art\\.", "réparation locative", "87-712"],
+        "questionMustNotMatch": ["seulement votre logement|couloir / l'escalier partag", "sans tout répéter"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "decence_hall_insalubre",
+      "theme": "Décence — hall insalubre",
+      "legalThemeId": "decence_insalubrite_communs",
+      "perimetre": "BATIMENT",
+      "housingUnit": "5F",
+      "title": "Hall sale et odeurs",
+      "description": "Le hall de l'immeuble est sale, ça sent les poubelles et plusieurs locataires ont déjà écrit sans réponse.",
+      "opening": {
+        "expectCouncilAgents": ["juriste"],
+        "juristeInsightMustMatch": ["salubrit|décence|bailleur"],
+        "ackMustNotMatch": ["art\\.", "1719", "décret"],
+        "expectIntakeComplete": true,
+        "questionMustNotMatch": ["dans votre logement, dans le hall", "antenne|box|décodeur"]
+      },
+      "tenantTurn": {
+        "message": "Surtout le hall et la cage d'escalier. Mon appartement est propre, c'est vraiment les parties communes.",
+        "juristeInsightMustMatch": ["salubrit|décence|bailleur"],
+        "ackMustNotMatch": ["art\\.", "1719", "décret"],
+        "questionMustNotMatch": ["dans votre logement, dans le hall", "sans tout répéter"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "retenue_loyer_interdit",
+      "theme": "Procédure — retenue de loyer",
+      "legalThemeId": "retenue_loyer_risque",
+      "perimetre": "LOGEMENT",
+      "housingUnit": "26",
+      "title": "Puis-je retenir mon loyer ?",
+      "description": "Le chauffage ne marche plus depuis deux semaines. Je veux retenir mon loyer jusqu'à réparation.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["loyer|contentieux|conciliation|retenue"],
+        "ackMustNotMatch": ["art\\.", "87-712", "vous devez payer", "ne payez pas"],
+        "questionMustMatch": ["loyer|signalement|bailleur|réception"],
+        "questionMustNotMatch": ["sans tout répéter"]
+      },
+      "tenantTurn": {
+        "message": "Non, le bailleur n'a jamais accusé réception de mon mail sur le chauffage. Je n'ai pas encore retenu le loyer.",
+        "juristeInsightMustMatch": ["loyer|conciliation|contentieux|retenue"],
+        "ackMustNotMatch": ["art\\.", "ne payez pas", "retenez votre loyer", "87-712"],
+        "questionMustNotMatch": ["accusé réception", "sans tout répéter"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "chauffage_charge_bailleur",
+      "theme": "Chauffage — charge probable bailleur",
+      "legalThemeId": "chauffage_obligation_bailleur",
+      "perimetre": "LOGEMENT",
+      "housingUnit": "5F",
+      "title": "Radiateur froid — responsabilité ?",
+      "description": "Depuis dix jours le radiateur du salon est froid. Le bailleur dit que c'est à moi de réparer, je ne suis pas d'accord.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["chauffage|décence|bailleur|1719"],
+        "ackMustNotMatch": ["art\\.", "décret 87"],
+        "questionMustMatch": ["radiateur|pièce|tous|froid"],
+        "questionMustNotMatch": ["sans tout répéter"]
+      },
+      "tenantTurn": {
+        "message": "Seul le radiateur du salon reste froid. Les chambres chauffent normalement.",
+        "juristeInsightMustMatch": ["chauffage|décence|bailleur"],
+        "ackMustNotMatch": ["art\\.", "décret", "réparation locative"],
+        "questionMustNotMatch": ["tous les radiateurs", "sans tout répéter"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "ascenseur_panne_collectif",
+      "theme": "Ascenseur — partie commune",
+      "legalThemeId": "ascenseur_partie_commune",
+      "perimetre": "BATIMENT",
+      "housingUnit": "5F",
+      "title": "Ascenseur en panne",
+      "description": "L'ascenseur est bloqué depuis lundi au 5e étage. Un voisin âgé ne peut plus sortir.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["partie commune|bailleur|87-713|ascenseur"],
+        "ackMustNotMatch": ["art\\.", "87-713", "décret"],
+        "questionMustMatch": ["depuis|palier|bloqu|ascenseur"],
+        "questionMustNotMatch": ["sans tout répéter", "article"]
+      },
+      "tenantTurn": {
+        "message": "Depuis lundi matin. Au 5e étage, plusieurs voisins sont bloqués comme moi.",
+        "juristeInsightMustMatch": ["ascenseur|partie commune|bailleur"],
+        "ackMustNotMatch": ["art\\.", "87-713", "décret"],
+        "questionMustNotMatch": ["depuis quand l'ascenseur", "même palier", "sans tout répéter"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "vmc_extraction_sdb",
+      "theme": "VMC — extraction collective",
+      "legalThemeId": "vmc_ventilation_collective",
+      "perimetre": "BATIMENT",
+      "housingUnit": "5F",
+      "title": "Plus d'extraction SDB",
+      "description": "La VMC ne tire plus l'air de la salle de bain, condensation sur les murs et odeur d'humidité.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["vmc|ventilation|bailleur|extraction"],
+        "ackMustNotMatch": ["art\\.", "décret", "code civil"],
+        "questionMustMatch": ["pièce|pièces|SDB|cuisine|extraction"],
+        "questionMustNotMatch": ["sans tout répéter"]
+      },
+      "tenantTurn": {
+        "message": "Surtout la salle de bain. La cuisine semble correcte pour l'instant.",
+        "juristeInsightMustMatch": ["vmc|ventilation|bailleur|extraction"],
+        "ackMustNotMatch": ["art\\.", "décret", "code civil"],
+        "questionMustNotMatch": ["une pièce \\(SDB, cuisine\\)|plusieurs pièces", "sans tout répéter"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "nuisibles_cafards_cuisine",
+      "theme": "Nuisibles — logement décent",
+      "legalThemeId": "nuisibles_decence_logement",
+      "perimetre": "LOGEMENT",
+      "housingUnit": "26",
+      "title": "Cafards dans la cuisine",
+      "description": "Des cafards apparaissent dans la cuisine depuis deux semaines malgré le ménage quotidien.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["nuisible|décence|bailleur|décent"],
+        "ackMustNotMatch": ["art\\.", "décret", "87-712"],
+        "questionMustMatch": ["pièces|logement|bâtiment|nuisible"],
+        "questionMustNotMatch": ["sans tout répéter"]
+      },
+      "tenantTurn": {
+        "message": "Uniquement la cuisine pour l'instant. Le voisin du dessous m'a dit qu'il en voit aussi.",
+        "juristeInsightMustMatch": ["nuisible|décence|bailleur"],
+        "ackMustNotMatch": ["art\\.", "décret", "87-712"],
+        "questionMustNotMatch": ["quelle pièce|d'autres logements", "sans tout répéter"],
+        "expectIntakeComplete": true
+      }
+    },
+    {
+      "id": "serrure_cle_perdue_charge",
+      "theme": "Serrure — nuance clé / usure",
+      "legalThemeId": "serrure_acces_nuance",
+      "perimetre": "LOGEMENT",
+      "housingUnit": "26",
+      "title": "Serrure bloquée — qui paie ?",
+      "description": "La serrure de ma porte d'entrée ne tourne plus. Le bailleur dit que c'est à ma charge car j'ai perdu une clé le mois dernier.",
+      "opening": {
+        "expectCouncilAgents": ["juriste", "savoir"],
+        "juristeInsightMustMatch": ["serrure|clé|cle|bailleur|locataire"],
+        "ackMustNotMatch": ["art\\.", "décret 87", "code civil"],
+        "questionMustMatch": ["clé|cle|serrure|perdue|cassée|porte"],
+        "questionMustNotMatch": ["sans tout répéter", "article"]
+      },
+      "tenantTurn": {
+        "message": "Je n'ai pas perdu la clé récemment. La serrure accrochait déjà depuis des semaines avant que le bailleur me le reproche.",
+        "juristeInsightMustMatch": ["serrure|bailleur|locataire|clé|cle"],
+        "ackMustNotMatch": ["art\\.", "décret", "réparation locative à votre charge"],
+        "questionMustNotMatch": ["clé perdue ou cassée", "sans tout répéter", "article"],
+        "expectIntakeComplete": true
+      }
+    }
+  ]
+}

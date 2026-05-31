@@ -6,10 +6,15 @@
 import { normalizeCompanionLanguage } from '../../shared/lia-dialogue-languages';
 import type { CompanionLanguage } from '../conversation/lia-companion.types';
 import {
+  jarvisAdministrativeRedirectTail,
+  jarvisClosingByFollowUpKind,
   jarvisClosingDoorLock,
   jarvisClosingGeneric,
   jarvisClosingPlumbing,
+  jarvisClosingWithSignalementRead,
   jarvisChainPivot,
+  jarvisDoorTrappedUrgencyPriority,
+  jarvisOpeningAfterSignalementRead,
   jarvisOpeningDoor,
   jarvisOpeningGeneric,
   jarvisOpeningPlumbing,
@@ -17,13 +22,20 @@ import {
   jarvisPlumbingPivot,
   jarvisQuestionDoorHinge,
   jarvisQuestionDoorLockClarify,
+  jarvisQuestionDoorTrapped,
   jarvisQuestionGeneric,
+  jarvisReadDoorSignalement,
+  jarvisPlumbingBackupHandoffForFacts,
+  jarvisPlumbingUrgencyPriority,
+  jarvisReadPlumbingSignalement,
   jarvisQuestionPlumbingPlug,
   jarvisQuestionPlumbingSupplyDrain,
   jarvisQuestionPlumbingTiming,
   jarvisThanks,
   buildPostIntakeReply,
+  inferPostIntakeFollowUpKind,
   signalementSuggestsDoorLock,
+  signalementSuggestsPersonTrapped,
 } from './lia-jarvis-dialogue.i18n';
 import {
   applyChainDiscrimination,
@@ -32,7 +44,25 @@ import {
   pickChainQuestion,
   refreshGenericSimulation,
 } from './lia-jarvis-visual-chain';
+import { applyLegalClarificationToSimulation } from './lia-juridique-savoir.loader';
+import type { HousingKind } from './lia-housing-perspective';
 import type { LiaIntakeState } from './lia-intake.service';
+import {
+  applyTenantFactsToSimulation,
+  extractPlumbingBackupLead,
+  extractPlumbingEuRefoulementLead,
+  extractTenantSignalementFacts,
+  isPerimeterQuestionRedundant,
+  jarvisAcknowledgeExtractedFacts,
+  jarvisReadSignalement,
+  tenantFactsToJarvisFacts,
+  type TenantSignalementFacts,
+} from './lia-tenant-signalement-facts';
+import { isJarvisLlmBridgeEnabled } from './lia-jarvis-bridge.config';
+import {
+  applySpatialSceneFromTenantFacts,
+  spatialSceneToJarvisFacts,
+} from './lia-jarvis-spatial-scene';
 
 export type JarvisFlowKind =
   | 'eau'
@@ -80,6 +110,8 @@ export interface JarvisSimulationState {
   resolvedSteps: string[];
   intakeComplete: boolean;
   visualizationSummary: string;
+  /** Faits locataire extraits — vérité partagée (écoute). */
+  tenantFacts?: TenantSignalementFacts;
 }
 
 function norm(raw: string): string {
@@ -99,6 +131,10 @@ function fullContext(
 
 function detectDomain(ctx: string): JarvisSimulationDomain {
   if (
+    (/bloqu|coinc|ne s.?ouvre plus|ne s ouvre plus/.test(ctx) &&
+      /enfant|fils|fille|bebe|dedans|enferm|dans la chambre|dans la piece|dans la pièce/.test(
+        ctx,
+      )) ||
     (/porte/.test(ctx) &&
       /(ferme pas|ne ferme|coinc|bloqu|accroch|frotte|gonfl|affaiss)/.test(ctx)) ||
     (/gache|gâche|serrure|poignee|poignée|penture|targette|verrou|cremone|crémone/.test(
@@ -168,7 +204,12 @@ function inferScene(ctx: string, domain: JarvisSimulationDomain): JarvisScene3D 
 
   if (domain === 'plumbing_sink') {
     element = /wc|toilet/.test(ctx) ? 'WC' : /lavabo/.test(ctx) ? 'lavabo' : 'évier';
-    if (/sous.*(evier|évier|lavabo)|fuit.*sous|dessous|endessous|anba/.test(ctx)) {
+    if (
+      /inond|rempli|plein|debord|débord|eau sale|eaux sales|refou/.test(ctx) &&
+      /cuisine|evier|évier/.test(ctx)
+    ) {
+      symptomAnchor = 'évier plein — refoulement évacuation';
+    } else if (/sous.*(evier|évier|lavabo)|fuit.*sous|dessous|endessous|anba/.test(ctx)) {
       symptomAnchor = `sous l’${element}`;
     } else if (/robinet|mitigeur|flexible/.test(ctx)) {
       symptomAnchor = 'au robinet / flexible';
@@ -177,7 +218,11 @@ function inferScene(ctx: string, domain: JarvisSimulationDomain): JarvisScene3D 
 
   if (domain === 'carpentry_door') {
     element = 'porte';
-    if (/gache|gâche/.test(ctx)) symptomAnchor = 'gâche / serrure';
+    if (/bloqu|coinc|ne s.?ouvre/.test(ctx)) {
+      symptomAnchor = /enfant|fils|fille|dedans|enferm/.test(ctx)
+        ? 'porte bloquée — personne dans la pièce'
+        : 'porte bloquée';
+    } else if (/gache|gâche/.test(ctx)) symptomAnchor = 'gâche / serrure';
     else if (/frotte|sol|bas/.test(ctx)) symptomAnchor = 'bas de porte / sol';
     else symptomAnchor = 'fermeture / cadre';
   }
@@ -377,9 +422,32 @@ function applyCarpentryDiscriminators(
   resolved: string[],
   hypotheses: PhysicalHypothesis[],
   deactivate: (id: string) => void,
+  safetyUrgent?: boolean,
 ): { resolved: string[]; hypotheses: PhysicalHypothesis[]; intakeComplete: boolean } {
   let intakeComplete = false;
   let hypos = hypotheses;
+
+  const trappedHandleAnswer =
+    safetyUrgent &&
+    !resolved.includes('lock_focus') &&
+    (/poignee|poignée|handle|maçaneta|tounen|actionne/.test(msg) ||
+      /\b(bouge|mouve|repond|répond|bloqu|coinc|cassee|cassée|tourne|encore|rien)\b/.test(
+        msg,
+      ));
+
+  if (trappedHandleAnswer) {
+    resolved.push('lock_focus');
+    deactivate('hinge_sag');
+    deactivate('floor_swell');
+    deactivate('frame_warp');
+    hypos = hypos.map((h) =>
+      h.id === 'lock_misalign'
+        ? { ...h, active: true, confidence: Math.min(h.confidence + 0.25, 0.95) }
+        : h,
+    );
+    intakeComplete = true;
+    return { resolved, hypotheses: hypos, intakeComplete };
+  }
 
   const keyTurnIssue =
     /cl[eé]s?\b|clef|tourner|verrouill|serrure|pe[cç]ne|gache|gâche|targette|accroch/.test(
@@ -460,6 +528,7 @@ function applyCarpentryDiscriminators(
 function applyDiscriminators(
   sim: JarvisSimulationState,
   messageCtx: string,
+  opts?: { housingKind?: HousingKind; title?: string; description?: string },
 ): JarvisSimulationState {
   const msg = norm(messageCtx);
   const resolved = [...sim.resolvedSteps];
@@ -530,7 +599,13 @@ function applyDiscriminators(
   }
 
   if (sim.domain === 'carpentry_door') {
-    const carp = applyCarpentryDiscriminators(msg, resolved, hypotheses, deactivate);
+    const carp = applyCarpentryDiscriminators(
+      msg,
+      resolved,
+      hypotheses,
+      deactivate,
+      sim.tenantFacts?.safetyUrgent,
+    );
     resolved.splice(0, resolved.length, ...carp.resolved);
     hypotheses = carp.hypotheses;
     if (carp.intakeComplete) intakeComplete = true;
@@ -548,7 +623,7 @@ function applyDiscriminators(
   };
 
   if (sim.domain === 'generic') {
-    nextSim = applyChainDiscrimination(nextSim, messageCtx);
+    nextSim = applyChainDiscrimination(nextSim, messageCtx, opts);
   }
 
   return nextSim;
@@ -572,6 +647,23 @@ function pickPhysicalQuestion(
 ): string | null {
   if (sim.intakeComplete) return null;
 
+  if (sim.tenantFacts?.administrativeLead) return null;
+
+  if (sim.tenantFacts?.plumbingEuRefoulementLead) return null;
+
+  if (extractPlumbingEuRefoulementLead(signalementCtx)) return null;
+
+  if (sim.tenantFacts?.plumbingBackupLead) return null;
+
+  if (extractPlumbingBackupLead(signalementCtx)) return null;
+
+  if (
+    sim.tenantFacts?.commonsSalubrityLead &&
+    sim.tenantFacts.perimeterResolved
+  ) {
+    return null;
+  }
+
   const lang = sim.language;
 
   if (sim.domain === 'plumbing_sink') {
@@ -594,6 +686,9 @@ function pickPhysicalQuestion(
 
   if (sim.domain === 'carpentry_door') {
     if (sim.resolvedSteps.includes('lock_focus')) return null;
+    if (signalementSuggestsPersonTrapped(signalementCtx)) {
+      return jarvisQuestionDoorTrapped(lang);
+    }
     if (
       signalementSuggestsDoorLock(signalementCtx) &&
       sim.resolvedSteps.length === 0
@@ -634,6 +729,7 @@ export function runJarvisSimulation(params: {
   message?: string;
   prior?: JarvisSimulationState | null;
   preferredLanguage?: string;
+  housingKind?: HousingKind;
 }): JarvisSimulationState {
   const ctx = fullContext(params.title, params.description, params.message ?? '');
   const language = resolveJarvisDialogueLanguage({
@@ -677,14 +773,36 @@ export function runJarvisSimulation(params: {
   }
 
   if (params.message?.trim()) {
-    sim = applyDiscriminators(sim, params.message.trim());
+    sim = applyDiscriminators(sim, params.message.trim(), {
+      housingKind: params.housingKind,
+      title: params.title,
+      description: params.description,
+    });
+    sim = applyLegalClarificationToSimulation({
+      title: params.title,
+      description: params.description,
+      message: params.message,
+      language: sim.language,
+      prior: params.prior,
+      sim,
+    });
   } else if (params.prior) {
     sim = {
       ...sim,
       resolvedSteps: params.prior.resolvedSteps,
       intakeComplete: params.prior.intakeComplete,
+      tenantFacts: params.prior.tenantFacts,
     };
   }
+
+  const tenantFacts = extractTenantSignalementFacts({
+    title: params.title,
+    description: params.description,
+    message: params.message,
+    prior: params.prior?.tenantFacts ?? sim.tenantFacts ?? null,
+  });
+  sim = applyTenantFactsToSimulation(sim, tenantFacts);
+  sim = applySpatialSceneFromTenantFacts(sim, tenantFacts, ctx);
 
   return sim;
 }
@@ -714,20 +832,108 @@ export function buildJarvisConsultation(params: {
   const sim = params.simulation;
   const lieu = sim.scene.room ? ` (${sim.scene.room})` : '';
   const signalementCtx = fullContext(params.title, params.description);
+  const tenantFacts =
+    sim.tenantFacts ??
+    extractTenantSignalementFacts({
+      title: params.title,
+      description: params.description,
+      message: params.message,
+    });
+  const signalementRead = jarvisReadSignalement(
+    name,
+    lang,
+    params.title,
+    params.description,
+    tenantFacts,
+  );
 
   let acknowledgment = '';
 
-  if (params.mode === 'opening') {
-    if (sim.domain === 'carpentry_door') {
-      acknowledgment = jarvisOpeningDoor(name, lieu, lang);
+  const plumbingBackupLead =
+    tenantFacts.plumbingBackupLead ||
+    extractPlumbingBackupLead(signalementCtx);
+  const plumbingEuRefoulementLead =
+    tenantFacts.plumbingEuRefoulementLead ||
+    extractPlumbingEuRefoulementLead(signalementCtx);
+
+  if (params.mode === 'opening' && tenantFacts.administrativeLead) {
+    const read =
+      signalementRead ??
+      jarvisReadSignalement(name, lang, params.title, params.description, tenantFacts);
+    acknowledgment = read
+      ? `${read} ${jarvisAdministrativeRedirectTail(lang)}`
+      : `${jarvisOpeningGeneric(name, lang)} ${jarvisAdministrativeRedirectTail(lang)}`;
+  } else if (
+    params.mode === 'opening' &&
+    plumbingBackupLead &&
+    sim.domain === 'plumbing_sink'
+  ) {
+    const plumbingRead = jarvisReadPlumbingSignalement(
+      name,
+      lang,
+      params.title,
+      params.description,
+      sim.scene.room,
+    );
+    acknowledgment = plumbingRead
+      ? `${plumbingRead} ${jarvisPlumbingBackupHandoffForFacts(tenantFacts, lang)}`
+      : `${signalementRead ?? jarvisOpeningPlumbing(name, sim.scene.symptomAnchor ?? 'au point d’eau', lang)} ${jarvisPlumbingBackupHandoffForFacts(tenantFacts, lang)}`;
+  } else if (params.mode === 'opening' && !sim.intakeComplete) {
+    const doorRead = jarvisReadDoorSignalement(
+      name,
+      lang,
+      params.title,
+      params.description,
+      sim.scene.room,
+    );
+    const doorCase =
+      sim.domain === 'carpentry_door' ||
+      tenantFacts.safetyUrgent ||
+      signalementSuggestsPersonTrapped(signalementCtx) ||
+      Boolean(doorRead);
+
+    if (doorCase) {
+      acknowledgment = doorRead ?? jarvisOpeningDoor(name, lieu, lang);
+      if (
+        tenantFacts.safetyUrgent ||
+        signalementSuggestsPersonTrapped(signalementCtx)
+      ) {
+        acknowledgment += ` ${jarvisDoorTrappedUrgencyPriority(lang)}`;
+      }
     } else if (sim.domain === 'plumbing_sink') {
       const anchor = sim.scene.symptomAnchor ?? 'au point d’eau';
-      acknowledgment = jarvisOpeningPlumbing(name, anchor, lang);
+      if (plumbingBackupLead) {
+        const plumbingRead = jarvisReadPlumbingSignalement(
+          name,
+          lang,
+          params.title,
+          params.description,
+          sim.scene.room,
+        );
+        acknowledgment = plumbingRead
+          ? `${plumbingRead} ${jarvisPlumbingBackupHandoffForFacts(tenantFacts, lang)}`
+          : `${signalementRead ?? jarvisOpeningPlumbing(name, anchor, lang)} ${jarvisPlumbingBackupHandoffForFacts(tenantFacts, lang)}`;
+      } else {
+        const plumbingRead = jarvisReadPlumbingSignalement(
+          name,
+          lang,
+          params.title,
+          params.description,
+          sim.scene.room,
+        );
+        acknowledgment =
+          plumbingRead ?? jarvisOpeningPlumbing(name, anchor, lang);
+        if (tenantFacts.plumbingUrgent) {
+          acknowledgment += ` ${jarvisPlumbingUrgencyPriority(lang)}`;
+        }
+      }
     } else if (
       sim.activeFlows.includes('signal') ||
       /\btv\b|television|tele|reception|signal|chaine|canal/.test(signalementCtx)
     ) {
       acknowledgment = jarvisOpeningSignal(name, lang);
+    } else if (signalementRead) {
+      acknowledgment = `${signalementRead} ${jarvisOpeningAfterSignalementRead(lang)}`;
     } else {
       acknowledgment = jarvisOpeningGeneric(name, lang);
     }
@@ -738,6 +944,8 @@ export function buildJarvisConsultation(params: {
         name,
         lang,
         domain: sim.domain,
+        title: params.title,
+        description: params.description,
         lastAck: params.lastAcknowledgment,
       });
     } else if (sim.domain === 'carpentry_door') {
@@ -745,10 +953,28 @@ export function buildJarvisConsultation(params: {
     } else if (sim.domain === 'plumbing_sink') {
       acknowledgment = jarvisClosingPlumbing(name, lang);
     } else {
-      acknowledgment = jarvisClosingGeneric(name, lang);
+      const followUpKind = inferPostIntakeFollowUpKind(
+        sim.domain,
+        params.title,
+        params.description,
+      );
+      if (signalementRead && !params.postIntake) {
+        acknowledgment = jarvisClosingWithSignalementRead({
+          name,
+          lang,
+          kind: followUpKind,
+          domain: sim.domain,
+          read: signalementRead,
+        });
+      } else {
+        acknowledgment = jarvisClosingByFollowUpKind(name, lang, followUpKind, sim.domain);
+      }
     }
   } else {
-    acknowledgment = jarvisThanks(name, lang);
+    const heard = sim.tenantFacts
+      ? jarvisAcknowledgeExtractedFacts(name, lang, sim.tenantFacts)
+      : null;
+    acknowledgment = heard ?? jarvisThanks(name, lang);
     if (sim.domain === 'plumbing_sink' && sim.resolvedSteps.includes('timing')) {
       acknowledgment += jarvisPlumbingPivot(lang);
     }
@@ -760,13 +986,24 @@ export function buildJarvisConsultation(params: {
     }
   }
 
-  const nextQuestion = pickPhysicalQuestion(sim, signalementCtx);
+  const nextQuestionRaw = pickPhysicalQuestion(sim, signalementCtx);
+  const nextQuestion =
+    nextQuestionRaw &&
+    sim.tenantFacts &&
+    isPerimeterQuestionRedundant(nextQuestionRaw, sim.tenantFacts)
+      ? null
+      : nextQuestionRaw;
 
   return {
     acknowledgment: acknowledgment.trim(),
     nextQuestion,
     visualizationNote: sim.visualizationSummary,
-    intakeComplete: sim.intakeComplete && !nextQuestion,
+    intakeComplete:
+      (sim.intakeComplete ||
+        (params.mode === 'opening' &&
+          plumbingBackupLead &&
+          sim.domain === 'plumbing_sink')) &&
+      !nextQuestion,
     language: lang,
   };
 }
@@ -796,6 +1033,10 @@ export function attachSimulationToState(
       visualization: simulation.visualizationSummary,
       liaison_langue: simulation.language,
       locataire_langue: simulation.language,
+      ...(simulation.tenantFacts
+        ? tenantFactsToJarvisFacts(simulation.tenantFacts)
+        : {}),
+      ...spatialSceneToJarvisFacts(simulation),
       ...(simulation.scene.element
         ? { equipement: simulation.scene.element }
         : {}),
@@ -812,6 +1053,9 @@ export function syncJarvisSimulationOnState(
   description: string,
   message = '',
 ): LiaIntakeState {
+  if (isJarvisLlmBridgeEnabled()) {
+    return state;
+  }
   const prior = parseSimulationFromState(state);
   const simulation = runJarvisSimulation({
     title,

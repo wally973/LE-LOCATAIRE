@@ -36,6 +36,29 @@ export function loadVisualLogicBrief(): string {
   return JARVIS_VISUAL_LOGIC_SUMMARY;
 }
 
+/** Charge MISSION_JARVIS.md si présent (manifeste Niveau 5). */
+export function loadMissionJarvisBrief(): string {
+  const candidates = [
+    path.resolve(process.cwd(), '..', '..', 'MISSION_JARVIS.md'),
+    path.resolve(process.cwd(), 'MISSION_JARVIS.md'),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf-8');
+        return raw.length > 2500 ? `${raw.slice(0, 2500)}\n…` : raw;
+      }
+    } catch {
+      /* fichier absent */
+    }
+  }
+  return [
+    'MISSION JARVIS — Lia visualise le bâtiment, ne lit pas de scripts.',
+    'Altimétrie, flux physiques, règle exutoire (aval avant amont), enveloppe.',
+    'Protocole Marie : empathie, extraction 360°, jamais redemander.',
+  ].join('\n');
+}
+
 export function jarvisSystemPromptPrefix(): string {
   return [
     'Tu es Lia — Agent de Raisonnement Systémique (Jarvis) pour le logement social en Guyane.',

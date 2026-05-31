@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-30",
+  "description": "Savoir — liens entre signes cliniques (pas de script dialogue en code). Jarvis synthétise les insights ; les questions viennent des sondes ci-dessous.",
+  "clinicalLinks": [
+    {
+      "id": "collectif_compteur_service_tv_eclairage",
+      "requiresHousing": ["collective"],
+      "requiresFlows": ["signal"],
+      "signGroups": [
+        ["tv", "television", "tele", "reception", "signal", "chaine", "canal"],
+        ["escalier", "hall", "couloir", "parties communes", "palier", "commune"]
+      ],
+      "signGroupsAnd": {
+        "1": ["eclairage", "lumiere", "panne", "souci", "marche pas", "allume pas", "coupe"]
+      },
+      "confirmInMessageGroups": [1],
+      "resolveStep": "service_meter_link",
+      "resolveStepsAlso": ["savoir_collective", "chain_compare", "chain_scope"],
+      "hypothesisBoost": { "prefix": "_amont", "delta": 0.35 },
+      "hypothesisEliminate": ["_local"],
+      "completeIntake": true,
+      "savoirInsight": "Compteur électrique de service — même alimentation : amplificateur TV + éclairage parties communes (escalier, hall).",
+      "tenantExplanation": "L'éclairage dans l'escalier et la TV sans signal vont souvent de pair : le compteur électrique de service alimente l'amplificateur TV et l'éclairage des parties communes.",
+      "transmissionHint": "Je transmets au bailleur pour qu'un électricien vérifie cette alimentation."
+    }
+  ],
+  "savoirProbes": [
+    {
+      "id": "collective_signal_neighbors_commons",
+      "requiresHousing": ["collective"],
+      "requiresFlows": ["signal"],
+      "skipIfResolved": ["savoir_collective"],
+      "questionFr": "Chez vos voisins ou sur les autres logements du bâtiment, la TV fonctionne-t-elle ? Et l'éclairage des parties communes s'allume-t-il ?",
+      "questionGcf": "Lakay vwazen ou ou lòt kay nan bâtiment-la, TV-la mache ? É éclairage kote komen yo mache ?"
+    },
+    {
+      "id": "standalone_signal_other_tv",
+      "requiresHousing": ["standalone"],
+      "requiresFlows": ["signal"],
+      "skipIfResolved": ["savoir_collective"],
+      "questionFr": "Avez-vous une autre TV ou une autre prise TV dans le logement — est-ce pareil ou seulement celle-ci ?",
+      "questionGcf": "Ou gen yon lòt TV ou yon lòt priz TV an kay-la — sé menm bagay ou sé sèlman sa-a ?"
+    },
+    {
+      "id": "unknown_housing_floor",
+      "requiresHousing": ["unknown"],
+      "requiresFlows": ["signal"],
+      "skipIfResolved": ["savoir_collective"],
+      "questionFr": "Pour situer le logement : vous êtes à quel étage, ou y a-t-il un locataire au-dessus de vous ?",
+      "questionGcf": "Pou sitiye kay-la : ou sou ki etaj, ou gen yon locataire anlè ou ?"
+    },
+    {
+      "id": "collective_stair_step_safety",
+      "requiresHousing": ["collective"],
+      "requiresFlows": ["mécanique"],
+      "contextKeywords": ["escalier", "marche", "cage"],
+      "skipIfResolved": ["savoir_stair_marche"],
+      "questionFr": "La marche abîmée est à quel niveau de l'escalier ? D'autres marches bougent-elles aussi dans le bâtiment ?",
+      "questionGcf": "Mache ki domaje-a sé sou ki nivo nan escalier-a ? Lòt mache yo ap bouje tou nan bilding-la ?"
+    },
+    {
+      "id": "window_closing_mechanism",
+      "requiresHousing": ["collective", "standalone", "unknown"],
+      "requiresFlows": ["mécanique"],
+      "contextKeywords": ["fenetre", "vantail", "vitrage", "cremone", "crémone"],
+      "skipIfResolved": ["savoir_window_probe"],
+      "questionFr": "La fenêtre ne se ferme plus correctement — est-ce le vantail qui ne s'enclenche pas, ou la poignée / crémone qui bloque ?",
+      "questionGcf": "Fenèt-la pa fèmen byen — sé vantail-la ki pa fikse, ou poignée / crémone-a ki bloke ?"
+    },
+    {
+      "id": "mailbox_lock_mechanism",
+      "requiresHousing": ["collective", "standalone", "unknown"],
+      "requiresFlows": ["mécanique"],
+      "contextKeywords": ["boite", "lettre", "courrier", "cle", "clé"],
+      "skipIfResolved": ["savoir_mailbox_probe"],
+      "questionFr": "Pour la boîte aux lettres : la clé tourne mais le couvercle ne s'ouvre pas, ou la clé bloque dès le départ ?",
+      "questionGcf": "Pou bwat lèt-la : kle-a vire men kouvèti-a pa ouvri, ou kle-a bloke depi ou kòmanse ?"
+    },
+    {
+      "id": "heating_radiator_scope",
+      "requiresHousing": ["collective", "standalone", "unknown"],
+      "requiresFlows": ["chaleur"],
+      "contextKeywords": ["radiateur", "chauffage", "thermostat", "froid"],
+      "skipIfResolved": ["savoir_heating_probe"],
+      "questionFr": "Les radiateurs des autres pièces chauffent-ils un peu, ou seul celui que vous signalez reste froid ?",
+      "questionGcf": "Radiateur nan lòt pyès yo chofe yon ti kras, ou sé sèlman sa ou siyale-a ki frèt ?"
+    },
+    {
+      "id": "roof_infiltration_timing",
+      "requiresHousing": ["collective", "standalone", "unknown"],
+      "requiresFlows": ["étanchéité"],
+      "contextKeywords": ["plafond", "pluie", "tache", "infiltr", "humide"],
+      "skipIfResolved": ["savoir_infiltration_probe"],
+      "questionFr": "La tache au plafond apparaît-elle surtout quand il pleut, ou le plafond reste-t-il humide même par beau temps ?",
+      "questionGcf": "Tach nan plafon-an parèt sitou lè lapli ap tonbe, ou plafon-an rete imid menm lè bèl tan ?"
+    },
+    {
+      "id": "collective_interphone_silent",
+      "requiresHousing": ["collective"],
+      "requiresFlows": ["mécanique"],
+      "contextKeywords": ["interphone", "sonnette", "digicode", "sonne"],
+      "skipIfResolved": ["savoir_interphone_probe"],
+      "questionFr": "Quand on sonne depuis l'extérieur, vous n'entendez rien du tout, ou seulement l'interphone du logement ne répond plus ?",
+      "questionGcf": "Lè yo sonnen deyò, ou pa tande anyen ditou, ou sé entèfòn nan kay-la sèlman ki pa reponn ?"
+    },
+    {
+      "id": "smoke_detector_beep",
+      "requiresHousing": ["collective", "standalone", "unknown"],
+      "requiresFlows": ["mécanique"],
+      "contextKeywords": ["detecteur", "fumee", "fumée", "bippe", "bip"],
+      "skipIfResolved": ["savoir_smoke_detector_probe"],
+      "questionFr": "Le détecteur bippe en continu ou de temps en temps — et avez-vous eu de la fumée ou de la vapeur (cuisine, SDB) juste avant ?",
+      "questionGcf": "Detektè-a ap bip san rete ou lè pa lè — é ou te gen lafimen ou vapè (kizin, SDB) jis avan ?"
+    },
+    {
+      "id": "parking_gate_stuck",
+      "requiresHousing": ["collective", "standalone", "unknown"],
+      "requiresFlows": ["mécanique"],
+      "contextKeywords": ["portail", "parking", "barriere", "barrière"],
+      "skipIfResolved": ["savoir_gate_probe"],
+      "questionFr": "Le portail reste bloqué — entend-on encore le moteur qui force, ou plus aucun bruit quand vous actionnez ?",
+      "questionGcf": "Pòtay-la rete bloke — ou tande motè-a ap fòse toujou, ou plis okenn bri lè ou actionnen ?"
+    },
+    {
+      "id": "roller_blind_stuck",
+      "requiresHousing": ["collective", "standalone", "unknown"],
+      "requiresFlows": ["mécanique"],
+      "contextKeywords": ["store"],
+      "skipIfResolved": ["savoir_store_probe"],
+      "questionFr": "Le store ne remonte plus du tout, ou il monte à moitié puis se bloque ?",
+      "questionGcf": "Store-a pa monte ditou, ou li monte mwatye epi li bloke ?"
+    }
+  ]
+}

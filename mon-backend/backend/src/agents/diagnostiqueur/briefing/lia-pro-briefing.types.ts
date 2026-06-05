@@ -56,6 +56,15 @@ export interface ProBriefing {
   fromLlm: boolean;
   /** Méthode Savoir-Voir — rappel pour technicien / référent. */
   savoirVoir: SavoirVoirMethodBrief;
+  /** Verdict State-Based Reasoning — pièces à emporter (même objet que locataire). */
+  technicalVerdict?: {
+    summary: string;
+    leadingHypothesis: string;
+    partsToBring: string[];
+    toolsRequired: string[];
+    urgencyLabel: string;
+    severity: string;
+  } | null;
 }
 
 export interface ProBriefingAskResult {

@@ -216,6 +216,45 @@
         "soir",
         "flaque"
       ]
+    },
+    {
+      "id": "hyp_carrelage_desolidarisation",
+      "label": "Carrelage / sol dur désolidarisé",
+      "category": "STRUCTURE",
+      "responsibilityHint": "BAILLEUR",
+      "danger": "MEDIUM",
+      "sources": [
+        {
+          "corpus": "AFPOLS",
+          "ref": "C0233",
+          "title": "Revêtements de sol — pathologies et vétusté",
+          "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments"
+        },
+        {
+          "corpus": "AQC",
+          "ref": "FPB-SOLS",
+          "title": "Sols durs — faïence et carrelage",
+          "url": "https://qualiteconstruction.com/agence-qualite-construction/consolider-bonnes-pratiques-construction-renovation/"
+        }
+      ],
+      "clinicalSigns": {
+        "texture": ["carreau casse", "carreau souleve", "dalle qui bouge", "sol instable"],
+        "pattern": ["soulèvement soudain", "desolidarisation", "carreau qui claque"],
+        "location": ["chambre", "salon", "sol", "plancher", "carrelage"]
+      },
+      "keywords": [
+        "carrelage",
+        "carreau",
+        "faience",
+        "faïence",
+        "soulève",
+        "souleve",
+        "décoll",
+        "decolle",
+        "plancher",
+        "sol dur",
+        "dalle"
+      ]
     }
   ]
 }

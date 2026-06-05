@@ -4,8 +4,7 @@
  * Règles générales — pas une fiche JSON par sujet.
  */
 import type { CompanionLanguage } from '../conversation/lia-companion.types';
-import { normClinicalText } from './lia-savoir-clinical-links.loader';
-import type { JarvisSimulationState } from './lia-jarvis-simulation.engine';
+import { normClinicalText } from './lia-text-normalize';
 
 export type TenantLocationScope = 'logement' | 'communs' | 'both' | 'unknown';
 
@@ -417,58 +416,6 @@ export function shouldCompleteIntakeFromFacts(facts: TenantSignalementFacts): bo
     return facts.locationScope === 'communs' || facts.locationScope === 'both';
   }
   return false;
-}
-
-/** Applique les faits à la simulation (étapes résolues, clôture intake). */
-export function applyTenantFactsToSimulation(
-  sim: JarvisSimulationState,
-  facts: TenantSignalementFacts,
-): JarvisSimulationState {
-  const resolved = new Set(sim.resolvedSteps);
-
-  if (facts.equipmentSubject === 'portail') {
-    resolved.add('savoir_mailbox_probe');
-  }
-  if (facts.equipmentSubject === 'mailbox') {
-    resolved.add('savoir_gate_probe');
-  }
-
-  if (facts.perimeterResolved || facts.commonsSalubrityLead) {
-    resolved.add('tenant_perimeter_resolved');
-    if (facts.perimeterResolved) {
-      resolved.add('legal_clarification_answered');
-      if (facts.locationScope === 'communs' || facts.commonAreasMentioned.length > 0) {
-        resolved.add('savoir_collective');
-      }
-    }
-  }
-
-  if (facts.safetyUrgent) {
-    resolved.add('safety_urgent_flagged');
-  }
-  if (facts.administrativeLead) {
-    resolved.add('administrative_lead_flagged');
-  }
-  if (facts.plumbingBackupLead) {
-    resolved.add('timing');
-    resolved.add('supply_vs_drain');
-    resolved.add('plumbing_backup_resolved');
-  }
-  if (facts.plumbingEuRefoulementLead) {
-    resolved.add('eu_refoulement_flagged');
-  }
-
-  let intakeComplete = sim.intakeComplete;
-  if (shouldCompleteIntakeFromFacts(facts)) {
-    intakeComplete = true;
-  }
-
-  return {
-    ...sim,
-    tenantFacts: facts,
-    resolvedSteps: [...resolved],
-    intakeComplete,
-  };
 }
 
 export function tenantFactsToJarvisFacts(

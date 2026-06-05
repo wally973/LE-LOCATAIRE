@@ -1,19 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { CompanionUiState } from '../conversation/lia-companion.types';
 import { buildElectricityJuristHint } from '../../diagnostiqueur/rules/lia-electricity-rules';
-import type { LiaIntakeOrganizerState } from './lia-intake-organizer';
-import {
-  applyOrganizerAnswer,
-  buildOrganizerContext,
-  buildOrganizerIntakeSummaryLines,
-  formatOrganizerQuestionText,
-  getPanneTreeById,
-  isOrganizerQuestionId,
-  nextOrganizerCauseForIntake,
-  ORG_QUESTION_PREFIX,
-  prefillEliminatedCauses,
-  resolveOrganizerPanne,
-} from './lia-intake-organizer';
 import {
   extractDiagnosticSensors,
   isWaterOnFloorReport,
@@ -26,17 +13,13 @@ import {
 } from './lia-intake-electricity-extract';
 import {
   ensureJarvisOrganizer,
-  isJarvisReadyForImmediateVerdict,
-  pickJarvisCriticalQuestion,
 } from './lia-jarvis-intake.engine';
-import { isSimulationIntakeComplete } from './lia-jarvis-simulation.engine';
 import { isPlumbingSinkLeakSaturated } from './lia-intake-plumbing-extract';
 import {
   INTAKE_LANGUAGE_ANSWER_ID,
   isTenantLanguageGreeting,
   resolveLanguageFromGreeting,
 } from '../../shared/lia-tenant-greeting';
-export type { LiaIntakeOrganizerState } from './lia-intake-organizer';
 
 /** Catégories dérivées du libellé initial (ex. PDF conversation). */
 export type IntakeCategory = 'PLUMBING' | 'ROOF' | 'ELECTRICITY' | 'GENERIC';
@@ -66,8 +49,8 @@ export interface LiaIntakeState {
   signals?: IntakeSignals;
   /** Questions non pertinentes après analyse des réponses (intake réactif). */
   skippedQuestionIds?: string[];
-  /** Parcours questions depuis panne-diagnostic-logique.json. */
-  organizer?: LiaIntakeOrganizerState;
+  /** @deprecated Legacy — Living Intelligence ne pose plus de questions scriptées. */
+  organizer?: { panneId: string; eliminatedCauseIds: string[]; causeAnswers: Record<string, string> };
   intakeTitle?: string;
   intakeDescription?: string;
   /** Langue choisie via salutation (Bonjou → gcf). */
@@ -91,118 +74,19 @@ export interface IntakeReactiveTurn {
   uiStatus?: import('../conversation/lia-message-ui-status').LiaMessageUiStatus;
 }
 
+/** @deprecated — arbres scriptés supprimés (Living Intelligence). */
 export const INTAKE_QUESTIONS: Record<IntakeCategory, IntakeQuestion[]> = {
-  PLUMBING: [
-    {
-      id: 'since_when',
-      text: 'Depuis quand avez-vous constaté le problème ?',
-    },
-    {
-      id: 'siphon_action',
-      text:
-        'Avez-vous nettoyé le siphon ou utilisé un produit pour déboucher ? (répondez oui/non et précisez)',
-    },
-    {
-      id: 'drain_ok',
-      text: "L'eau s'écoule-t-elle normalement du lavabo ou de l'évier ?",
-    },
-  ],
-  ROOF: [
-    {
-      id: 'since_when',
-      text: 'Depuis quand avez-vous constaté la fuite ?',
-    },
-    {
-      id: 'when_rains',
-      text: 'La fuite apparaît-elle surtout quand il pleut ?',
-    },
-    {
-      id: 'protect_belongings',
-      text: 'Avez-vous pu protéger vos effets personnels ?',
-    },
-  ],
-  ELECTRICITY: [
-    {
-      id: 'since_when',
-      text: 'Depuis quand n’avez-vous plus d’électricité (ou plus de courant) ?',
-    },
-    {
-      id: 'breaker',
-      text: 'Avez-vous débranché les appareils et remis le disjoncteur ?',
-    },
-    {
-      id: 'breaker_stays',
-      text: 'Le disjoncteur reste-t-il enclenché ?',
-    },
-    {
-      id: 'subscription',
-      text: 'Êtes-vous à jour de votre abonnement auprès de votre fournisseur d’électricité ?',
-    },
-  ],
-  GENERIC: [
-    {
-      id: 'since_when',
-      text: 'Depuis quand avez-vous constaté le problème ?',
-    },
-    {
-      id: 'location_detail',
-      text: 'Où exactement se situe le problème dans le logement ?',
-    },
-    {
-      id: 'worsening',
-      text: 'Le problème s’aggrave-t-il avec le temps ?',
-    },
-  ],
+  PLUMBING: [],
+  ROOF: [],
+  ELECTRICITY: [],
+  GENERIC: [],
 };
 
-/**
- * Eau au sol (flaque, nappe) — l’organisateur doit qualifier aspect et horaires
- * (Golden REF_EAU_SAVONNEUSE).
- */
-export const INTAKE_WATER_ON_FLOOR: IntakeQuestion[] = [
-  {
-    id: 'water_aspect',
-    text:
-      'L’eau au sol est-elle plutôt claire, trouble, ou mousseuse / savonneuse ? (décrivez en une phrase)',
-  },
-  {
-    id: 'timing_pattern',
-    text:
-      'Cette eau apparaît-elle à des heures précises (par ex. le soir entre 19 h et 21 h) ? Si oui, indiquez le créneau.',
-  },
-  {
-    id: 'building_floor',
-    text: 'À quel étage êtes-vous dans l’immeuble ? (RDC, R+1, R+2…)',
-  },
-  {
-    id: 'weather_context',
-    text:
-      'En ce moment, pleut-il souvent chez vous ou êtes-vous en saison sèche (peu ou pas de pluie) ?',
-  },
-];
+/** @deprecated */
+export const INTAKE_WATER_ON_FLOOR: IntakeQuestion[] = [];
 
-/** Éclairage localisé : ampoule déjà testée → interrupteur, disjoncteur pièce, douille. */
-export const INTAKE_LIGHTING_ELECTRICITY: IntakeQuestion[] = [
-  {
-    id: 'since_when',
-    text: 'Depuis quand cet éclairage ne fonctionne-t-il plus ?',
-  },
-  {
-    id: 'switch_ok',
-    text:
-      'L’interrupteur de la pièce fonctionne-t-il (avez-vous essayé marche et arrêt) ?',
-  },
-  {
-    id: 'room_breaker',
-    text:
-      'Avez-vous vérifié au tableau si le disjoncteur de ce circuit est bien enclenché (remis en position si besoin) ?',
-  },
-  {
-    id: 'socket_check',
-    text:
-      'La douille / le support de l’ampoule présente-t-il un signe d’usure (brunissement, jeu, odeur) ?',
-  },
-];
+/** @deprecated */
+export const INTAKE_LIGHTING_ELECTRICITY: IntakeQuestion[] = [];
 
 /** Contexte intake stocké dans Ticket.aiLastDecision.intake */
 export function parseIntakeState(
@@ -310,14 +194,7 @@ export function tenantAlreadyChangedBulb(
 
 /** Résumé textuel pour le pathologiste / juriste (après les questions). */
 export function buildIntakeSummary(state: LiaIntakeState): string {
-  const organizerLines = buildOrganizerIntakeSummaryLines(state);
-  const questions = state.organizer ? [] : getIntakeQuestionsForState(state);
-  const lines = questions
-    .map((q) => {
-      const a = state.answers[q.id];
-      return a ? `${q.text} → ${a}` : null;
-    })
-    .filter((x): x is string => x != null);
+  const lines: string[] = [];
   if (state.answers.bulb_action) {
     lines.push(
       `Ampoule — le locataire a déjà changé l’ampoule → ${state.answers.bulb_action}`,
@@ -367,7 +244,6 @@ export function buildIntakeSummary(state: LiaIntakeState): string {
   return [
     '[Contexte recueilli avec Lia avant diagnostic]',
     ...signalLines,
-    ...organizerLines,
     ...lines,
   ].join('\n');
 }
@@ -391,7 +267,9 @@ export class LiaIntakeService {
   detectCategory(title: string, description: string): IntakeCategory {
     const t = `${title} ${description}`.toLowerCase();
     if (
-      /toiture|toit|pluie|gouttière|gouttiere|infiltration/.test(t)
+      /toiture|toit|pluie|gouttière|gouttiere|infiltration|moisissure|moisi|humidit|salp[eè]tre/.test(
+        t,
+      )
     ) {
       return 'ROOF';
     }
@@ -431,26 +309,6 @@ export class LiaIntakeService {
       }
     }
     const waterFloor = isWaterOnFloorReport(title, description, answers);
-    const tree = waterFloor
-      ? undefined
-      : resolveOrganizerPanne(
-          category,
-          title,
-          description,
-          signals,
-          answers,
-        );
-    const organizer = tree
-      ? {
-          panneId: tree.id,
-          eliminatedCauseIds: prefillEliminatedCauses(
-            tree,
-            fullText,
-            answers,
-          ),
-          causeAnswers: {} as Record<string, string>,
-        }
-      : undefined;
 
     const base: LiaIntakeState = {
       phase: 'INTAKE',
@@ -460,22 +318,11 @@ export class LiaIntakeService {
       signals,
       intakeTitle: title,
       intakeDescription: description,
-      organizer,
       intakeMode: 'jarvis',
       jarvisFacts: jarvisFactsFromExtract ?? {},
-      skippedQuestionIds: [
-        ...this.allScriptQuestionIds(category),
-        ...(organizer ? this.legacyQuestionIdsForCategory(category) : []),
-        ...(skippedFromExtract ?? []),
-      ],
+      skippedQuestionIds: [...(skippedFromExtract ?? [])],
     };
-    let jarvisState = ensureJarvisOrganizer(base, title, description);
-    if (
-      isJarvisReadyForImmediateVerdict(jarvisState) &&
-      !this.needsPhoto(jarvisState)
-    ) {
-      jarvisState = { ...jarvisState, phase: 'DONE', stepIndex: 0 };
-    }
+    const jarvisState = ensureJarvisOrganizer(base, title, description);
     return this.reconcileStepIndex(jarvisState);
   }
 
@@ -664,157 +511,22 @@ export class LiaIntakeService {
     return INTAKE_QUESTIONS[category].map((q) => q.id);
   }
 
-  getCurrentQuestion(state: LiaIntakeState): IntakeQuestion | null {
-    if (state.phase !== 'INTAKE') return null;
-    if (state.intakeMode === 'jarvis') {
-      return null;
-    }
-
-    if (state.organizer) {
-      const tree = getPanneTreeById(state.organizer.panneId);
-      if (!tree) return null;
-      const ctx = buildOrganizerContext(
-        state.intakeTitle ?? '',
-        state.intakeDescription ?? '',
-        state,
-      );
-      const cause = nextOrganizerCauseForIntake(
-        tree,
-        state.organizer,
-        ctx,
-      );
-      if (!cause) return null;
-      return {
-        id: `${ORG_QUESTION_PREFIX}${cause.id}`,
-        text: formatOrganizerQuestionText(tree, cause, state),
-      };
-    }
-
-    const list = getIntakeQuestionsForState(state);
-    const skipped = new Set(state.skippedQuestionIds ?? []);
-    for (let i = state.stepIndex; i < list.length; i++) {
-      const q = list[i];
-      if (skipped.has(q.id)) continue;
-      if (state.answers[q.id]?.trim()) continue;
-      return { id: q.id, text: this.questionText(state, q) };
-    }
+  getCurrentQuestion(_state: LiaIntakeState): IntakeQuestion | null {
     return null;
   }
 
-  questionText(state: LiaIntakeState, q: IntakeQuestion): string {
-    const ctx = `${Object.values(state.answers).join(' ')}`;
-    if (
-      state.category === 'ELECTRICITY' &&
-      q.id === 'since_when' &&
-      isLightingOnlyScope(ctx, state.signals, state.answers)
-    ) {
-      return 'Depuis quand cet éclairage ne fonctionne-t-il plus ?';
-    }
-    if (q.id === 'switch_ok' && state.signals?.roomHint) {
-      return `L’interrupteur de ${state.signals.roomHint} fonctionne-t-il (marche et arrêt essayés) ?`;
-    }
+  questionText(_state: LiaIntakeState, q: IntakeQuestion): string {
     return q.text;
   }
 
   reconcileStepIndex(state: LiaIntakeState): LiaIntakeState {
-    if (state.intakeMode === 'jarvis') {
-      if (
-        state.answers.jarvis_intake_complete === 'oui' ||
-        state.answers.jarvis_handoff === 'oui'
-      ) {
-        return { ...state, phase: 'DONE', stepIndex: 0 };
-      }
-      if (
-        (isSimulationIntakeComplete(state) ||
-          isJarvisReadyForImmediateVerdict(state)) &&
-        !this.needsPhoto(state)
-      ) {
-        return { ...state, phase: 'DONE', stepIndex: 0 };
-      }
-      return { ...state, phase: 'INTAKE', stepIndex: 0 };
-    }
-
     if (
-      state.intakeMode !== 'legacy' &&
-      isJarvisReadyForImmediateVerdict(state) &&
-      !this.needsPhoto(state)
+      state.answers.jarvis_intake_complete === 'oui' ||
+      state.answers.jarvis_handoff === 'oui'
     ) {
-      return { ...state, stepIndex: 0, phase: 'DONE' };
+      return { ...state, phase: 'DONE', stepIndex: 0 };
     }
-
-    if (
-      state.category === 'ELECTRICITY' &&
-      isElectricityLightingIntakeSaturated(state) &&
-      !this.needsPhoto(state)
-    ) {
-      const list = getIntakeQuestionsForState(state);
-      return {
-        ...state,
-        stepIndex: list.length,
-        phase: 'DONE',
-      };
-    }
-
-    if (
-      state.category === 'PLUMBING' &&
-      isPlumbingSinkLeakSaturated(state) &&
-      !this.needsPhoto(state)
-    ) {
-      return { ...state, stepIndex: 0, phase: 'DONE' };
-    }
-
-    if (state.organizer && state.intakeMode !== 'legacy') {
-      const jarvisQ = pickJarvisCriticalQuestion(state);
-      if (!jarvisQ) {
-        return {
-          ...state,
-          stepIndex: 0,
-          phase: this.needsPhoto(state) ? 'AWAITING_PHOTO' : 'DONE',
-        };
-      }
-      return { ...state, stepIndex: 0, phase: 'INTAKE' };
-    }
-
-    if (state.organizer) {
-      const tree = getPanneTreeById(state.organizer.panneId);
-      if (!tree) {
-        return { ...state, organizer: undefined };
-      }
-      const ctx = buildOrganizerContext(
-        state.intakeTitle ?? '',
-        state.intakeDescription ?? '',
-        state,
-      );
-      const next = nextOrganizerCauseForIntake(tree, state.organizer, ctx);
-      if (!next) {
-        return {
-          ...state,
-          stepIndex: 0,
-          phase: this.needsPhoto(state) ? 'AWAITING_PHOTO' : 'DONE',
-        };
-      }
-      return { ...state, stepIndex: 0, phase: 'INTAKE' };
-    }
-
-    const list = getIntakeQuestionsForState(state);
-    const skipped = new Set(state.skippedQuestionIds ?? []);
-    let stepIndex = 0;
-    while (stepIndex < list.length) {
-      const q = list[stepIndex];
-      if (skipped.has(q.id) || state.answers[q.id]?.trim()) {
-        stepIndex++;
-        continue;
-      }
-      break;
-    }
-    if (stepIndex >= list.length) {
-      return {
-        ...state,
-        stepIndex,
-        phase: this.needsPhoto(state) ? 'AWAITING_PHOTO' : 'DONE',
-      };
-    }
-    return { ...state, stepIndex, phase: 'INTAKE' };
+    return { ...state, phase: state.phase === 'DONE' ? 'DONE' : 'INTAKE', stepIndex: 0 };
   }
 
   recordAnswer(state: LiaIntakeState, answer: string): LiaIntakeState {
@@ -827,14 +539,7 @@ export class LiaIntakeService {
         answers: { ...state.answers, [INTAKE_LANGUAGE_ANSWER_ID]: trimmed },
       });
     }
-    const q = this.getCurrentQuestion(state);
-    if (!q) return state;
-    const answers = { ...state.answers, [q.id]: trimmed };
-    let next: LiaIntakeState = { ...state, answers };
-    if (isOrganizerQuestionId(q.id)) {
-      next = applyOrganizerAnswer(next, q.id, trimmed);
-    }
-    return this.reconcileStepIndex(next);
+    return state;
   }
 
   /** Photo utile pour le diagnostic visuel (sauf cas purement administratif). */

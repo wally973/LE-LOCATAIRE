@@ -478,6 +478,17 @@ export function jarvisClosingByFollowUpKind(
   return jarvisClosingGeneric(name, lang);
 }
 
+export function jarvisPlumbingVetusteAck(name: string, lang: L): string {
+  return pick(lang, {
+    fr: `${name}, vous signalez un robinet qui paraît vieux — si le corps est hors d’usage, le remplacement peut relever du bailleur ; un simple joint reste à votre charge.`,
+    gcf: `${name}, ou di robinet-la sanble vye — si kò a fini sèvi, sé ka bailleur pran chaj ; yon ti joint toujou sou ou.`,
+    en: `${name}, you mention an old-looking tap — if the body is worn out, replacement may be the landlord’s charge; a washer/joint stays yours.`,
+    pt: `${name}, indica uma torneira que parece velha — se o corpo estiver esgotado, pode ser cargo do senhorio; um jointe simples continua seu.`,
+    es: `${name}, indica un grifo que parece viejo — si el cuerpo está agotado, puede ser cargo del arrendador; un junta simple sigue siendo suya.`,
+    hat: `${name}, ou di robinet la sanble vye — si kò a fini, sa ka releve pwopriyetè a ; yon ti joint rete sou ou.`,
+  });
+}
+
 export function jarvisPlumbingPivot(lang: L): string {
   return pick(lang, {
     fr: ' Restons sur l’usage du point d’eau — mitigeur ou évacuation.',
@@ -511,6 +522,121 @@ export function jarvisQuestionDoorLockClarify(lang: L): string {
   });
 }
 
+export function jarvisQuestionElectricOutlet(
+  lang: L,
+  kind: 'appliance' | 'visual',
+): string {
+  if (kind === 'visual') {
+    return pick(lang, {
+      fr: 'Voyez-vous une trace de brûlure, de noircissement ou une odeur forte sur la prise ou le cache — sans toucher les fils à nu ?',
+      gcf: 'Èske ou wè tras boule, nwa oswa yon bon sant sou prise-a — san manyen fil dénude ?',
+      en: 'Do you see burn marks, darkening or a strong smell on the outlet or cover — without touching bare wires?',
+      pt: 'Vê marcas de queimado ou cheiro forte na tomada — sem tocar em fios à mostra?',
+      es: '¿Ve marcas de quemado u olor fuerte en el enchufe — sin tocar cables pelados?',
+      hat: 'Èske ou wè tras boule oswa bon sant sou prise a — san manyen fil dénude ?',
+    });
+  }
+  return pick(lang, {
+    fr: 'Y a-t-il un appareil branché sur cette prise en ce moment (radiateur, multiprise, chargeur) — et sentez-vous une odeur de brûlé ?',
+    gcf: 'Èske yon aparèy branché sou prise-a kounye a — épi èske ou santi yon sant boule ?',
+    en: 'Is an appliance plugged into this outlet right now — and do you smell burning?',
+    pt: 'Há algum aparelho ligado nesta tomada agora — e sente cheiro de queimado?',
+    es: '¿Hay algún aparato enchufado ahora — y huele a quemado?',
+    hat: 'Èske gen yon aparèy branché sou prise a — épi èske ou santi boule ?',
+  });
+}
+
+/** Tour suivant arc électrique — écoute, rappel court, pas de relecture du bouclier. */
+export function buildElectricalFireFollowUpAck(
+  name: string,
+  lang: L,
+  tenantMessage?: string,
+): string {
+  const heard =
+    tenantMessage?.trim() &&
+    /^(non|nan|no)\b|pas du tout|pas de/.test(
+      tenantMessage.toLowerCase().normalize('NFD').replace(/\p{M}/gu, ''),
+    );
+  return pick(lang, {
+    fr: heard
+      ? `${name}, merci — j’ai bien noté. Ne vous approchez pas de la prise.`
+      : `${name}, merci pour cette précision. Ne touchez à rien sur la prise pour l’instant.`,
+    gcf: heard
+      ? `${name}, mèsi — mwen byen note. Pa apwoche prise-a.`
+      : `${name}, mèsi pou presizyon-an. Pa manyen anyen sou prise-a pou kounye a.`,
+    en: heard
+      ? `${name}, thank you — noted. Do not go near the outlet.`
+      : `${name}, thanks for clarifying. Do not touch anything on the outlet for now.`,
+    pt: heard
+      ? `${name}, obrigado — anotei. Não se aproxime da tomada.`
+      : `${name}, obrigado pela informação. Não toque em nada na tomada por agora.`,
+    es: heard
+      ? `${name}, gracias — anotado. No se acerque al enchufe.`
+      : `${name}, gracias por la información. No toque nada en el enchufe por ahora.`,
+    hat: heard
+      ? `${name}, mèsi — mwen note. Pa pwoche prise a.`
+      : `${name}, mèsi pou presizyon an. Pa manyen anyen sou prise a pou kounye a.`,
+  });
+}
+
+/** Bouclier sécurité — éloignement, disjoncteur AVANT tout contact, puis débranchement. */
+export function buildElectricalSafetyShieldPrefix(name: string, lang: L): string {
+  return pick(lang, {
+    fr: `${name}, éloignez-vous de la prise tout de suite — ne touchez à rien sur la prise : coupez d'abord le disjoncteur de la pièce si vous pouvez le faire sans danger, puis seulement débranchez les appareils branchés sans forcer, sans jamais toucher les fils à nu.`,
+    gcf: `${name}, wete ou pi a prise-la touswit — pa manyen anyen sou prise-a : koupe disjonctè-a an premye si ou kapab san danje, apre sèlman debranché aparèy yo san fòse, san janm manyen fil dénude.`,
+    en: `${name}, step away from the outlet now — do not touch anything on the outlet: switch off the room circuit breaker first if you can do so safely, then only unplug appliances without forcing them, and never touch bare wires.`,
+    pt: `${name}, afaste-se da tomada agora — não toque em nada na tomada: desligue primeiro o disjuntor da divisão se puder com segurança, só depois desligue os aparelhos sem forçar, sem tocar em fios expostos.`,
+    es: `${name}, aléjese del enchufe ya — no toque nada en el enchufe: corte primero el disyuntor de la habitación si puede hacerlo con seguridad, luego solo desenchufe aparatos sin forzar, sin tocar cables pelados.`,
+    hat: `${name}, wete ou pi a prise a touswit — pa manyen anyen sou prise a : koupe disjonctè a an premye si ou kapab san danje, apre sèlman debranché aparèy yo san fòse, san janm manyen fil dénude.`,
+  });
+}
+
+/** Consigne sécurité complète (bouclier + transmission) — clôture sans enquête chirurgicale. */
+export function buildElectricalSafetyAcknowledgment(name: string, lang: L): string {
+  const shield = buildElectricalSafetyShieldPrefix(name, lang);
+  return pick(lang, {
+    fr: `${shield} Je transmets en urgence au bailleur pour un électricien.`,
+    gcf: `${shield} Mwen voye sa an ijans bay bayè-a pou yon elektrisyen.`,
+    en: `${shield} I am escalating urgently to your landlord for an electrician.`,
+    pt: `${shield} Encaminho com urgência ao senhorio para um eletricista.`,
+    es: `${shield} Escalo con urgencia al arrendador para un electricista.`,
+    hat: `${shield} Mwen voye sa an ijans bay bayè a pou yon elektrisyen.`,
+  });
+}
+
+export function jarvisQuestionElectricalFireWaterProximity(lang: L): string {
+  return pick(lang, {
+    fr: 'Y a-t-il de l’eau ou une fuite à proximité de cette prise (par exemple une machine à laver qui fuit) ?',
+    gcf: 'Èske gen dlo oswa yon fuit toupre prise-a (egzanp yon machin ki koule) ?',
+    en: 'Is there water or a leak near this outlet (for example a washing machine leaking)?',
+    pt: 'Há água ou fuga perto desta tomada (por exemplo máquina de lavar a gotejar)?',
+    es: '¿Hay agua o fuga cerca de este enchufe (por ejemplo lavadora goteando)?',
+    hat: 'Èske gen dlo oswa yon fuit toupre prise a (egzanp yon machin ki koule) ?',
+  });
+}
+
+export function jarvisQuestionElectricalTornTwoRooms(lang: L): string {
+  return pick(lang, {
+    fr: 'Les deux prises (salon et chambre) sont-elles sur le même disjoncteur au tableau, ou avez-vous deux coupure à faire ?',
+    gcf: 'Èske dé prise yo (salon épi chanm) sou menm disjonctè-a, ou gen de koupé pou fè ?',
+    en: 'Are both outlets (living room and bedroom) on the same breaker, or do you need to switch off two circuits?',
+    pt: 'As duas tomadas (sala e quarto) estão no mesmo disjuntor ou precisa desligar dois circuitos?',
+    es: '¿Las dos tomas (salón y dormitorio) están en el mismo disyuntor o hay que cortar dos circuitos?',
+    hat: 'Èske de prise yo (salon ak chanm) sou menm disjonctè a, ou gen de koupe pou fè ?',
+  });
+}
+
+export function jarvisQuestionElectricalFireMultiprise(lang: L): string {
+  return pick(lang, {
+    fr: 'Y a-t-il une multiprise ou plusieurs appareils branchés sur cette prise en même temps ?',
+    gcf: 'Èske gen yon multiprise oswa plizyè aparèy branché sou prise-a an menm tan ?',
+    en: 'Is there a power strip or several appliances plugged into this outlet at once?',
+    pt: 'Há uma extensão ou vários aparelhos ligados a esta tomada ao mesmo tempo?',
+    es: '¿Hay una regleta o varios aparatos enchufados a la vez en este enchufe?',
+    hat: 'Èske gen yon multiprise oswa plizyè aparèy branché sou prise a an menm tan ?',
+  });
+}
+
 export function jarvisQuestionPlumbingTiming(lang: L): string {
   return pick(lang, {
     fr: 'À quel moment l’eau apparaît-elle sous l’évier : en permanence, quand vous ouvrez l’eau, ou surtout quand l’évier se vide ?',
@@ -519,6 +645,18 @@ export function jarvisQuestionPlumbingTiming(lang: L): string {
     pt: 'Quando aparece água debaixo da pia: sempre, ao abrir a torneira ou ao escoar?',
     es: '¿Cuándo aparece el agua bajo el fregadero: siempre, al abrir el grifo o al vaciar?',
     hat: 'Ki lè dlo parèt anba evye a: tout tan, lè ou ouvri dlo a, ou lè li ap vidange?',
+  });
+}
+
+/** Robinet difficile à fermer / vétuste — discrimination joint vs corps. */
+export function jarvisQuestionPlumbingTapClosure(lang: L): string {
+  return pick(lang, {
+    fr: 'Quand vous forcez la fermeture au maximum, la goutte s’arrête-t-elle — ou coule-t-elle encore au repos ?',
+    gcf: 'Lè ou fèmen li byen fò, gout-la sispann — ou li toujou koule menm lè li fèmen ?',
+    en: 'When you shut it as tight as you can, does the drip stop — or does it still leak at rest?',
+    pt: 'Quando fecha ao máximo, a gota para — ou continua a gotejar em repouso?',
+    es: 'Cuando cierra al máximo, ¿deja de gotear — o sigue goteando en reposo?',
+    hat: 'Lè ou fèmen li byen fò, èske gout la sispann — ou li toujou koule lè li fèmen?',
   });
 }
 

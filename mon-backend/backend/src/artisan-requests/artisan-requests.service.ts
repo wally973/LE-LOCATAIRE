@@ -92,6 +92,69 @@ export class ArtisanRequestsService {
   }
 
   /**
+   * Création initiée par Jarvis (charge locataire + demande d’aide serrurier).
+   * Notifie les admins — flux urgent.
+   */
+  async createFromJarvisReferral(params: {
+    ticketId: number;
+    reason: string;
+    urgent?: boolean;
+  }) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: params.ticketId },
+      include: {
+        tenant: { include: { user: true } },
+        housing: { include: { landlord: { include: { user: true } } } },
+      },
+    });
+    if (!ticket) throw new NotFoundException('Ticket introuvable');
+
+    await this.prisma.ticket.update({
+      where: { id: params.ticketId },
+      data: {
+        responsibility: 'LOCATAIRE',
+        aiCategory: ticket.aiCategory ?? 'CARPENTRY',
+        aiSeverity: params.urgent ? 'HIGH' : (ticket.aiSeverity ?? 'MEDIUM'),
+        status: ticket.status === 'OPEN' ? 'IN_PROGRESS' : ticket.status,
+      },
+    });
+
+    const existing = await this.prisma.artisanRequest.findUnique({
+      where: { ticketId: params.ticketId },
+    });
+    if (existing) return existing;
+
+    const request = await this.prisma.artisanRequest.create({
+      data: {
+        ticketId: params.ticketId,
+        tenantId: ticket.tenantId,
+        landlordProfileId: ticket.housing.landlordId,
+        category: 'CARPENTRY',
+        severity: params.urgent ? 'HIGH' : 'MEDIUM',
+        status: 'NEW',
+        tenantReason: params.reason.slice(0, 2000),
+      },
+    });
+
+    await this.fireCreationNotifications(ticket);
+
+    const admins = await this.prisma.user.findMany({
+      where: { role: 'ADMIN' },
+      select: { id: true },
+    });
+    for (const a of admins) {
+      await this.notifications.createNotification({
+        userId: a.id,
+        title: 'Demande serrurier URGENTE — charge locataire',
+        message: `Ticket #${ticket.id} — ${ticket.title}. Jarvis a transmis une demande d’artisan (clés perdues, à la charge du locataire).`,
+        type: 'WARNING',
+      });
+    }
+
+    return request;
+  }
+
+  /**
    * Listing admin — paginable et filtrable.
    * Aucun filtre multi-tenant : l'admin voit toutes les demandes.
    */

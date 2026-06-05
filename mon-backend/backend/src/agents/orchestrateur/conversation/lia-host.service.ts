@@ -83,7 +83,7 @@ export class LiaHostService {
     systemPrompt: string,
     userPrompt: string,
     maxTokens: number,
-    options?: { json?: boolean; timeoutMs?: number },
+    options?: { json?: boolean; timeoutMs?: number; model?: string },
   ): Promise<string | null> {
     return this.chat(userPrompt, maxTokens, systemPrompt, options);
   }
@@ -92,7 +92,7 @@ export class LiaHostService {
     userPrompt: string,
     maxTokens: number,
     systemPrompt = 'Tu es Lia, assistante logement en Guyane française. Ton court, humain, rassurant.',
-    options?: { json?: boolean; timeoutMs?: number },
+    options?: { json?: boolean; timeoutMs?: number; model?: string },
   ): Promise<string | null> {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey || process.env.LIA_HOST_ENABLED === 'false') {
@@ -100,7 +100,9 @@ export class LiaHostService {
     }
 
     const model =
-      process.env.LIA_HOST_MODEL ?? 'llama-3.1-8b-instant';
+      options?.model ??
+      process.env.LIA_HOST_MODEL ??
+      'llama-3.1-8b-instant';
     const baseUrl =
       process.env.LIA_HOST_BASE_URL ?? 'https://api.groq.com/openai/v1';
 

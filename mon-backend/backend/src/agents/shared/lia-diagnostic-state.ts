@@ -16,6 +16,7 @@ import {
   formatDiagnosticSensorsBrief,
 } from './lia-diagnostic-sensors';
 import {
+  getPathologyIndex,
   indexEntriesForCategory,
   type PathologyIndexEntry,
 } from '../chercheur/research/knowledge-index.loader';
@@ -190,6 +191,29 @@ function collectResearchRefs(
 function missingChannels(signs: ClinicalSign[]): ClinicalSignChannel[] {
   const present = new Set(signs.map((s) => s.channel));
   return ALL_CHANNELS.filter((c) => !present.has(c));
+}
+
+/** Score toutes les entrées pathology-index (AFPOL/AQC) pour un signalement. */
+export function rankPathologyEntriesForContext(
+  contextText: string,
+  top = 4,
+): Array<{ entry: PathologyIndexEntry; score: number }> {
+  const signs = extractClinicalSignsFromText(contextText);
+  let allEntries: PathologyIndexEntry[] = [];
+  try {
+    allEntries = getPathologyIndex().entries;
+  } catch {
+    return [];
+  }
+
+  return allEntries
+    .map((entry) => ({
+      entry,
+      score: scoreEntry(entry, signs, contextText),
+    }))
+    .filter((x) => x.score > 0.06)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, top);
 }
 
 /**

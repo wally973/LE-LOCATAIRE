@@ -1,4 +1,5 @@
 import { AiLegalService } from './ai-legal.service';
+import { classifyTripleChargeFlux } from './lia-triple-flux-charge';
 import type { TicketDiagnosticContext } from '../agents/shared/diagnostic-context.service';
 
 describe('AiLegalService — colonnes collectives (REF_EAU_SAVONNEUSE)', () => {
@@ -15,6 +16,7 @@ describe('AiLegalService — colonnes collectives (REF_EAU_SAVONNEUSE)', () => {
     intake: null,
     savoirVoirPhase: 'HYPOTHESES',
     tenantSupplement: '',
+    tenantSocial: null,
   };
 
   const catalog = {
@@ -100,5 +102,89 @@ describe('AiLegalService — colonnes collectives (REF_EAU_SAVONNEUSE)', () => {
 
     expect(brief.applies).toBe(false);
     expect(brief.citations).toHaveLength(0);
+  });
+});
+
+describe('AiLegalService — tri triple flux', () => {
+  const catalog = {
+    version: 1,
+    updatedAt: '2026-05-21',
+    entries: [
+      {
+        slug: 'decret-87-712-reparations-locatives',
+        kind: 'DECRET',
+        category: 'GENERIC',
+        title: 'Décret 87-712',
+        summary: 'Réparations locatives',
+        content: 'Menues réparations locataire.',
+        responsibilityHint: 'LOCATAIRE',
+        keywords: ['87-712'],
+        sources: [],
+        exceptions: [],
+        sortOrder: 1,
+      },
+      {
+        slug: 'decret-87-713-charges-recuperables',
+        kind: 'DECRET',
+        category: 'CHARGES',
+        title: 'Décret 87-713',
+        summary: 'Charges récupérables',
+        content: 'Liste limitative charges récupérables.',
+        responsibilityHint: 'LOCATAIRE',
+        keywords: ['87-713'],
+        sources: [],
+        exceptions: [],
+        sortOrder: 2,
+      },
+      {
+        slug: 'code-civil-1719-bailleur',
+        kind: 'CODE_CIVIL',
+        category: 'GENERIC',
+        title: 'Art. 1719',
+        summary: 'Bailleur',
+        content: 'Grosses réparations bailleur.',
+        responsibilityHint: 'BAILLEUR',
+        keywords: ['1719'],
+        sources: [],
+        exceptions: [],
+        sortOrder: 3,
+      },
+    ],
+  };
+
+  it('classifySignalementTripleFlux — VMC → RECUPERABLE', async () => {
+    const svc = new AiLegalService(
+      {} as never,
+      {} as never,
+      {
+        getCatalog: async () => catalog,
+        search: async () => [],
+      } as never,
+    );
+    const r = await svc.classifySignalementTripleFlux({
+      title: 'VMC',
+      description: 'VMC collective en panne',
+      message: '',
+    });
+    expect(r.flux).toBe('RECUPERABLE');
+    expect(r.classification.tenantExplanationFr).toMatch(/charges récupérables/i);
+    expect(r.citations.some((c) => c.slug.includes('87-713'))).toBe(true);
+  });
+});
+
+describe('classifyTripleChargeFlux — AFPOLS terrain', () => {
+  it('joint vs colonne', () => {
+    expect(
+      classifyTripleChargeFlux({
+        title: 'Fuite',
+        description: 'joint robinet évier',
+      }).flux,
+    ).toBe('LOCATIF');
+    expect(
+      classifyTripleChargeFlux({
+        title: 'Refoulement',
+        description: 'colonne eaux usées',
+      }).flux,
+    ).toBe('PATRIMOINE');
   });
 });

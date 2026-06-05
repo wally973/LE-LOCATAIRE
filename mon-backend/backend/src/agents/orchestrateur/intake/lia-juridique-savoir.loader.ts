@@ -4,8 +4,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CompanionLanguage } from '../conversation/lia-companion.types';
-import { normClinicalText } from './lia-savoir-clinical-links.loader';
-import type { JarvisSimulationState } from './lia-jarvis-simulation.engine';
+import { normClinicalText } from './lia-text-normalize';
 import {
   extractTenantSignalementFacts,
   isPerimeterLegalProbeRedundant,
@@ -170,48 +169,4 @@ export function pickLegalClarificationProbe(params: {
   }
 
   return best;
-}
-
-/** Marque la sonde juridique d'ouverture comme répondue — clôture intake générique. */
-export function applyLegalClarificationToSimulation(params: {
-  title: string;
-  description: string;
-  message: string;
-  language: CompanionLanguage;
-  prior: JarvisSimulationState | null | undefined;
-  sim: JarvisSimulationState;
-}): JarvisSimulationState {
-  const msg = params.message.trim();
-  if (!msg || !params.prior || params.sim.intakeComplete) return params.sim;
-  if (params.sim.resolvedSteps.includes('legal_clarification_answered')) {
-    return params.sim;
-  }
-
-  const tenantFacts = extractTenantSignalementFacts({
-    title: params.title,
-    description: params.description,
-    message: params.message,
-    prior: params.prior.tenantFacts ?? null,
-  });
-  // Correction de sujet (ex. portail vs boîte aux lettres) — pas une réponse juridique.
-  if (tenantFacts.subjectCorrected) return params.sim;
-
-  const openingProbe = pickLegalClarificationProbe({
-    title: params.title,
-    description: params.description,
-    message: '',
-    language: params.language,
-    resolvedSteps: params.prior.resolvedSteps,
-  });
-  if (!openingProbe || msg.length < 10) return params.sim;
-
-  return {
-    ...params.sim,
-    resolvedSteps: [
-      ...params.sim.resolvedSteps.filter((s) => s !== 'legal_clarification_answered'),
-      'legal_clarification_answered',
-      openingProbe.probe.id,
-    ],
-    intakeComplete: true,
-  };
 }

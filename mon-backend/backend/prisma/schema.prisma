@@ -275,6 +275,10 @@ model Ticket {
   escalationReason       String?
   /// Trace JSON de la dernière décision IA (catégorie, confidence, pipelineSteps, etc.)
   aiLastDecision         Json?
+  /// Table de vérité State-Based Reasoning — locataire, technicien, bailleur (même objet)
+  buildingState          Json?
+  /// LIVING_BUILDING_STATE — cœur Niveau 5 (vision 3D, barrière humaine, loi, intervention)
+  livingBuildingState    Json?
   resolutionNote         String?
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt

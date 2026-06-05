@@ -80,6 +80,137 @@
   border-bottom: 1px solid var(--lab-border);
 }
 
+.lia-lab-panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lia-lab-prompt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--lab-accent);
+  background: transparent;
+  border: 1px solid var(--lab-accent);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lia-lab-prompt-btn:hover:not(:disabled) {
+  background: rgba(61, 214, 198, 0.08);
+}
+
+.lia-lab-prompt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lia-lab-prompt-btn-label {
+  font-family: inherit;
+}
+
+.lia-lab-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.lia-lab-modal {
+  width: min(960px, 100%);
+  max-height: min(88vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: var(--lab-panel);
+  border: 1px solid var(--lab-border);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+.lia-lab-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--lab-border);
+}
+
+.lia-lab-modal-header h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--lab-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lia-lab-modal-meta {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--lab-muted);
+}
+
+.lia-lab-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--lab-muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.lia-lab-modal-close:hover {
+  color: var(--lab-text);
+}
+
+.lia-lab-prompt-pre {
+  flex: 1;
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  font-family: 'Consolas', 'SF Mono', 'Cascadia Code', 'Segoe UI Mono', monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--lab-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #0a0e12;
+}
+
+.lia-lab-modal-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--lab-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.lia-lab-prompt-copy {
+  padding: 6px 14px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--lab-bg);
+  background: var(--lab-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lia-lab-prompt-copy:hover {
+  filter: brightness(1.08);
+}
+
 .lia-lab-setup {
   padding: 12px;
   display: grid;
@@ -264,6 +395,27 @@
   color: #a7f3ec;
 }
 
+.lia-lab-safety-override {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--lab-danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.lia-lab-safety-override h4 {
+  color: #fca5a5;
+}
+
+.lia-lab-shield-ok {
+  color: #6ee7b7;
+}
+
+.lia-lab-shield-missing {
+  color: #fca5a5;
+  font-weight: 600;
+}
+
 .lia-lab-facts {
   background: #0b0f14;
   border: 1px solid var(--lab-border);
@@ -285,6 +437,14 @@
   color: #fca5a5;
   font-size: 12px;
   padding: 8px 12px;
+}
+
+.lia-lab-bridge-ok {
+  color: #86efac;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-left: 3px solid #22c55e;
+  margin-bottom: 4px;
 }
 
 .lia-lab-status {
@@ -339,4 +499,172 @@
 
 .lia-lab-council-echo--juriste strong {
   color: #e8d4a8;
+}
+
+.lia-lab-council-echo--social {
+  background: rgba(90, 180, 196, 0.08);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 4px 0;
+}
+
+.lia-lab-council-echo--social strong {
+  color: #a8e8d4;
+}
+
+.lia-lab-symmetric {
+  border-left: 3px solid var(--lab-accent);
+  padding-left: 10px;
+  margin-bottom: 14px;
+}
+
+.lia-lab-symmetric h4 {
+  color: var(--lab-accent);
+}
+
+.lia-lab-instruments {
+  margin: 8px 0 0;
+  padding: 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  background: rgba(61, 214, 198, 0.06);
+  border: 1px solid var(--lab-border);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  color: var(--lab-muted);
+}
+
+.lia-lab-team {
+  margin-bottom: 14px;
+}
+
+.lia-lab-team h4 {
+  color: var(--lab-accent);
+}
+
+.lia-lab-team-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 720px) {
+  .lia-lab-team-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.lia-lab-team-card {
+  border: 1px solid var(--lab-border);
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(61, 214, 198, 0.05);
+}
+
+.lia-lab-team-card--enqueteur {
+  border-color: rgba(61, 214, 198, 0.35);
+}
+
+.lia-lab-team-card--archiviste {
+  background: rgba(196, 163, 90, 0.08);
+  border-color: rgba(196, 163, 90, 0.35);
+}
+
+.lia-lab-team-card--majordome {
+  background: rgba(120, 160, 220, 0.08);
+  border-color: rgba(120, 160, 220, 0.35);
+}
+
+.lia-lab-team-card strong {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.lia-lab-team-mission {
+  display: block;
+  font-size: 10px;
+  color: var(--lab-muted);
+  margin-bottom: 6px;
+  line-height: 1.35;
+}
+
+.lia-lab-team-insight {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--lab-text);
+}
+
+.lia-lab-consciousness {
+  border-left: 3px solid var(--lab-warn);
+  padding-left: 10px;
+  margin-bottom: 12px;
+}
+
+.lia-lab-consciousness h4 {
+  color: var(--lab-warn);
+}
+
+.lia-lab-savoir-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lia-lab-savoir-item {
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid var(--lab-border);
+  border-radius: 6px;
+  background: rgba(61, 214, 198, 0.04);
+}
+
+.lia-lab-savoir-item--archiviste {
+  background: rgba(196, 163, 90, 0.06);
+}
+
+.lia-lab-savoir-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.lia-lab-savoir-head strong {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lab-accent);
+}
+
+.lia-lab-savoir-item--archiviste .lia-lab-savoir-head strong {
+  color: #e8d4a8;
+}
+
+.lia-lab-savoir-title {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.lia-lab-savoir-title a {
+  color: var(--lab-accent);
+  text-decoration: none;
+}
+
+.lia-lab-savoir-title a:hover {
+  text-decoration: underline;
+}
+
+.lia-lab-savoir-hypo {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--lab-muted);
 }

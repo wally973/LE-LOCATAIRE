@@ -6,6 +6,8 @@ import {
   sendLabMessage,
   synthesizeLabSpeech,
   transcribeLabAudio,
+  fetchLabDeliberationPreview,
+  discardLabSession,
   type LabDialogueLanguage,
   type LabSessionView,
   type LiaLabVisualization,
@@ -27,6 +29,39 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
 
   return (
     <div className="lia-lab-console">
+      {viz.safetyOverride ? (
+        <section className="lia-lab-safety-override">
+          <h4>Safety Override — arc électrique</h4>
+          <span className="lia-lab-tag urgent">{viz.safetyOverride.priority}</span>
+          <span className="lia-lab-tag urgent">{viz.safetyOverride.forceKind}</span>
+          <p style={{ margin: '8px 0 4px', fontSize: 13 }}>
+            <strong>Bouclier :</strong>{' '}
+            <span
+              className={
+                viz.safetyOverride.shieldDelivered
+                  ? 'lia-lab-shield-ok'
+                  : 'lia-lab-shield-missing'
+              }
+            >
+              {viz.safetyOverride.shieldStatus}
+            </span>
+          </p>
+          {viz.safetyOverride.surgicalProbe ? (
+            <p style={{ margin: '4px 0', fontSize: 13, color: 'var(--lab-muted)' }}>
+              <strong>Enquête chirurgicale :</strong> {viz.safetyOverride.surgicalProbe}
+            </p>
+          ) : null}
+          {viz.safetyOverride.ticketSummary ? (
+            <p style={{ margin: '4px 0', fontSize: 13 }}>
+              <strong>Ticket bailleur :</strong> {viz.safetyOverride.ticketSummary}
+            </p>
+          ) : null}
+          {viz.safetyOverride.investigationPhase ? (
+            <span className="lia-lab-tag flow">{viz.safetyOverride.investigationPhase}</span>
+          ) : null}
+        </section>
+      ) : null}
+
       <section>
         <h4>Mode urgence</h4>
         {viz.urgencyMode ? (
@@ -87,9 +122,52 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
         </section>
       ) : null}
 
+      {viz.symmetricConsole && viz.symmetricConsole.length > 0 ? (
+        <section className="lia-lab-symmetric">
+          <h4>Intelligence Symétrique — Niveau 6</h4>
+          <dl className="lia-lab-facts">
+            {viz.symmetricConsole.map((row) => (
+              <React.Fragment key={row.label}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+          {viz.instrumentsPilotBrief ? (
+            <pre className="lia-lab-instruments">{viz.instrumentsPilotBrief}</pre>
+          ) : null}
+        </section>
+      ) : null}
+
+      {viz.teamSymbiosis ? (
+        <section className="lia-lab-team">
+          <h4>Équipe de délibération — cerveau collectif</h4>
+          <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--lab-muted)' }}>
+            Enquêteur · Archiviste · Majordome — un cerveau, trois regards.
+            {viz.teamSymbiosis.dossierSealed ? (
+              <span className="lia-lab-tag urgent" style={{ marginLeft: 8 }}>
+                Dossier scellé — {viz.teamSymbiosis.primaryTrade ?? 'métier'}
+              </span>
+            ) : null}
+          </p>
+          <ul className="lia-lab-team-grid">
+            {viz.teamSymbiosis.agents.map((agent) => (
+              <li
+                key={agent.role}
+                className={`lia-lab-team-card lia-lab-team-card--${agent.role}`}
+              >
+                <strong>{agent.label}</strong>
+                <span className="lia-lab-team-mission">{agent.mission}</span>
+                <p className="lia-lab-team-insight">{agent.lastInsight}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {viz.councilEchoes && viz.councilEchoes.length > 0 ? (
         <section className="lia-lab-council">
-          <h4>Équipe Lia — brief avant Groq (Jarvis parle seul au locataire)</h4>
+          <h4>Échos délibération — tour parallèle Groq</h4>
           <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
             {viz.councilEchoes.map((e, i) => (
               <li
@@ -99,7 +177,9 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
                     ? ' lia-lab-council-echo--juriste'
                     : e.agent === 'Diagnostiqueur'
                       ? ' lia-lab-council-echo--pathologiste'
-                      : ''
+                      : e.agent === 'Agent Social'
+                        ? ' lia-lab-council-echo--social'
+                        : ''
                 }`}
               >
                 <strong>{e.agent}</strong>
@@ -112,32 +192,28 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
       ) : null}
 
       <section>
-        <h4>Simulation 3D (Jarvis Engine)</h4>
-        {viz.simulationDomain ? (
-          <>
-            <span className="lia-lab-tag flow">
-              {viz.simulationDomainLabel ?? viz.simulationDomain}
-            </span>
-            {viz.scene3DRows && viz.scene3DRows.length > 0 ? (
-              <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
-                {viz.scene3DRows.map((row) => (
-                  <li key={row.label}>
-                    {row.label} : {row.value}
-                  </li>
-                ))}
-              </ul>
-            ) : viz.scene3D ? (
-              <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
-                {Object.entries(viz.scene3D)
-                  .filter(([, v]) => v)
-                  .map(([k, v]) => (
-                    <li key={k}>
-                      {k} : {v}
-                    </li>
-                  ))}
-              </ul>
-            ) : null}
-          </>
+        <h4>Vision 3D — LIVING_BUILDING_STATE</h4>
+        <span className="lia-lab-tag flow">
+          {viz.simulationDomainLabel ?? 'Raisonnement par état — Niveau 5'}
+        </span>
+        {viz.scene3DRows && viz.scene3DRows.length > 0 ? (
+          <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
+            {viz.scene3DRows.map((row) => (
+              <li key={row.label}>
+                {row.label} : {row.value}
+              </li>
+            ))}
+          </ul>
+        ) : viz.scene3D ? (
+          <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
+            {Object.entries(viz.scene3D)
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <li key={k}>
+                  {k} : {v}
+                </li>
+              ))}
+          </ul>
         ) : (
           <p style={{ margin: 0, color: 'var(--lab-muted)' }}>Scène en cours d’instanciation…</p>
         )}
@@ -166,8 +242,59 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
         ) : null}
       </section>
 
+      {viz.consciousnessConsole && viz.consciousnessConsole.length > 0 ? (
+        <section className="lia-lab-consciousness">
+          <h4>Conscience professionnelle (interne)</h4>
+          <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--lab-muted)' }}>
+            Délibération et doute visibles ici — le chat reste rassurant et certain.
+          </p>
+          <dl className="lia-lab-facts">
+            {viz.consciousnessConsole.map((row) => (
+              <React.Fragment key={row.label}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+
+      {viz.savoirSources && viz.savoirSources.length > 0 ? (
+        <section className="lia-lab-savoir">
+          <h4>Sources de Savoir Consultées</h4>
+          <ul className="lia-lab-savoir-list">
+            {viz.savoirSources.map((s) => (
+              <li
+                key={`${s.agent}-${s.corpus}-${s.ref}`}
+                className={`lia-lab-savoir-item lia-lab-savoir-item--${s.agent}`}
+              >
+                <div className="lia-lab-savoir-head">
+                  <strong>{s.agentLabel}</strong>
+                  <span className="lia-lab-tag flow">{s.corpus}</span>
+                  <span className="lia-lab-tag">
+                    pertinence {Math.round(s.relevance * 100)}%
+                  </span>
+                </div>
+                <p className="lia-lab-savoir-title">
+                  {s.url ? (
+                    <a href={s.url} target="_blank" rel="noreferrer">
+                      {s.label}
+                    </a>
+                  ) : (
+                    s.label
+                  )}
+                </p>
+                {s.hypothesisLabel ? (
+                  <p className="lia-lab-savoir-hypo">Piste : {s.hypothesisLabel}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section>
-        <h4>Documents / référentiels consultés</h4>
+        <h4>Moteur &amp; référentiels</h4>
         <ul style={{ margin: 0, paddingLeft: 16 }}>
           {viz.afpolRefs.map((r) => (
             <li key={r}>{r}</li>
@@ -220,6 +347,12 @@ const LiaLabPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [deliberationPreview, setDeliberationPreview] = useState<{
+    models: { majordome: string; enqueteur: string; archiviste: string };
+    deliberationEchoes: { agent: string; model: string; insight: string }[];
+  } | null>(null);
+  const [promptModalOpen, setPromptModalOpen] = useState(false);
+  const [promptLoading, setPromptLoading] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -231,16 +364,24 @@ const LiaLabPage: React.FC = () => {
   }, [session?.messages]);
 
   const resetConversation = () => {
+    const sid = session?.sessionId;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
     setSpeaking(false);
     setRecording(false);
+    setPromptModalOpen(false);
+    setPromptPreview(null);
     setSession(null);
     setDraft('');
     setError(null);
     setBusy(false);
+    if (sid) {
+      void discardLabSession(sid).catch(() => {
+        /* purge best-effort */
+      });
+    }
   };
 
   const sessionIdRef = useRef<string | null>(null);
@@ -393,6 +534,21 @@ const LiaLabPage: React.FC = () => {
     .reverse()
     .find((m) => m.role === 'lia');
 
+  const openPromptPreview = async () => {
+    if (!session?.sessionId || promptLoading) return;
+    setPromptLoading(true);
+    setError(null);
+    try {
+      const preview = await fetchLabDeliberationPreview(session.sessionId);
+      setDeliberationPreview(preview);
+      setPromptModalOpen(true);
+    } catch (e) {
+      setError(getLabErrorMessage(e, 'Impossible de charger le prompt système.'));
+    } finally {
+      setPromptLoading(false);
+    }
+  };
+
   return (
     <div className="lia-lab">
       <header className="lia-lab-header">
@@ -410,6 +566,17 @@ const LiaLabPage: React.FC = () => {
       </header>
 
       {error ? <div className="lia-lab-error">{error}</div> : null}
+
+      {session?.bridgeStatus?.livingIntelligenceEnabled ? (
+        <div className="lia-lab-bridge-ok" role="status">
+          Intelligence Symétrique (Niveau 6) — LIVING_BUILDING_STATE · délibération Groq
+          (Majordome 70B · Enquêteur 8B · Archiviste 8B)
+        </div>
+      ) : session?.bridgeStatus ? (
+        <div className="lia-lab-error" role="status">
+          GROQ_API_KEY absente — Living Intelligence indisponible. Redémarrez le backend avec GROQ_API_KEY.
+        </div>
+      ) : null}
 
       <div className="lia-lab-grid">
         <div className="lia-lab-panel">
@@ -559,12 +726,62 @@ const LiaLabPage: React.FC = () => {
         </div>
 
         <div className="lia-lab-panel">
-          <div className="lia-lab-panel-title">
-            Console de visualisation (expert — français)
+          <div className="lia-lab-panel-title lia-lab-panel-title-row">
+            <span>Console de visualisation (expert — français)</span>
+            {session ? (
+              <button
+                type="button"
+                className="lia-lab-prompt-btn"
+                onClick={() => void openPromptPreview()}
+                disabled={promptLoading || busy}
+                title="Boîte noire — prompt système Groq"
+                aria-label="Voir le prompt système"
+              >
+                {promptLoading ? '…' : '👁'}
+                <span className="lia-lab-prompt-btn-label">Voir le prompt système</span>
+              </button>
+            ) : null}
           </div>
           <VisualizationConsole viz={session?.visualization ?? null} />
         </div>
       </div>
+
+      {promptModalOpen && deliberationPreview ? (
+        <div
+          className="lia-lab-modal-backdrop"
+          role="presentation"
+          onClick={() => setPromptModalOpen(false)}
+        >
+          <div
+            className="lia-lab-modal"
+            role="dialog"
+            aria-labelledby="lia-lab-prompt-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="lia-lab-modal-header">
+              <div>
+                <h3 id="lia-lab-prompt-title">Délibération parallèle — modèles Groq</h3>
+                <p className="lia-lab-modal-meta">
+                  Majordome {deliberationPreview.models.majordome} · Enquêteur{' '}
+                  {deliberationPreview.models.enqueteur} · Archiviste{' '}
+                  {deliberationPreview.models.archiviste}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="lia-lab-modal-close"
+                onClick={() => setPromptModalOpen(false)}
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </header>
+            <pre className="lia-lab-prompt-pre">
+              {JSON.stringify(deliberationPreview.deliberationEchoes, null, 2)}
+            </pre>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

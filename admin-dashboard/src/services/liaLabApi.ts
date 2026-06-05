@@ -19,6 +19,16 @@ export interface LiaLabVisualization {
   activeFlowLabels?: string[];
   detectedLot: string;
   urgencyMode: string | null;
+  /** Safety Override — bouclier arc électrique */
+  safetyOverride?: {
+    forceKind: string;
+    priority: string;
+    shieldStatus: string;
+    shieldDelivered: boolean;
+    surgicalProbe: string | null;
+    ticketSummary: string | null;
+    investigationPhase: string | null;
+  } | null;
   language: LabDialogueLanguage;
   dialogueLanguageLabel?: string;
   consoleLanguage?: 'fr';
@@ -40,8 +50,30 @@ export interface LiaLabVisualization {
   scene3D?: Record<string, string | null>;
   scene3DRows?: { label: string; value: string }[];
   physicalHypotheses?: string[];
+  livingBuildingState?: unknown;
+  livingStateConsole?: { label: string; value: string }[];
   councilEchoes?: { agent: string; heard: string; insight: string }[];
   housingPerspective?: string | null;
+  savoirSources?: {
+    agent: string;
+    agentLabel: string;
+    corpus: string;
+    ref: string;
+    title: string;
+    url?: string;
+    label: string;
+    relevance: number;
+    hypothesisLabel?: string;
+  }[];
+  consciousnessConsole?: { label: string; value: string }[];
+  symmetricConsole?: { label: string; value: string }[];
+  instrumentsPilotBrief?: string | null;
+  teamSymbiosis?: {
+    charter: string;
+    agents: { role: string; label: string; mission: string; lastInsight: string }[];
+    dossierSealed: boolean;
+    primaryTrade: string | null;
+  };
 }
 
 export interface LabChatMessage {
@@ -58,6 +90,10 @@ export interface LabSessionView {
   tenantFirstName: string;
   messages: LabChatMessage[];
   visualization: LiaLabVisualization;
+  bridgeStatus?: {
+    livingIntelligenceEnabled: boolean;
+    reasoningSource: string | null;
+  };
 }
 
 export interface LabJuridiquePreset {
@@ -127,6 +163,42 @@ export async function runLabOpening(sessionId: string): Promise<LabSessionView> 
   const { data } = await apiClient.post<LabSessionView>(
     `/lia-lab/sessions/${sessionId}/opening`,
     undefined,
+    { timeout: LAB_REQUEST_TIMEOUT_MS },
+  );
+  return data;
+}
+
+export interface LabPromptPreview {
+  sessionId: string;
+  generatedAt: string;
+  tenantFirstName: string;
+  mode: 'opening' | 'tenant_turn';
+  messageContext: string;
+  llmBridgeEnabled: boolean;
+  systemPrompt: string;
+  sections: {
+    identity: string;
+    missionJarvis: string;
+    teamBrief: string;
+    investigationProtocol: string;
+    jsonRules: string;
+    visualLogic: string;
+  };
+  sectionLabels: Record<string, string>;
+}
+
+export async function discardLabSession(sessionId: string): Promise<void> {
+  await apiClient.post(`/lia-lab/sessions/${sessionId}/discard`);
+}
+
+export async function fetchLabDeliberationPreview(sessionId: string): Promise<{
+  sessionId: string;
+  models: { majordome: string; enqueteur: string; archiviste: string };
+  deliberationEchoes: { agent: string; model: string; insight: string }[];
+  livingState: unknown;
+}> {
+  const { data } = await apiClient.get(
+    `/lia-lab/sessions/${sessionId}/deliberation-preview`,
     { timeout: LAB_REQUEST_TIMEOUT_MS },
   );
   return data;

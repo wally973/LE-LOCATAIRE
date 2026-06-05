@@ -16,6 +16,7 @@ function ctx(partial: Partial<TicketDiagnosticContext>): TicketDiagnosticContext
     intake: partial.intake ?? null,
     savoirVoirPhase: partial.savoirVoirPhase ?? 'OBSERVATION',
     tenantSupplement: '',
+    tenantSocial: partial.tenantSocial ?? null,
   };
 }
 

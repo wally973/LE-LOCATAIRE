@@ -1,13 +1,30 @@
+/**
+ * Visualisation Lia-Lab — LIVING_BUILDING_STATE uniquement.
+ */
 import { labelDialogueLanguageFr } from '../agents/shared/lia-dialogue-languages';
 import type { CompanionLanguage } from '../agents/orchestrateur/conversation/lia-companion.types';
+import { readLivingStateFromIntake } from '../agents/orchestrateur/living-intelligence/living-building-state.repository';
+import type {
+  LivingBuildingState,
+  LivingTeamAgentCard,
+} from '../agents/orchestrateur/living-intelligence/living-building-state.types';
 import {
-  parseSimulationFromState,
-  runJarvisSimulation,
-  type JarvisFlowKind,
-  type JarvisSimulationDomain,
-} from '../agents/orchestrateur/intake/lia-jarvis-simulation.engine';
-import { parseCouncilRound, councilAgentLabelFr } from '../agents/orchestrateur/intake/lia-jarvis-council.engine';
+  ARCHIVISTE_ROLE,
+  ENQUETEUR_ROLE,
+  MAJORDOME_ROLE,
+} from '../agents/orchestrateur/living-intelligence/living-team-roles';
+import { tripleFluxToDisplayLabel } from '../ai/lia-triple-flux-charge';
 import type { LiaIntakeState } from '../agents/orchestrateur/intake/lia-intake.service';
+
+export interface LiaLabSafetyOverride {
+  forceKind: string;
+  priority: string;
+  shieldStatus: string;
+  shieldDelivered: boolean;
+  surgicalProbe: string | null;
+  ticketSummary: string | null;
+  investigationPhase: string | null;
+}
 
 export interface LiaLabSceneRow {
   label: string;
@@ -19,21 +36,29 @@ export interface LiaLabFactRow {
   value: string;
 }
 
+export interface LiaLabSavoirSourceRow {
+  agent: string;
+  agentLabel: string;
+  corpus: string;
+  ref: string;
+  title: string;
+  url?: string;
+  label: string;
+  relevance: number;
+  hypothesisLabel?: string;
+}
+
 export interface LiaLabVisualization {
   mentalModels: string[];
   activeFlows: string[];
-  /** Libellés français pour la console opérateur */
   activeFlowLabels: string[];
   detectedLot: string;
   urgencyMode: string | null;
-  /** Langue choisie pour le dialogue locataire */
+  safetyOverride: LiaLabSafetyOverride | null;
   language: CompanionLanguage;
-  /** Libellé français — langue du dialogue Jarvis côté locataire */
   dialogueLanguageLabel: string;
-  /** Console expert : toujours français */
   consoleLanguage: 'fr';
   jarvisFacts: Record<string, string>;
-  /** Faits filtrés et libellés en français pour la console */
   jarvisFactsConsole: LiaLabFactRow[];
   visualizationNote: string | null;
   kbPanneId: string | null;
@@ -42,29 +67,40 @@ export interface LiaLabVisualization {
   kbCausesEliminated: string[];
   afpolRefs: string[];
   intakePhase: string;
-  /** Phase intake en français pour la console */
   intakePhaseLabel: string;
   handoffRecommended: boolean;
   tenantLanguage?: string;
   tenantLanguageLabel?: string;
-  /** Simulation Jarvis (scène 3D + hypothèses) */
   simulationDomain: string | null;
   simulationDomainLabel: string | null;
   scene3D: Record<string, string | null>;
   scene3DRows: LiaLabSceneRow[];
   physicalHypotheses: string[];
-  /** Murmures du conseil IA (tous écoutent — Jarvis parle seul) */
+  /** Échos délibération parallèle — Majordome · Enquêteur · Archiviste */
   councilEchoes: { agent: string; heard: string; insight: string }[];
   housingPerspective: string | null;
+  livingBuildingState: LivingBuildingState | null;
+  livingStateConsole: LiaLabFactRow[];
+  /** Sources @knowledge / legal-references consultées ce tour */
+  savoirSources: LiaLabSavoirSourceRow[];
+  /** Conscience professionnelle Niveau 5 */
+  consciousnessConsole: LiaLabFactRow[];
+  /** Équipe experts — cartes rôles + derniers insights */
+  teamSymbiosis: {
+    charter: string;
+    agents: LivingTeamAgentCard[];
+    dossierSealed: boolean;
+    primaryTrade: string | null;
+  };
+  /** Niveau 6 — instruments de bord + prisme */
+  symmetricConsole: LiaLabFactRow[];
+  instrumentsPilotBrief: string | null;
 }
 
-const FLOW_LABELS_FR: Record<JarvisFlowKind, string> = {
-  eau: 'Eau',
-  air: 'Air',
-  chaleur: 'Chaleur',
-  mécanique: 'Mécanique',
-  étanchéité: 'Étanchéité',
-  signal: 'Signal',
+const PHASE_LABELS_FR: Record<string, string> = {
+  INTAKE: 'Intake en cours',
+  AWAITING_PHOTO: 'En attente photo',
+  DONE: 'Dossier transmis',
 };
 
 const SCENE_LABELS_FR: Record<string, string> = {
@@ -74,109 +110,16 @@ const SCENE_LABELS_FR: Record<string, string> = {
   above: 'Au-dessus',
   below: 'En dessous',
   element: 'Élément',
-  symptomAnchor: 'Ancrage symptôme',
+  symptomAnchor: 'Symptôme',
 };
 
-const SCENE_VALUE_LABELS_FR: Record<string, string> = {
-  tropical_humid: 'Tropical humide (Guyane)',
-  dry_season: 'Saison sèche',
-};
-
-const DOMAIN_LABELS_FR: Record<JarvisSimulationDomain, string> = {
-  plumbing_sink: 'Plomberie — point d’eau',
-  carpentry_door: 'Menuiserie — porte',
-  roof_envelope: 'Enveloppe — toiture / façade',
-  electricity: 'Électricité',
-  generic: 'Générique',
-};
-
-const JARVIS_FACT_LABELS_FR: Record<string, string> = {
-  visualization: 'Visualisation',
-  liaison_langue: 'Langue liaison',
-  locataire_langue: 'Langue locataire',
-  equipement: 'Équipement',
-  localisation: 'Localisation',
-  handoff_reason: 'Motif handoff',
-  element: 'Élément',
-  housing_visual: 'Perspective logement',
-  housing_kind: 'Type logement (inscription)',
-  council_last: 'Dernier tour conseil',
-  tenant_location_scope: 'Périmètre locataire',
-  tenant_perimeter_resolved: 'Périmètre résolu',
-  tenant_common_areas: 'Zones communes citées',
-  tenant_lead: 'Fil métier locataire',
-  refoulement_eu_colonne: 'Refoulement EU — colonne',
-  tenant_safety_urgent: 'Urgence sécurité',
-  tenant_mechanical_issue: 'Fil mécanique',
-  tenant_plumbing_urgent: 'Urgence plomberie',
-  tenant_plumbing_flooding: 'Inondation signalée',
-  intervention_cible: 'Intervention cible',
-  tenant_fait_evier_plein: 'Capteur — évier plein',
-  tenant_fait_cuisine_inondee: 'Capteur — cuisine inondée',
-  tenant_fait_eau_sale: 'Capteur — eau sale (EU)',
-  spatial_perimeter: 'Périmètre spatial',
-  spatial_zone: 'Zone scène 3D',
-  spatial_floor: 'Niveau bâtiment',
-  spatial_element: 'Élément scène',
-  spatial_anchor: 'Ancrage symptôme',
-  spatial_flow: 'Flux actifs (3D)',
-  spatial_lead: 'Fil spatial',
-  reasoning_source: 'Source raisonnement',
-  llm_bridge: 'Pont LLM Groq',
-  archivist_charge: 'Archiviste — charge',
-  diagnostician_responsibility: 'Diagnostiqueur — responsabilité',
-  diagnostician_domain: 'Diagnostiqueur — domaine master',
-  diagnostician_hypothesis: 'Diagnostiqueur — hypothèse',
-  team_constraints: 'Contraintes équipe (LLM)',
-  team_consulted_refs: 'Référentiels consultés',
-};
-
-const PHASE_LABELS_FR: Record<string, string> = {
-  INTAKE: 'Collecte (intake)',
-  DONE: 'Terminé',
-  ORGANIZER: 'Organisation',
-};
-
-
-function labelSceneValue(key: string, value: string): string {
-  if (key === 'climate') {
-    return SCENE_VALUE_LABELS_FR[value] ?? value;
-  }
-  return value;
-}
-
-function buildScene3DRows(
-  scene3D: Record<string, string | null>,
-): LiaLabSceneRow[] {
+function buildScene3DRows(scene3D: Record<string, string | null>): LiaLabSceneRow[] {
   return Object.entries(scene3D)
-    .filter(([, value]) => value)
-    .map(([key, value]) => ({
-      label: SCENE_LABELS_FR[key] ?? key,
-      value: labelSceneValue(key, value!),
+    .filter(([, v]) => v != null && String(v).trim())
+    .map(([k, v]) => ({
+      label: SCENE_LABELS_FR[k] ?? k,
+      value: String(v),
     }));
-}
-
-function buildJarvisFactsConsole(
-  facts: Record<string, string> | undefined,
-): LiaLabFactRow[] {
-  if (!facts) return [];
-  return Object.entries(facts)
-    .filter(([key]) => key !== 'jarvis_simulation' && key !== 'council_last')
-    .map(([key, value]) => ({
-      label: JARVIS_FACT_LABELS_FR[key] ?? key.replace(/_/g, ' '),
-      value:
-        key === 'locataire_langue' || key === 'liaison_langue'
-          ? labelDialogueLanguageFr(
-              ['fr', 'gcf', 'en', 'pt', 'es', 'hat'].includes(value)
-                ? (value as CompanionLanguage)
-                : 'fr',
-            )
-          : value,
-    }));
-}
-
-function norm(t: string): string {
-  return t.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
 }
 
 export function buildLabVisualization(params: {
@@ -185,107 +128,338 @@ export function buildLabVisualization(params: {
   description: string;
   lastMessage?: string;
 }): LiaLabVisualization {
-  const full = norm(`${params.title} ${params.description} ${params.lastMessage ?? ''}`);
+  const living =
+    readLivingStateFromIntake(params.state.jarvisFacts) ??
+    emptyLivingFallback(params);
 
-  const simStored = parseSimulationFromState(params.state);
-  const sim =
-    simStored ??
-    runJarvisSimulation({
-      title: params.title,
-      description: params.description,
-      message: params.lastMessage ?? '',
-      preferredLanguage: params.state.preferredLanguage,
-    });
-
-  let urgencyMode: string | null = null;
-  if (
-    sim.tenantFacts?.safetyUrgent ||
-    params.state.jarvisFacts?.tenant_safety_urgent === 'oui'
-  ) {
-    urgencyMode = 'URGENCE_SECURITE';
-  } else if (
-    sim.tenantFacts?.plumbingUrgent ||
-    params.state.jarvisFacts?.tenant_plumbing_urgent === 'oui' ||
-    ((/bonjou|dlo|bokit|vit|anpil|koule/.test(full) || /urgent|press/.test(full)) &&
-      /lavabo|evier|évier|fuit|eau|dlo/.test(full))
-  ) {
-    urgencyMode = 'URGENCE_PLOMBERIE';
-  }
-
-  const activeHypos = sim.hypotheses.filter((h) => h.active);
-
-  const domainToLot: Record<string, string> = {
-    plumbing_sink: 'PLUMBING',
-    carpentry_door: 'CARPENTRY',
-    roof_envelope: 'ROOF',
-    electricity: 'ELECTRICITY',
-    generic: params.state.category ?? 'GENERIC',
-  };
-
-  const dialogueLanguage = sim.language;
-  const tenantLangRaw = dialogueLanguage;
+  const safetyOverride =
+    living.safetyLock.severityZone === 'ZENITH_DANGER'
+      ? {
+          forceKind: 'living_zenith_danger',
+          priority: 'CRITICAL',
+          shieldStatus: living.safetyLock.safetyVerified
+            ? 'DELIVRÉ — safetyVerified'
+            : 'VERROU ACTIF — Majordome bloqué sur sécurité',
+          shieldDelivered:
+            living.safetyLock.safetyVerified || living.safetyLock.consigneGiven,
+          surgicalProbe: null,
+          ticketSummary: living.intervention.technicianSummary,
+          investigationPhase: living.readiness,
+        }
+      : null;
 
   const scene3D = {
-    climate: sim.scene.climate,
-    floorLevel: sim.scene.floorLevel,
-    room: sim.scene.room,
-    above: sim.scene.above,
-    below: sim.scene.below,
-    element: sim.scene.element,
-    symptomAnchor: sim.scene.symptomAnchor,
+    climate: living.vision3d.climate,
+    floorLevel: living.vision3d.floorLevel,
+    room: living.vision3d.rooms.join(', ') || null,
+    above: living.vision3d.above,
+    below: living.vision3d.below,
+    element: living.vision3d.element,
+    symptomAnchor: living.vision3d.symptomAnchor,
   };
 
+  const agentLabels: Record<string, string> = {
+    enqueteur: 'Enquêteur (8B AFPOL)',
+    archiviste: 'Archiviste (8B juriste)',
+  };
+
+  const savoirSources: LiaLabSavoirSourceRow[] = (living.savoirConsulted ?? []).map(
+    (c) => ({
+      agent: c.agent,
+      agentLabel: agentLabels[c.agent] ?? c.agent,
+      corpus: c.corpus,
+      ref: c.ref,
+      title: c.title,
+      url: c.url,
+      label: c.label,
+      relevance: c.relevance,
+      hypothesisLabel: c.hypothesisLabel,
+    }),
+  );
+
+  const consciousnessConsole: LiaLabFactRow[] = [
+    {
+      label: 'Profil vulnérable',
+      value: living.tenantProfile?.isVulnerable
+        ? `OUI — ${living.tenantProfile.reason}`
+        : 'Non',
+    },
+    {
+      label: 'Override protection sociale',
+      value: living.consciousness?.socialProtectionOverride ? 'ACTIF' : '—',
+    },
+    {
+      label: 'Doute constructif (interne)',
+      value: living.consciousness?.constructiveDoubt
+        ? living.consciousness.competingModels.join(' · ') || 'oui'
+        : '—',
+    },
+    {
+      label: 'Note délibération interne',
+      value: living.consciousness?.internalNote ?? '—',
+    },
+    {
+      label: 'Handoff expert (fail-safe)',
+      value: living.consciousness?.expertHandoffRequired
+        ? `OUI — ${living.consciousness.expertHandoffReason ?? 'impasse'}`
+        : 'Non',
+    },
+  ];
+
+  const livingStateConsole: LiaLabFactRow[] = [
+    { label: 'Moteur', value: `LIVING_BUILDING_STATE v${living.version} — Intelligence Symétrique` },
+    { label: 'Readiness', value: living.readiness },
+    {
+      label: 'Barrière humaine',
+      value: `${living.humanBarrier.displayName} · ${living.humanBarrier.ageBand} · ${living.humanBarrier.preferredLanguage}`,
+    },
+    { label: 'Safety verified', value: living.safetyLock.safetyVerified ? 'oui' : 'non' },
+    { label: 'Zone sévérité', value: living.safetyLock.severityZone },
+    {
+      label: 'Tri flux (Archiviste)',
+      value: tripleFluxToDisplayLabel(living.legalVerdict.chargeHorizon),
+    },
+    {
+      label: 'Conseil charge Marie',
+      value: living.legalVerdict.tenantChargeExplanation ?? '—',
+    },
+    { label: 'Métier', value: living.intervention.tradeNeeded ?? '—' },
+    {
+      label: 'Pièces technicien',
+      value: living.intervention.partsToBring.join(' · ') || '—',
+    },
+    {
+      label: 'Verdict légal',
+      value:
+        living.legalVerdict.summary ??
+        (living.legalVerdict.articles.map((a) => a.label).join(' · ') || '—'),
+    },
+    { label: 'Tour délibération', value: String(living.deliberationRound) },
+    {
+      label: 'Dossier scellé',
+      value: living.dossierIntegrity?.sealed
+        ? `OUI — ${living.dossierIntegrity.primaryTrade ?? 'métier'} · ${living.dossierIntegrity.sealedAt ?? ''}`
+        : 'Non (intake ouvert)',
+    },
+  ];
+
+  const defaultAgents: LivingTeamAgentCard[] = [
+    {
+      role: ENQUETEUR_ROLE.id,
+      label: ENQUETEUR_ROLE.label,
+      mission: ENQUETEUR_ROLE.mission,
+      lastInsight: '—',
+    },
+    {
+      role: ARCHIVISTE_ROLE.id,
+      label: ARCHIVISTE_ROLE.label,
+      mission: ARCHIVISTE_ROLE.mission,
+      lastInsight: '—',
+    },
+    {
+      role: MAJORDOME_ROLE.id,
+      label: MAJORDOME_ROLE.label,
+      mission: MAJORDOME_ROLE.mission,
+      lastInsight: '—',
+    },
+  ];
+  const teamAgents =
+    living.teamSymbiosis?.agents?.length > 0
+      ? living.teamSymbiosis.agents
+      : defaultAgents;
+
+  const sym = living.symmetricDeliberation;
+  const symmetricConsole: LiaLabFactRow[] = [
+    { label: 'Niveau', value: sym ? `Symétrique ${sym.level}` : '—' },
+    { label: 'Visage Lia', value: sym?.interlocutorFace ?? 'locataire' },
+    {
+      label: 'Contradiction symétrique',
+      value: sym?.contradictionActive
+        ? sym.contradictionNote ?? 'active'
+        : 'Non',
+    },
+    { label: 'Métier (instruments)', value: sym?.instrumentsBoard.tradeNeeded ?? '—' },
+    { label: 'Charge (instruments)', value: sym?.instrumentsBoard.chargeHorizon ?? '—' },
+    { label: 'Doctrine', value: sym?.doctrineVersion ?? '—' },
+  ];
+
   return {
-    mentalModels: sim.mentalModels,
-    activeFlows: sim.activeFlows,
-    activeFlowLabels: sim.activeFlows.map((f) => FLOW_LABELS_FR[f] ?? f),
-    detectedLot: domainToLot[sim.domain] ?? params.state.category ?? 'GENERIC',
-    urgencyMode,
-    language: dialogueLanguage,
-    dialogueLanguageLabel: labelDialogueLanguageFr(dialogueLanguage),
+    mentalModels: living.vision3d.mentalModels,
+    activeFlows: living.vision3d.activeFlows,
+    activeFlowLabels: living.vision3d.activeFlows,
+    detectedLot: 'LIVING_INTELLIGENCE',
+    urgencyMode:
+      living.safetyLock.severityZone === 'ZENITH_DANGER'
+        ? 'URGENCE_INCENDIE_ELECTRIQUE'
+        : null,
+    safetyOverride,
+    language: living.language,
+    dialogueLanguageLabel: labelDialogueLanguageFr(living.language),
     consoleLanguage: 'fr',
     jarvisFacts: params.state.jarvisFacts ?? {},
-    jarvisFactsConsole: buildJarvisFactsConsole(params.state.jarvisFacts),
-    tenantLanguage: tenantLangRaw,
-    tenantLanguageLabel: labelDialogueLanguageFr(tenantLangRaw),
-    visualizationNote: sim.visualizationSummary,
-    kbPanneId: params.state.organizer?.panneId ?? null,
+    jarvisFactsConsole: livingStateConsole,
+    tenantLanguage: living.language,
+    tenantLanguageLabel: labelDialogueLanguageFr(living.language),
+    visualizationNote:
+      living.intervention.technicianSummary ?? living.vision3d.symptomAnchor,
+    kbPanneId: null,
     kbPanneLabel: null,
-    kbCausesActive: activeHypos.map((h) => h.label),
-    kbCausesEliminated: sim.hypotheses
+    kbCausesActive: living.vision3d.hypotheses.filter((h) => h.active).map((h) => h.label),
+    kbCausesEliminated: living.vision3d.hypotheses
       .filter((h) => !h.active)
       .map((h) => h.label),
     afpolRefs: [
-      ...(params.state.jarvisFacts?.team_consulted_refs
-        ? params.state.jarvisFacts.team_consulted_refs.split(', ')
-        : [
-            'MISSION_JARVIS — simulation physique',
-            'VISUAL_LOGIC.md',
-            'Brief équipe — Archiviste + Diagnostiqueur avant Groq',
-          ]),
-      ...(params.state.organizer?.panneId
-        ? [`Référentiel validation : ${params.state.organizer.panneId}`]
+      'LIVING_BUILDING_STATE v6 — Intelligence Symétrique',
+      'Majordome pilote 70B · Enquêteur 8B · Archiviste 8B — Instruments de Bord',
+      ...(savoirSources.length
+        ? [`Savoir consulté : ${savoirSources.length} source(s)`]
         : []),
     ],
     intakePhase: params.state.phase,
     intakePhaseLabel: PHASE_LABELS_FR[params.state.phase] ?? params.state.phase,
-    handoffRecommended: params.state.answers.jarvis_handoff === 'oui',
-    simulationDomain: sim.domain,
-    simulationDomainLabel: DOMAIN_LABELS_FR[sim.domain] ?? sim.domain,
+    handoffRecommended: living.readiness === 'READY_FOR_TECHNICIAN',
+    simulationDomain: null,
+    simulationDomainLabel: 'Intelligence Symétrique — Niveau 6',
     scene3D,
     scene3DRows: buildScene3DRows(scene3D),
-    physicalHypotheses: activeHypos.map((h) => h.visualization),
-    councilEchoes: [...(parseCouncilRound(params.state.jarvisFacts?.council_last)?.echoes ?? [])]
-      .sort((a, b) => {
-        if (a.agent === 'juriste' && b.agent !== 'juriste') return -1;
-        if (b.agent === 'juriste' && a.agent !== 'juriste') return 1;
-        return 0;
-      })
-      .map((e) => ({
-        agent: councilAgentLabelFr(e.agent, e.insight),
-        heard: e.heard,
-        insight: e.insight.replace(/^\[(Archiviste|Diagnostiqueur)\]\s*/, ''),
-      })),
+    physicalHypotheses: living.vision3d.hypotheses
+      .filter((h) => h.active)
+      .map((h) => h.visualization),
+    councilEchoes: living.deliberationEchoes.map((e) => ({
+      agent:
+        e.agent === 'majordome'
+          ? 'Majordome (70B)'
+          : e.agent === 'enqueteur'
+            ? 'Enquêteur (8B AFPOL)'
+            : 'Archiviste (8B juriste)',
+      heard: e.model,
+      insight: e.insight,
+    })),
     housingPerspective: params.state.jarvisFacts?.housing_visual ?? null,
+    livingBuildingState: living,
+    livingStateConsole,
+    savoirSources,
+    consciousnessConsole,
+    teamSymbiosis: {
+      charter: living.teamSymbiosis?.charter ?? '',
+      agents: teamAgents,
+      dossierSealed: living.dossierIntegrity?.sealed === true,
+      primaryTrade: living.dossierIntegrity?.primaryTrade ?? null,
+    },
+    symmetricConsole,
+    instrumentsPilotBrief: sym?.instrumentsBoard.pilotBrief ?? null,
+  };
+}
+
+function emptyLivingFallback(params: {
+  state: LiaIntakeState;
+  title: string;
+  description: string;
+}): LivingBuildingState {
+  const lang = (params.state.preferredLanguage === 'gcf' ? 'gcf' : 'fr') as CompanionLanguage;
+  return {
+    schema: 'LIVING_BUILDING_STATE',
+    version: 6,
+    updatedAt: new Date().toISOString(),
+    language: lang,
+    readiness: 'OPENING',
+    signalementTitle: params.title,
+    signalementDescription: params.description,
+    tenantProfile: { isVulnerable: false, reason: 'Profil standard' },
+    consciousness: {
+      socialProtectionOverride: false,
+      socialProtectionNote: null,
+      constructiveDoubt: false,
+      competingModels: [],
+      internalNote: null,
+      expertHandoffRequired: false,
+      expertHandoffReason: null,
+    },
+    vision3d: {
+      floorLevel: null,
+      rooms: [],
+      element: null,
+      symptomAnchor: null,
+      above: null,
+      below: null,
+      climate: 'tropical_humid',
+      activeFlows: [],
+      mentalModels: [],
+      hypotheses: [],
+    },
+    humanBarrier: {
+      displayName: 'Marie',
+      ageBand: 'senior',
+      livesAlone: true,
+      preferredLanguage: lang,
+      creolePreferred: lang === 'gcf',
+      vulnerabilityNotes: null,
+      relationalTone: null,
+      extractedFacts: {},
+    },
+    safetyLock: {
+      severityZone: 'DAWN',
+      hazardType: 'none',
+      requiresPowerCutoff: false,
+      requiresWaterShutoff: false,
+      safetyVerified: false,
+      consigneGiven: false,
+      verifiedAt: null,
+    },
+    legalVerdict: {
+      chargeHorizon: 'INDETERMINE',
+      articles: [],
+      facts: [],
+      summary: null,
+      tenantChargeExplanation: null,
+      afpolGrounding: null,
+    },
+    intervention: {
+      tradeNeeded: null,
+      partsToBring: [],
+      toolsRequired: [],
+      urgencyLabel: 'STANDARD',
+      technicianSummary: null,
+      readyForDispatch: false,
+    },
+    deliberationRound: 0,
+    deliberationEchoes: [],
+    savoirConsulted: [],
+    dossierIntegrity: {
+      sealed: false,
+      sealedAt: null,
+      primaryTrade: null,
+      signalementScope: null,
+      oneTicketOneTrade: true,
+    },
+    teamSymbiosis: {
+      charter: '',
+      agents: [],
+      updatedAt: new Date().toISOString(),
+    },
+    symmetricDeliberation: {
+      level: 6,
+      interlocutorFace: 'locataire',
+      instrumentsBoard: {
+        updatedAt: new Date().toISOString(),
+        enqueteurInsight: null,
+        archivisteInsight: null,
+        majordomeFactsInsight: null,
+        activeFlows: [],
+        mentalModels: [],
+        chargeHorizon: 'INDETERMINE',
+        tradeNeeded: null,
+        socialProtection: null,
+        constructiveDoubt: null,
+        savoirCount: 0,
+        pilotBrief: '—',
+      },
+      expertReports: { enqueteur: null, archiviste: null, majordomeFacts: null },
+      contradictionActive: false,
+      contradictionNote: null,
+      doctrineVersion: 'symmetric-6',
+    },
+    lastTenantMessage: null,
+    reasoningSource: 'living_intelligence',
   };
 }

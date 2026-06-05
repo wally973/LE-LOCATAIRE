@@ -7,8 +7,10 @@ import {
 import { randomUUID } from 'crypto';
 import { LiaJarvisPilotService } from '../agents/orchestrateur/intake/lia-jarvis-pilot.service';
 import type { LiaIntakeState } from '../agents/orchestrateur/intake/lia-intake.service';
-import { loadJarvisJuridiqueTrainingScenarios } from '../agents/orchestrateur/intake/lia-jarvis-training-scenarios.loader';
+import { buildLabTenantSocialContext } from '../agents/shared/lia-tenant-social-context';
 import { buildLabVisualization, type LiaLabVisualization } from './lia-lab-visualization';
+import { isLivingIntelligenceEnabled } from '../agents/orchestrateur/living-intelligence/living-intelligence.config';
+import { readLivingStateFromIntake } from '../agents/orchestrateur/living-intelligence/living-building-state.repository';
 
 export interface LabChatMessage {
   role: 'tenant' | 'lia';
@@ -25,6 +27,10 @@ export interface LabSessionView {
   messages: LabChatMessage[];
   visualization: LiaLabVisualization;
   intake: LiaIntakeState;
+  bridgeStatus: {
+    livingIntelligenceEnabled: boolean;
+    reasoningSource: string | null;
+  };
 }
 
 interface LabSession {
@@ -33,6 +39,10 @@ interface LabSession {
   description: string;
   tenantFirstName: string;
   residenceUnitNumber?: string;
+  tenantAgeBand?: string;
+  interlocutorRole?: string;
+  lastClosedTicketSummary?: string;
+  lastClosedTicketTitle?: string;
   state: LiaIntakeState;
   messages: LabChatMessage[];
 }
@@ -44,7 +54,7 @@ export class LiaLabService {
 
   constructor(private readonly jarvis: LiaJarvisPilotService) {}
 
-  /** Presets entraînement juridique — même source que les tests Jarvis. */
+  /** Presets Lia-Lab — cas métier courants. */
   listJuridiquePresets(): {
     id: string;
     label: string;
@@ -55,16 +65,51 @@ export class LiaLabService {
     perimetre: string;
     tenantTurnHint: string | null;
   }[] {
-    return loadJarvisJuridiqueTrainingScenarios().map((s) => ({
-      id: s.id,
-      label: s.theme,
-      title: s.title,
-      description: s.description,
-      housingUnit: s.housingUnit,
-      legalThemeId: s.legalThemeId,
-      perimetre: s.perimetre,
-      tenantTurnHint: s.tenantTurn?.message?.trim() ?? null,
-    }));
+    return [
+      {
+        id: 'electrical_outlet_crackle',
+        label: 'Prise qui grésille (arc électrique)',
+        title: 'Prise électrique dangereuse',
+        description:
+          'Une prise du salon est arrachée du mur, les fils sont visibles et ça grésille quand je m’approche.',
+        housingUnit: 'R+2 — Apt 204',
+        legalThemeId: 'electricite_securite',
+        perimetre: 'Charge bailleur — urgence sécurité',
+        tenantTurnHint: "J'ai coupé le disjoncteur",
+      },
+      {
+        id: 'humidity_mould_envelope',
+        label: 'Moisissures (enveloppe / étanchéité)',
+        title: 'Moisissures au plafond',
+        description:
+          'Taches noires et moisissures au plafond du salon, près de la fenêtre. Ça s’aggrave quand il pleut.',
+        housingUnit: 'R+4 — Apt 402',
+        legalThemeId: 'humidite_enveloppe',
+        perimetre: 'Enveloppe — charge bailleur probable',
+        tenantTurnHint: 'Oui ça apparaît surtout quand il pleut',
+      },
+      {
+        id: 'flooring_tiles_lifted',
+        label: 'Carrelage qui se soulève (chambre)',
+        title: 'Carrelage',
+        description:
+          'Les carreaux de la chambre de mon fils se sont levés d’un coup. Un carreau est cassé, rien d’autre d’anormal.',
+        housingUnit: 'R+3 — Apt 12',
+        legalThemeId: 'sols_carrelage',
+        perimetre: 'Sols durs — patrimoine / vétusté probable',
+        tenantTurnHint: 'Non rien, simplement que c’est levé et il y en a un cassé',
+      },
+      {
+        id: 'plumbing_sink',
+        label: 'Fuite sous évier',
+        title: 'Fuite d’eau',
+        description: 'Il y a une fuite sous l’évier de la cuisine depuis ce matin.',
+        housingUnit: 'R+1 — Apt 12',
+        legalThemeId: 'plomberie',
+        perimetre: 'Amont / aval',
+        tenantTurnHint: null,
+      },
+    ];
   }
 
   createSession(params: {
@@ -73,6 +118,10 @@ export class LiaLabService {
     tenantFirstName?: string;
     language?: string;
     residenceUnitNumber?: string;
+    tenantAgeBand?: string;
+    interlocutorRole?: string;
+    lastClosedTicketSummary?: string;
+    lastClosedTicketTitle?: string;
   }): LabSessionView {
     const id = randomUUID();
     const state = this.jarvis.bootstrapState(
@@ -87,20 +136,42 @@ export class LiaLabService {
       description: params.description,
       tenantFirstName: params.tenantFirstName?.trim() || 'Marie',
       residenceUnitNumber: params.residenceUnitNumber?.trim(),
-      state,
+      tenantAgeBand: params.tenantAgeBand,
+      interlocutorRole: params.interlocutorRole,
+      lastClosedTicketSummary: params.lastClosedTicketSummary?.trim(),
+      lastClosedTicketTitle: params.lastClosedTicketTitle?.trim(),
+      state: {
+        ...state,
+        jarvisFacts: {
+          ...(state.jarvisFacts ?? {}),
+          ...(params.tenantAgeBand ? { tenant_age_band: params.tenantAgeBand } : {}),
+          ...(params.interlocutorRole
+            ? { tenant_interlocutor_role: params.interlocutorRole }
+            : {}),
+          ...(params.lastClosedTicketSummary
+            ? { tenant_last_closed_summary: params.lastClosedTicketSummary.trim() }
+            : {}),
+          ...(params.lastClosedTicketTitle
+            ? { tenant_last_closed_title: params.lastClosedTicketTitle.trim() }
+            : {}),
+        },
+      },
       messages: [],
     };
     this.sessions.set(id, session);
     return this.toView(session);
   }
 
-  /** Crée la session et lance l’ouverture Jarvis en un seul appel (Lia-Lab). */
   async startSession(params: {
     title: string;
     description: string;
     tenantFirstName?: string;
     language?: string;
     residenceUnitNumber?: string;
+    tenantAgeBand?: string;
+    interlocutorRole?: string;
+    lastClosedTicketSummary?: string;
+    lastClosedTicketTitle?: string;
   }): Promise<LabSessionView> {
     const view = this.createSession(params);
     return this.runOpening(view.sessionId);
@@ -114,17 +185,22 @@ export class LiaLabService {
       description: session.description,
       tenantFirstName: session.tenantFirstName,
       residenceUnitNumber: session.residenceUnitNumber,
+      tenantSocial: buildLabTenantSocialContext({
+        tenantFirstName: session.tenantFirstName,
+        ageBand: session.tenantAgeBand as 'senior' | 'adult' | 'young' | 'unknown' | undefined,
+        interlocutorRole: session.interlocutorRole as 'tenant' | 'staff_tester' | undefined,
+        lastClosedTicketSummary: session.lastClosedTicketSummary,
+        lastClosedTicketTitle: session.lastClosedTicketTitle,
+        currentTitle: session.title,
+      }),
     });
     session.state = turn.state;
-    const parts = [turn.acknowledgment, turn.nextQuestion].filter(Boolean) as string[];
-    for (const text of parts) {
-      session.messages.push({
-        role: 'lia',
-        text,
-        at: new Date().toISOString(),
-        uiStatusLabel: turn.uiStatus?.label,
-      });
-    }
+    session.messages.push({
+      role: 'lia',
+      text: turn.acknowledgment,
+      at: new Date().toISOString(),
+      uiStatusLabel: turn.uiStatus?.label,
+    });
     return this.toView(session);
   }
 
@@ -149,20 +225,22 @@ export class LiaLabService {
       description: session.description,
       tenantFirstName: session.tenantFirstName,
       residenceUnitNumber: session.residenceUnitNumber,
+      tenantSocial: buildLabTenantSocialContext({
+        tenantFirstName: session.tenantFirstName,
+        ageBand: session.tenantAgeBand as 'senior' | 'adult' | 'young' | 'unknown' | undefined,
+        interlocutorRole: session.interlocutorRole as 'tenant' | 'staff_tester' | undefined,
+        lastClosedTicketSummary: session.lastClosedTicketSummary,
+        lastClosedTicketTitle: session.lastClosedTicketTitle,
+        currentTitle: session.title,
+      }),
     });
     session.state = turn.state;
-
-    const liaParts = [turn.acknowledgment, turn.nextQuestion].filter(
-      Boolean,
-    ) as string[];
-    for (const liaText of liaParts) {
-      session.messages.push({
-        role: 'lia',
-        text: liaText,
-        at: new Date().toISOString(),
-        uiStatusLabel: turn.uiStatus?.label,
-      });
-    }
+    session.messages.push({
+      role: 'lia',
+      text: turn.acknowledgment,
+      at: new Date().toISOString(),
+      uiStatusLabel: turn.uiStatus?.label,
+    });
 
     return this.toView(session);
   }
@@ -267,6 +345,10 @@ export class LiaLabService {
     return { audioBase64, mimeType: 'audio/mpeg' };
   }
 
+  discardSession(sessionId: string): void {
+    this.sessions.delete(sessionId);
+  }
+
   getVisualization(sessionId: string): LiaLabVisualization {
     const session = this.getSession(sessionId);
     return buildLabVisualization({
@@ -276,6 +358,24 @@ export class LiaLabService {
       lastMessage: session.messages.filter((m) => m.role === 'tenant').at(-1)
         ?.text,
     });
+  }
+
+  /** Aperçu délibération — modèles Groq des 3 agents. */
+  getDeliberationPreview(sessionId: string) {
+    const session = this.getSession(sessionId);
+    const living = readLivingStateFromIntake(session.state.jarvisFacts);
+    return {
+      sessionId: session.id,
+      generatedAt: new Date().toISOString(),
+      livingIntelligenceEnabled: isLivingIntelligenceEnabled(),
+      models: {
+        majordome: process.env.GROQ_MAJORDOME_MODEL ?? 'llama-3.3-70b-versatile',
+        enqueteur: process.env.GROQ_ENQUETEUR_MODEL ?? 'llama-3.1-8b-instant',
+        archiviste: process.env.GROQ_ARCHIVISTE_MODEL ?? 'llama-3.1-8b-instant',
+      },
+      livingState: living,
+      deliberationEchoes: living?.deliberationEchoes ?? [],
+    };
   }
 
   private getSession(id: string): LabSession {
@@ -300,6 +400,14 @@ export class LiaLabService {
         description: session.description,
         lastMessage: lastTenant,
       }),
+      bridgeStatus: {
+        livingIntelligenceEnabled: isLivingIntelligenceEnabled(),
+        reasoningSource:
+          session.state.jarvisFacts?.reasoning_source ??
+          (readLivingStateFromIntake(session.state.jarvisFacts)
+            ? 'living_intelligence'
+            : null),
+      },
     };
   }
 }

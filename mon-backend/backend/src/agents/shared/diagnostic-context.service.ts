@@ -12,6 +12,8 @@ import {
 } from './lia-diagnostic-state.types';
 import { parseIntakeState, type LiaIntakeState } from '../orchestrateur/intake/lia-intake.service';
 import type { SavoirVoirPhase } from './savoir-voir.types';
+import type { LiaTenantSocialContext } from './lia-jarvis-identity';
+import { loadTenantSocialContext } from './lia-tenant-social-context';
 
 /** Contexte diagnostic unifié — capteurs + cas locataire (tous les agents IA). */
 export interface TicketDiagnosticContext {
@@ -25,6 +27,8 @@ export interface TicketDiagnosticContext {
   intake: LiaIntakeState | null;
   savoirVoirPhase: SavoirVoirPhase;
   tenantSupplement: string;
+  /** Profil social locataire — miroir relationnel pour Groq / agents. */
+  tenantSocial: LiaTenantSocialContext | null;
 }
 
 function resolveSavoirVoirPhase(
@@ -55,17 +59,24 @@ export class DiagnosticContextService {
         title: true,
         description: true,
         aiLastDecision: true,
+        tenantId: true,
       },
     });
     if (!ticket) {
       throw new NotFoundException('Ticket introuvable');
     }
+    const tenantSocial = await loadTenantSocialContext(this.prisma, {
+      tenantId: ticket.tenantId,
+      excludeTicketId: ticket.id,
+      currentTitle: ticket.title,
+    });
     return this.fromParts({
       ticketId: ticket.id,
       title: ticket.title,
       description: ticket.description,
       aiLastDecision: ticket.aiLastDecision,
       tenantFeedback: opts?.tenantFeedback,
+      tenantSocial,
     });
   }
 
@@ -76,6 +87,7 @@ export class DiagnosticContextService {
     description: string;
     aiLastDecision: unknown;
     tenantFeedback?: string;
+    tenantSocial?: LiaTenantSocialContext | null;
   }): TicketDiagnosticContext {
     const intake = parseIntakeState(params.aiLastDecision);
     const diagnostic = parseDiagnosticState(params.aiLastDecision);
@@ -121,6 +133,7 @@ export class DiagnosticContextService {
       intake,
       savoirVoirPhase,
       tenantSupplement,
+      tenantSocial: params.tenantSocial ?? null,
     };
   }
 }

@@ -797,7 +797,8 @@ export class AiRoutingService {
 
   private mapPipelineCategoryToIntake(category: string): IntakeCategory {
     if (category === 'ELECTRICITY') return 'ELECTRICITY';
-    if (category === 'ROOF' || category === 'HUMIDITY') return 'ROOF';
+    if (category === 'ROOF') return 'ROOF';
+    if (category === 'HUMIDITY') return 'ROOF';
     if (
       category === 'PLUMBING' ||
       category === 'WATER_DAMAGE' ||

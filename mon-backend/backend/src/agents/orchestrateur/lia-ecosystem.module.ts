@@ -19,8 +19,9 @@ import { LiaIntakeReactiveService } from './intake/lia-intake-reactive.service';
 import { LiaExpertPocketService } from './conversation/lia-expert-pocket.service';
 import { LiaJarvisPilotService } from './intake/lia-jarvis-pilot.service';
 import { LiaJarvisHandoffService } from './intake/lia-jarvis-handoff.service';
-import { LiaJarvisLlmBridgeService } from './intake/lia-jarvis-llm-bridge';
-import { LiaJarvisTeamBriefService } from './intake/lia-jarvis-team-brief.service';
+import { LivingDeliberationEngine } from './living-intelligence/living-deliberation.engine';
+import { LivingBuildingStateRepository } from './living-intelligence/living-building-state.repository';
+import { LivingReasoningService } from './living-intelligence/living-reasoning.service';
 import { LiaResearchService } from '../chercheur/research/lia-research.service';
 import { LiaHousingWarrantyService } from '../chercheur/research/lia-housing-warranty';
 import { LiaDiagnosticCapabilityService } from '../diagnostiqueur/capability/lia-diagnostic-capability.service';
@@ -28,7 +29,7 @@ import { LiaProBriefingService } from '../diagnostiqueur/briefing/lia-pro-briefi
 import { LiaExpertRectificationService } from '../diagnostiqueur/briefing/lia-expert-rectification.service';
 import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-marches.module';
 
-/** Écosystème Lia — Agent Jarvis (visualisation systémique + escalade humaine). */
+/** Écosystème Lia — Living Intelligence (LIVING_BUILDING_STATE). */
 @Module({
   imports: [
     AgentsSharedModule,
@@ -58,8 +59,9 @@ import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-march
     LiaExpertPocketService,
     LiaJarvisPilotService,
     LiaJarvisHandoffService,
-    LiaJarvisLlmBridgeService,
-    LiaJarvisTeamBriefService,
+    LivingDeliberationEngine,
+    LivingBuildingStateRepository,
+    LivingReasoningService,
     LiaOrchestratorService,
   ],
   exports: [
@@ -71,6 +73,7 @@ import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-march
     LiaSharedStateService,
     LiaCompanionService,
     LiaJarvisPilotService,
+    LivingReasoningService,
     MaintenanceMarchesModule,
   ],
 })

@@ -59,6 +59,17 @@ export class LiaLabController {
     return this.lab.getVisualization(id);
   }
 
+  @Get('sessions/:id/deliberation-preview')
+  deliberationPreview(@Param('id') id: string) {
+    return this.lab.getDeliberationPreview(id);
+  }
+
+  @Post('sessions/:id/discard')
+  discardSession(@Param('id') id: string) {
+    this.lab.discardSession(id);
+    return { ok: true };
+  }
+
   @Post('transcribe')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('audio'))

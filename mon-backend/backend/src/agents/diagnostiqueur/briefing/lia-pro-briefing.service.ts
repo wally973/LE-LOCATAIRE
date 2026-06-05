@@ -21,6 +21,7 @@ import type {
   ProBriefingResearch,
 } from './lia-pro-briefing.types';
 import { getSavoirVoirMethodBrief } from '../../chercheur/knowledge/lia-savoir-voir-method';
+import { parseLivingBuildingState } from '../../orchestrateur/living-intelligence/living-building-state.factory';
 
 const CATEGORY_LABELS: Record<string, string> = {
   PLUMBING: 'Plomberie',
@@ -91,6 +92,28 @@ export class LiaProBriefingService {
       agencyTechnicalSummary?: string;
     } | null;
 
+    const ticketJson = ticket as {
+      buildingState?: unknown;
+      livingBuildingState?: unknown;
+    };
+    const living = parseLivingBuildingState(
+      ticketJson.livingBuildingState ?? ticketJson.buildingState,
+    );
+    const technicalVerdict = living
+      ? {
+          summary:
+            living.intervention.technicianSummary ??
+            living.vision3d.symptomAnchor ??
+            `${living.signalementTitle}`,
+          leadingHypothesis:
+            living.vision3d.hypotheses.find((h) => h.active)?.label ?? '—',
+          partsToBring: living.intervention.partsToBring,
+          toolsRequired: living.intervention.toolsRequired,
+          urgencyLabel: living.intervention.urgencyLabel,
+          severity: living.safetyLock.severityZone,
+        }
+      : null;
+
     return {
       ticketId,
       caseNumber: ticket.caseNumber,
@@ -122,6 +145,7 @@ export class LiaProBriefingService {
         : null,
       fromLlm,
       savoirVoir: getSavoirVoirMethodBrief(),
+      technicalVerdict,
     };
   }
 

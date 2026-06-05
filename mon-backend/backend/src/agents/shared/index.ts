@@ -7,6 +7,17 @@ export {
   DiagnosticContextService,
   type TicketDiagnosticContext,
 } from './diagnostic-context.service';
+export {
+  LIA_JARVIS_POST_IDENTITY,
+  formatTenantSocialLandscapeBlock,
+  type LiaTenantSocialContext,
+  type LiaTenantAgeBand,
+  type LiaInterlocutorRole,
+} from './lia-jarvis-identity';
+export {
+  loadTenantSocialContext,
+  buildLabTenantSocialContext,
+} from './lia-tenant-social-context';
 export { AgentsSharedModule } from './agents-shared.module';
 export {
   resolveAiCategoryFromContext,

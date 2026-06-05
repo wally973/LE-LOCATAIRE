@@ -17,6 +17,7 @@ describe('AiInsuranceService — refoulement EU (REF_EAU_SAVONNEUSE)', () => {
     intake: null,
     savoirVoirPhase: 'HYPOTHESES',
     tenantSupplement: '',
+    tenantSocial: null,
   };
 
   function serviceWithContext(ctx: TicketDiagnosticContext) {

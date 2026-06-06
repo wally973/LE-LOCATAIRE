@@ -1,44 +1,40 @@
 ---
-description: Contexte global LE LOCATAIRE — lire NOTE + MANIFESTE avant toute action significative
+description: Contexte global LE LOCATAIRE — Constitution N7 Jarvis
 alwaysApply: true
 ---
 
-# LE LOCATAIRE — règle globale
+# LE LOCATAIRE — règle globale (Jarvis V2 · Niveau 7)
 
-Avant toute modification significative, **lire** (ou se remémorer) :
-- `NOTE.md` — état du projet, décisions Q1–Q46, priorités V1
-- `MANIFESTE_FINAL.md` — architecture IA, Goals/SharedState, rectification expert
+## Loi Suprême
+
+Interdiction de coder des scripts JSON linéaires ou des arbres de décision pour le dialogue Jarvis.
+Tout raisonnement doit être issu de la simulation physique (flux, altimétrie, analogies) et de la délibération des agents.
+L'humain est une donnée physique de contrainte.
+
+Avant toute modification significative, **lire** :
+- `DOCS/MASTER_PRD.md` — Constitution Système de Conscience Patrimoniale
+- `DOCS/ROADMAP_PROGRESS.md` — suivi de chantier N7
+- `NOTE.md` — décisions projet
+- `MANIFESTE_FINAL.md` — architecture IA
 
 ## Stack de production
 
 - **Mobile locataire** : `mobile/flutter/`
 - **Backend** : `mon-backend/backend/` (NestJS + Prisma) — **seule source de vérité Lia**
+- **Living Intelligence** : `src/agents/orchestrateur/living-intelligence/`
 - **Référent** : `admin-dashboard/`
+- **Doctrine (Stylo)** : `knowledge/doctrine/`
 - Ne pas confondre avec `admin-dashboard-old/` ni `mon-backend/dashboard/` (prototypes)
 
-## Savoir-Voir (fin du bricolage)
+## Système de Conscience Patrimoniale
 
 | Pilier | Rôle |
 |--------|------|
-| **Savoir** | Textes, fiches, catalogue pannes, règles déterministes, matrice installations |
-| **Voir** | Description locataire + intake + photo → signes cliniques, hypothèses différentielles |
-| **Conclure** | Pathologiste + juriste **après** recherche — pas de verdict « de tête » |
-
-La **description** saisie sur mobile est la source primaire : tout le pipeline la relit (`title` + `description` + fil messages).
-
-## Les trois « tiroirs » (mapping réel)
-
-| Tiroir | Emplacement |
-|--------|-------------|
-| **Intelligence** | `mon-backend/backend/src/lia/` + `src/ai-routing/agents/` |
-| **Savoir** | `knowledge/`, `data/legal-references.json`, `data/panne-diagnostic-logique.json`, `data/installations-charges-vetuste.json`, `data/reclamations-locataires.json` |
-| **Mémoire** | AiMemory, tickets passés, seeds (`scripts/seed-ai-memory.ts`, `seed-legal-references.ts`) |
-
-## Séquence IA obligatoire (V1)
-
-**Organisateur (intake)** → **Auto-recherche interne** → **Diagnostic (pathologiste + juriste)**.
-
-Ne pas conclure un verdict juridique sans contexte intake + recherche quand le métier l’exige.
+| **Savoir** | AFPOL, AQC, lois — bibliothèque brute sans brief pré-mâché |
+| **Voir** | 3 phrases locataire + délibération 3 agents |
+| **Conclure** | LIVING_BUILDING_STATE — 10 variables maîtresses |
+| **Gardien** | Verrou sécurité — seule loi dure |
+| **NuclearFlush** | Armoire vidée à chaque session/tour — zéro fantôme V1 |
 
 ## Conventions de travail
 

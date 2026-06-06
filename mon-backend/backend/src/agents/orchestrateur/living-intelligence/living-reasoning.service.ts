@@ -19,6 +19,11 @@ import {
   detectDossierTopicBreach,
   sealDossierIntegrity,
 } from './living-dossier-integrity';
+import { isConfirmedTopicChange } from '../intake/lia-jarvis-intake.engine';
+import {
+  nuclearFlushJarvisFacts,
+  nuclearFlushLivingState,
+} from './living-tabula-rasa';
 import { dossierTransmisStatus } from '../conversation/lia-message-ui-status';
 
 @Injectable()
@@ -98,6 +103,35 @@ export class LivingReasoningService {
         };
       }
     }
+
+    const topicChangedDuringIntake =
+      params.mode === 'tenant_turn' &&
+      params.message.trim() &&
+      isConfirmedTopicChange(
+        params.message,
+        params.title,
+        params.description,
+        params.state.category ?? null,
+      );
+
+    if (topicChangedDuringIntake) {
+      living = createLivingBuildingState({
+        title: params.title,
+        description: params.description,
+        language: lang,
+        tenantFirstName: params.tenantFirstName ?? living.humanBarrier.displayName,
+        ageBand: social?.ageBand ?? living.humanBarrier.ageBand,
+        livesAlone: living.humanBarrier.livesAlone,
+        creolePreferred: living.humanBarrier.creolePreferred,
+      });
+    } else {
+      living = nuclearFlushLivingState(living);
+    }
+
+    params.state = {
+      ...params.state,
+      jarvisFacts: nuclearFlushJarvisFacts(params.state.jarvisFacts),
+    };
 
     const result = await this.deliberation.deliberate({
       state: living,

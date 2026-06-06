@@ -3,16 +3,9 @@
  */
 import { detectMultipleClaims } from '../../chercheur/knowledge/lia-multi-claim';
 import {
-  applyElectricityExtractionToState,
-} from './lia-intake-electricity-extract';
-import {
   extractCarpentryIntakeFromText,
   isCarpentryDoorIssueSaturated,
-  isCarpentryDoorIssueText,
 } from './lia-intake-carpentry-extract';
-import {
-  extractPlumbingIntakeFromText,
-} from './lia-intake-plumbing-extract';
 import type { IntakeCategory, LiaIntakeState } from './lia-intake.service';
 import { resolveLanguageForIntake } from '../../shared/lia-dialogue-languages';
 
@@ -89,8 +82,8 @@ export function isConfirmedTopicChange(
   return msgClaims[0].category !== ticketCat;
 }
 
-/** Extraction 360° — faits pour LIVING_BUILDING_STATE, jamais de question scriptée. */
-export function applyJarvis360ToState(
+/** Tabula Rasa — langue uniquement, sans extraction métier imposée. */
+export function applyJarvisLanguageToState(
   state: LiaIntakeState,
   title: string,
   description: string,
@@ -112,51 +105,28 @@ export function applyJarvis360ToState(
         state.intakeTitle,
         state.intakeDescription,
       );
-  let next: LiaIntakeState = {
+  return {
     ...state,
     intakeMode: 'jarvis',
     preferredLanguage: lang,
     jarvisFacts: { ...(state.jarvisFacts ?? {}) },
   };
+}
 
-  if (state.category === 'ELECTRICITY') {
-    next = applyElectricityExtractionToState(next, title, description, message);
-  }
-
-  if (state.category === 'PLUMBING') {
-    const pl = extractPlumbingIntakeFromText(title, description, message);
-    next = {
-      ...next,
-      answers: { ...next.answers, ...pl.answers },
-      skippedQuestionIds: [
-        ...new Set([...(next.skippedQuestionIds ?? []), ...pl.skippedQuestionIds]),
-      ],
-      jarvisFacts: { ...next.jarvisFacts, ...pl.jarvisFacts },
-      signals: pl.roomHint ? { ...next.signals, roomHint: pl.roomHint } : next.signals,
-    };
-  }
-
-  const carpCtx = `${title} ${description} ${message}`;
-  if (isCarpentryDoorIssueText(carpCtx)) {
-    const carp = extractCarpentryIntakeFromText(title, description, message);
-    next = {
-      ...next,
-      answers: { ...next.answers, ...carp.answers },
-      skippedQuestionIds: [
-        ...new Set([...(next.skippedQuestionIds ?? []), ...carp.skippedQuestionIds]),
-      ],
-      jarvisFacts: { ...next.jarvisFacts, ...carp.jarvisFacts },
-      signals: carp.roomHint ? { ...next.signals, roomHint: carp.roomHint } : next.signals,
-    };
-  }
-
-  return next;
+/** @deprecated Tabula Rasa — alias langue uniquement. */
+export function applyJarvis360ToState(
+  state: LiaIntakeState,
+  title: string,
+  description: string,
+  message = '',
+): LiaIntakeState {
+  return applyJarvisLanguageToState(state, title, description, message);
 }
 
 /** @deprecated Living Intelligence — plus de questions scriptées. */
 export function pickJarvisCriticalQuestion(
   _state: LiaIntakeState,
-): { id: string; text: string; causeId: string } | null {
+): null {
   return null;
 }
 
@@ -237,11 +207,11 @@ export function detectedTopicLabelForConfirmation(
   return other?.label ?? claims[0]?.label ?? null;
 }
 
-/** Bootstrap — extraction 360° uniquement (plus d’organisateur KB linéaire). */
+/** Bootstrap — langue uniquement (Tabula Rasa). */
 export function ensureJarvisOrganizer(
   state: LiaIntakeState,
   title: string,
   description: string,
 ): LiaIntakeState {
-  return applyJarvis360ToState(state, title, description);
+  return applyJarvisLanguageToState(state, title, description);
 }

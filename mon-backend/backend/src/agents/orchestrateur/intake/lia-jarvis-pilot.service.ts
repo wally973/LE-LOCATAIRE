@@ -10,8 +10,7 @@ import {
   type LiaIntakeState,
 } from './lia-intake.service';
 import {
-  applyJarvis360ToState,
-  ensureJarvisOrganizer,
+  applyJarvisLanguageToState,
 } from './lia-jarvis-intake.engine';
 import { LiaJarvisHandoffService } from './lia-jarvis-handoff.service';
 import { inferHousingPerspective } from './lia-housing-perspective';
@@ -25,6 +24,7 @@ import type {
 import { LivingReasoningService } from '../living-intelligence/living-reasoning.service';
 import { isLivingIntelligenceEnabled } from '../living-intelligence/living-intelligence.config';
 import { createLivingBuildingState } from '../living-intelligence/living-building-state.factory';
+import { nuclearFlushLivingState } from '../living-intelligence/living-tabula-rasa';
 import { writeLivingStateToIntake } from '../living-intelligence/living-building-state.repository';
 import type { LivingBuildingState } from '../living-intelligence/living-building-state.types';
 
@@ -62,12 +62,14 @@ export class LiaJarvisPilotService {
     const housing = inferHousingPerspective(residenceUnitNumber);
     let state = this.intake.createInitialState(title, description);
     const langNorm = normalizeCompanionLanguage(lang);
-    const initial = createLivingBuildingState({
-      title,
-      description,
-      language: langNorm,
-      creolePreferred: langNorm === 'gcf',
-    });
+    const initial = nuclearFlushLivingState(
+      createLivingBuildingState({
+        title,
+        description,
+        language: langNorm,
+        creolePreferred: langNorm === 'gcf',
+      }),
+    );
 
     state = {
       ...state,
@@ -87,8 +89,7 @@ export class LiaJarvisPilotService {
       },
       skippedQuestionIds: [],
     };
-    state = ensureJarvisOrganizer(state, title, description);
-    state = applyJarvis360ToState(state, title, description);
+    state = applyJarvisLanguageToState(state, title, description);
     return state;
   }
 
@@ -102,7 +103,7 @@ export class LiaJarvisPilotService {
     tenantSocial?: LiaTenantSocialContext | null;
   }): Promise<JarvisPilotTurn> {
     this.assertLivingEnabled();
-    let state = applyJarvis360ToState(
+    let state = applyJarvisLanguageToState(
       params.state,
       params.title,
       params.description,
@@ -145,7 +146,7 @@ export class LiaJarvisPilotService {
     this.assertLivingEnabled();
     const wasAlreadyComplete = this.isIntakeAlreadyComplete(params.state);
 
-    let state = applyJarvis360ToState(
+    let state = applyJarvisLanguageToState(
       params.state,
       params.title,
       params.description,

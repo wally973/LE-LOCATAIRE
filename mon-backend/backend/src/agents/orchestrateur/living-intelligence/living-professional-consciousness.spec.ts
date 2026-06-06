@@ -7,7 +7,7 @@ import {
 } from './living-professional-consciousness';
 
 describe('living-professional-consciousness', () => {
-  it('sénior → isVulnerable', () => {
+  it('resolveTenantProfile — sénior → isVulnerable', () => {
     const state = createLivingBuildingState({
       title: 'Ampoule',
       description: 'Plus de lumière salon',
@@ -15,8 +15,9 @@ describe('living-professional-consciousness', () => {
       ageBand: 'senior',
       livesAlone: true,
     });
-    expect(state.tenantProfile.isVulnerable).toBe(true);
-    expect(state.tenantProfile.reason).toMatch(/Sénior/);
+    const profile = resolveTenantProfile(state);
+    expect(profile.isVulnerable).toBe(true);
+    expect(profile.reason).toMatch(/Sénior/);
   });
 
   it('override charge — ampoule + sénior → PATRIMOINE', () => {

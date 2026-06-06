@@ -1,0 +1,33 @@
+# LE LOCATAIRE — Jarvis V2 Niveau 7 · Système de Conscience Patrimoniale
+
+## Loi Suprême
+
+Interdiction de coder des scripts JSON linéaires ou des arbres de décision pour le dialogue Jarvis.
+Tout raisonnement doit être issu de la simulation physique (flux, altimétrie, analogies) et de la délibération des agents.
+L'humain est une donnée physique de contrainte.
+
+Avant toute modification significative, vérifie la conformité avec @DOCS/MASTER_PRD.md et @DOCS/ROADMAP_PROGRESS.md.
+
+## Référentiels obligatoires
+
+- DOCS/MASTER_PRD.md — Constitution produit N7
+- DOCS/ROADMAP_PROGRESS.md — suivi de chantier
+- NOTE.md — décisions projet
+- MANIFESTE_FINAL.md — architecture IA
+
+## Stack production
+
+- Backend : mon-backend/backend/ (NestJS) — seule source de vérité Lia
+- Living Intelligence : src/agents/orchestrateur/living-intelligence/
+- Savoir : knowledge/, data/legal-references.json
+- Doctrine (Stylo) : knowledge/doctrine/
+- Mobile : mobile/flutter/
+- Admin : admin-dashboard/
+
+## Règles de code
+
+- Réponses et commentaires en français
+- Diff minimal — pas de refactor hors périmètre
+- Commits uniquement sur demande explicite du porteur
+- NuclearFlush actif : pas de mémoire fantôme entre sessions (living-tabula-rasa.ts)
+- Pilote : 2terHabitat Guyane — pas de références SIGUY/SIMKO

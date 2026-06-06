@@ -4,14 +4,9 @@ import type {
   LivingLegalVerdict,
   LivingVision3D,
 } from './living-building-state.types';
-import {
-  reconcileEnqueteurTrade,
-  sanitizePartsToBring,
-} from './living-intervention.trade';
-import { applySovereignTripleFluxToLegalVerdict } from './living-legal-triple-flux.merge';
 import { sealDossierIntegrity } from './living-dossier-integrity';
-import { applyProfessionalConsciousness } from './living-professional-consciousness';
 import { buildTeamSymbiosisSnapshot } from './living-team-roles';
+import { captureDoctrineLessonsFromPatches } from './living-doctrine-stylo';
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
@@ -26,7 +21,7 @@ function asStringArray(v: unknown): string[] {
   return v.map((x) => String(x).trim()).filter(Boolean);
 }
 
-/** Fusionne les patches des 3 agents en un seul LIVING_BUILDING_STATE. */
+/** Fusionne les patches LLM — sans rails métier/juridiques post-traités. */
 export function mergeLivingPatches(
   base: LivingBuildingState,
   patches: {
@@ -35,7 +30,7 @@ export function mergeLivingPatches(
     majordome?: Record<string, unknown> | null;
   },
   echoes: LivingDeliberationEcho[],
-  socialContext?: import('../../shared/lia-jarvis-identity').LiaTenantSocialContext | null,
+  sessionRef?: string,
 ): LivingBuildingState {
   let state = { ...base, updatedAt: new Date().toISOString() };
 
@@ -162,31 +157,7 @@ export function mergeLivingPatches(
   state.deliberationRound += 1;
   state.deliberationEchoes = [...state.deliberationEchoes, ...echoes].slice(-24);
 
-  const signalement = `${state.signalementTitle} ${state.signalementDescription}`.trim();
-  const sovereignTrade = reconcileEnqueteurTrade(
-    state.intervention.tradeNeeded,
-    state.vision3d,
-    signalement,
-  );
-  if (sovereignTrade !== state.intervention.tradeNeeded) {
-    state.intervention = {
-      ...state.intervention,
-      tradeNeeded: sovereignTrade,
-    };
-  }
-  const cleanParts = sanitizePartsToBring(
-    state.intervention.partsToBring,
-    state.vision3d,
-  );
-  if (cleanParts.length !== state.intervention.partsToBring.length) {
-    state.intervention = {
-      ...state.intervention,
-      partsToBring: cleanParts,
-    };
-  }
-
-  state = applySovereignTripleFluxToLegalVerdict(state);
-  state = applyProfessionalConsciousness(state, socialContext);
+  captureDoctrineLessonsFromPatches(patches, sessionRef);
 
   if (state.intervention.readyForDispatch || state.consciousness.expertHandoffRequired) {
     state.readiness = 'READY_FOR_TECHNICIAN';

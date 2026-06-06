@@ -1,10 +1,7 @@
 import type { CompanionLanguage } from '../conversation/lia-companion.types';
 import type { LivingBuildingState } from './living-building-state.types';
-import { inferInitialSeverityFromSignalement } from './living-building-state.safety';
 import { createOpenDossierIntegrity } from './living-dossier-integrity';
-import { resolveTenantProfile } from './living-professional-consciousness';
 import { createInitialSymmetricDeliberation, bumpStateToSymmetricLevel6 } from './living-symmetric.factory';
-import { loadSymmetricDoctrine } from './living-symmetric-doctrine';
 import { LIVING_TEAM_CHARTER_FR } from './living-team-roles';
 
 export function createLivingBuildingState(params: {
@@ -16,19 +13,18 @@ export function createLivingBuildingState(params: {
   livesAlone?: boolean;
   creolePreferred?: boolean;
 }): LivingBuildingState {
-  const ctx = `${params.title} ${params.description}`.trim();
-  const severity = inferInitialSeverityFromSignalement(ctx);
-
-  const doctrine = loadSymmetricDoctrine();
   const draft: LivingBuildingState = {
     schema: 'LIVING_BUILDING_STATE',
     version: 6,
     updatedAt: new Date().toISOString(),
     language: params.language,
-    readiness: severity === 'ZENITH_DANGER' ? 'SAFETY_LOCK' : 'OPENING',
+    readiness: 'OPENING',
     signalementTitle: params.title,
     signalementDescription: params.description,
-    tenantProfile: { isVulnerable: false, reason: 'Profil standard' },
+    tenantProfile: {
+      isVulnerable: false,
+      reason: 'Tabula rasa — profil lu par les agents',
+    },
     consciousness: {
       socialProtectionOverride: false,
       socialProtectionNote: null,
@@ -61,9 +57,9 @@ export function createLivingBuildingState(params: {
       extractedFacts: {},
     },
     safetyLock: {
-      severityZone: severity,
-      hazardType: severity === 'ZENITH_DANGER' ? 'electrical' : 'none',
-      requiresPowerCutoff: severity === 'ZENITH_DANGER',
+      severityZone: 'DAWN',
+      hazardType: 'none',
+      requiresPowerCutoff: false,
       requiresWaterShutoff: false,
       safetyVerified: false,
       consigneGiven: false,
@@ -81,7 +77,7 @@ export function createLivingBuildingState(params: {
       tradeNeeded: null,
       partsToBring: [],
       toolsRequired: [],
-      urgencyLabel: severity === 'ZENITH_DANGER' ? 'URGENT' : 'STANDARD',
+      urgencyLabel: 'STANDARD',
       technicianSummary: null,
       readyForDispatch: false,
     },
@@ -90,7 +86,7 @@ export function createLivingBuildingState(params: {
     savoirConsulted: [],
     dossierIntegrity: createOpenDossierIntegrity(),
     teamSymbiosis: {
-      charter: doctrine.charter || LIVING_TEAM_CHARTER_FR,
+      charter: LIVING_TEAM_CHARTER_FR,
       agents: [],
       updatedAt: new Date().toISOString(),
     },
@@ -99,34 +95,20 @@ export function createLivingBuildingState(params: {
     reasoningSource: 'living_intelligence',
   };
 
-  const profile = resolveTenantProfile(draft);
-  return {
-    ...draft,
-    tenantProfile: profile,
-    consciousness: {
-      ...draft.consciousness,
-      socialProtectionOverride: profile.isVulnerable,
-      socialProtectionNote: profile.isVulnerable
-        ? `Protection sociale — ${profile.reason}`
-        : null,
-    },
-  };
+  return draft;
 }
 
 export function parseLivingBuildingState(raw: unknown): LivingBuildingState | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as LivingBuildingState;
   if (o.schema !== 'LIVING_BUILDING_STATE') return null;
-  const base = bumpStateToSymmetricLevel6({
+  return bumpStateToSymmetricLevel6({
     ...o,
     version: (o.version === 6 ? 6 : 3) as 3 | 6,
     savoirConsulted: Array.isArray(o.savoirConsulted) ? o.savoirConsulted : [],
     tenantProfile: o.tenantProfile ?? {
-      isVulnerable: o.humanBarrier?.ageBand === 'senior',
-      reason:
-        o.humanBarrier?.ageBand === 'senior'
-          ? 'Sénior (héritage état)'
-          : 'Profil standard',
+      isVulnerable: false,
+      reason: 'Tabula rasa — profil lu par les agents',
     },
     consciousness: o.consciousness ?? {
       socialProtectionOverride: false,
@@ -152,10 +134,6 @@ export function parseLivingBuildingState(raw: unknown): LivingBuildingState | nu
     symmetricDeliberation:
       o.symmetricDeliberation ?? createInitialSymmetricDeliberation('locataire'),
   });
-  return {
-    ...base,
-    tenantProfile: resolveTenantProfile(base),
-  };
 }
 
 export function serializeLivingBuildingState(state: LivingBuildingState): string {

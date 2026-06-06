@@ -78,6 +78,7 @@ export class LivingDeliberationEngine {
     tenantMessage: string;
     mode: 'opening' | 'tenant_turn';
     tenantSocial?: LiaTenantSocialContext | null;
+    guardianRedeliberationNote?: string | null;
   }): Promise<LivingDeliberationTurnResult> {
     const face = resolveInterlocutorFace(params.tenantSocial);
     let state: LivingBuildingState = bumpStateToSymmetricLevel6(
@@ -152,12 +153,14 @@ export class LivingDeliberationEngine {
       });
     }
 
-    state = mergeLivingPatches(
+    const merged = mergeLivingPatches(
       state,
       { enqueteur: enq, archiviste: arch, majordome: majF },
       echoes,
       state.signalementTitle,
     );
+    state = merged.state;
+    const pendingDoctrineLessons = merged.pendingDoctrineLessons;
 
     const instruments = buildInstrumentsBoard(state, echoes, {
       enqueteur: enq,
@@ -199,6 +202,7 @@ export class LivingDeliberationEngine {
           majordomeFacts: majF,
         },
         prenomLocataire: state.humanBarrier.displayName,
+        noteGardien: params.guardianRedeliberationNote ?? null,
       },
       null,
       2,
@@ -235,6 +239,7 @@ export class LivingDeliberationEngine {
         : intakeComplete
           ? 'Dossier qualifié pour technicien secteur'
           : null,
+      pendingDoctrineLessons,
     };
   }
 

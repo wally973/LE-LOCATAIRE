@@ -112,6 +112,8 @@ export function wipeLivingCognitiveState(state: LivingBuildingState): LivingBuil
     symmetricDeliberation: createInitialSymmetricDeliberation(
       state.symmetricDeliberation?.interlocutorFace ?? 'locataire',
     ),
+    guardianReview: null,
+    doctrinePending: [],
     lastTenantMessage: state.lastTenantMessage,
   };
 }

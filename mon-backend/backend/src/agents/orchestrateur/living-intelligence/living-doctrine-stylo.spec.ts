@@ -22,14 +22,18 @@ describe('living-doctrine-stylo', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('appendDoctrineLesson — écrit un fichier markdown', () => {
+  it('appendDoctrineLesson — écrit PENDING (non visible bibliothèque)', () => {
     const lesson = appendDoctrineLesson({
       author: 'enqueteur',
       title: 'Test infiltration',
       body: 'Tache au plafond après pluie → envisager enveloppe avant plomberie.',
     });
     expect(fs.existsSync(lesson.filePath)).toBe(true);
-    expect(loadDoctrineBibliotheque(1)[0]?.body).toMatch(/enveloppe/i);
+    expect(lesson.status).toBe('PENDING_ADMIN_SIGNATURE');
+    expect(loadDoctrineBibliotheque(1)).toHaveLength(0);
+    const raw = fs.readFileSync(lesson.filePath, 'utf8');
+    expect(raw).toMatch(/enveloppe/i);
+    expect(raw).toMatch(/PENDING_ADMIN_SIGNATURE/);
   });
 
   it('resolveDoctrineDirectory — crée le dossier si absent', () => {

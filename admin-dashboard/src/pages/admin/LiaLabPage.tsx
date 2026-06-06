@@ -62,6 +62,40 @@ function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
         </section>
       ) : null}
 
+      {viz.guardianConsole && viz.guardianConsole.length > 0 ? (
+        <section className="lia-lab-guardian">
+          <h4>Le Gardien — murmures souverains</h4>
+          <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--lab-muted)' }}>
+            Couche post-délibération · cohérence · sécurité · protection · Stylo
+          </p>
+          <dl className="lia-lab-facts">
+            {viz.guardianConsole.map((row) => (
+              <React.Fragment key={row.label}>
+                <dt>{row.label}</dt>
+                <dd
+                  className={
+                    row.label === 'Verdict' && row.value === 'OVERRIDE'
+                      ? 'lia-lab-guardian-override'
+                      : row.label === 'Verdict' && row.value === 'RE-DELIBERATE'
+                        ? 'lia-lab-guardian-redelib'
+                        : undefined
+                  }
+                >
+                  {row.value}
+                </dd>
+              </React.Fragment>
+            ))}
+          </dl>
+          {viz.guardianMurmures && viz.guardianMurmures.length > 0 ? (
+            <ul className="lia-lab-guardian-murmures">
+              {viz.guardianMurmures.map((m, i) => (
+                <li key={`${i}-${m.slice(0, 24)}`}>{m}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
       <section>
         <h4>Mode urgence</h4>
         {viz.urgencyMode ? (

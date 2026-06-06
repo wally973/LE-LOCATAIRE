@@ -224,6 +224,10 @@ export interface LivingBuildingState {
   teamSymbiosis: LivingTeamSymbiosis;
   /** Niveau 6 — délibération symétrique */
   symmetricDeliberation: LivingSymmetricDeliberation;
+  /** Gardien N7 — dernier verdict souverain */
+  guardianReview?: LivingGuardianReview | null;
+  /** Leçons Stylo en attente signature Architecte */
+  doctrinePending?: LivingPendingDoctrineLesson[];
   lastTenantMessage: string | null;
   reasoningSource: 'living_intelligence';
 }
@@ -234,4 +238,31 @@ export interface LivingDeliberationTurnResult {
   intakeComplete: boolean;
   handoffRequired: boolean;
   handoffReason: string | null;
+  /** Leçons doctrine interceptées par le Gardien (Stylo). */
+  pendingDoctrineLessons?: LivingPendingDoctrineLesson[];
+}
+
+/** Mission sacrée du Gardien (Phase B N7). */
+export type LivingGuardianMission = 'COHERENCE' | 'SAFETY' | 'SOCIAL' | 'DOCTRINE';
+
+export type LivingGuardianVerdictKind = 'PASS' | 'RE-DELIBERATE' | 'OVERRIDE';
+
+export interface LivingPendingDoctrineLesson {
+  id: string;
+  author: string;
+  title: string;
+  status: 'PENDING_ADMIN_SIGNATURE' | 'SIGNED';
+  filePath: string;
+}
+
+/** Verdict souverain post-délibération — visible Lia-Lab. */
+export interface LivingGuardianReview {
+  verdict: LivingGuardianVerdictKind;
+  murmures: string[];
+  missionsTriggered: LivingGuardianMission[];
+  reviewedAt: string;
+  originalParole: string;
+  finalParole: string;
+  redeliberationBrief?: string | null;
+  pendingDoctrineLessons?: LivingPendingDoctrineLesson[];
 }

@@ -68,6 +68,8 @@ export interface LiaLabVisualization {
   consciousnessConsole?: { label: string; value: string }[];
   symmetricConsole?: { label: string; value: string }[];
   instrumentsPilotBrief?: string | null;
+  guardianConsole?: { label: string; value: string }[];
+  guardianMurmures?: string[];
   teamSymbiosis?: {
     charter: string;
     agents: { role: string; label: string; mission: string; lastInsight: string }[];

@@ -23,8 +23,10 @@ Corps de la leçon en prose libre.
 
 ## Validation
 
-Les leçons auto-générées restent **brouillons** jusqu'à revue de l'Architecte.
-Seules les leçons validées alimentent la bibliothèque agents en Phase C.
+Les leçons auto-générées restent **brouillons** (`status: PENDING_ADMIN_SIGNATURE`) jusqu'à revue de l'Architecte.
+Le **Gardien** intercepte toute écriture agent et bloque la promotion en Loi.
+Seules les leçons `status: SIGNED` alimentent la bibliothèque agents.
+Signature : `signDoctrineLesson(id)` — cockpit Architecte (Phase B+).
 
 ## Code
 

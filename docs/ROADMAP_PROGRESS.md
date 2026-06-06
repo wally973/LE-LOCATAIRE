@@ -23,10 +23,15 @@
 
 | Étape | Statut | Notes |
 |-------|--------|-------|
-| Module Gardien dédié (hors merge métier) | ⬜ | Agent ou couche post-délibération |
-| Verrou ZENITH sans scripts de parole imposés | ⬜ | Gardien parle via Majordome + faits |
-| Confirmation locataire → `safetyVerified` | 🟡 | Module `living-building-state.safety.ts` existant |
-| Lia-Lab — visualisation verrou temps réel | ⬜ | Dashboard sécurité |
+| `LivingGuardianService` — 4 missions sacrées | ✅ | `living-guardian.service.ts` |
+| Verdict PASS / RE-DELIBERATE / OVERRIDE | ✅ | Injecté fin `LivingReasoningService` |
+| Safety Override — en-tête ZENITH | ✅ | Réécriture autoritaire |
+| Veto cohérence Majordome vs Enquêteur | ✅ | Re-délibération |
+| Filtre protection sociale | ✅ | Veto effort physique |
+| Stylo — PENDING_ADMIN_SIGNATURE | ✅ | `living-doctrine-stylo.ts` |
+| Murmures Gardien — console Lia-Lab | ✅ | `guardianConsole` + `guardianMurmures` |
+| Signature Architecte cockpit | ⬜ | `signDoctrineLesson()` prêt |
+| Lia-Lab — visualisation verrou temps réel | 🟡 | Safety + Gardien sections |
 
 ---
 

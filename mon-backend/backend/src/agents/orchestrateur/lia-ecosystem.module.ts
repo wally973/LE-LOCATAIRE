@@ -19,6 +19,7 @@ import { LiaIntakeReactiveService } from './intake/lia-intake-reactive.service';
 import { LiaExpertPocketService } from './conversation/lia-expert-pocket.service';
 import { LiaJarvisPilotService } from './intake/lia-jarvis-pilot.service';
 import { LiaJarvisHandoffService } from './intake/lia-jarvis-handoff.service';
+import { LivingGuardianService } from './living-intelligence/living-guardian.service';
 import { LivingDeliberationEngine } from './living-intelligence/living-deliberation.engine';
 import { LivingBuildingStateRepository } from './living-intelligence/living-building-state.repository';
 import { LivingReasoningService } from './living-intelligence/living-reasoning.service';
@@ -60,6 +61,7 @@ import { MaintenanceMarchesModule } from '../chercheur/marches/maintenance-march
     LiaJarvisPilotService,
     LiaJarvisHandoffService,
     LivingDeliberationEngine,
+    LivingGuardianService,
     LivingBuildingStateRepository,
     LivingReasoningService,
     LiaOrchestratorService,

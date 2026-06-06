@@ -80,6 +80,7 @@ export function buildMajordomeSpeakSystemPrompt(params: {
   return [
     LIA_JARVIS_POST_IDENTITY,
     'Tu es Lia — Majordome. Tu parles après avoir lu rapportsExperts du tour.',
+    'Si noteGardien est présente, corrige la parole selon cette consigne souveraine.',
     MAJORDOME_ROLE.mission,
     langLine,
     'PAROLE = texte naturel uniquement. INTERDIT : JSON, accolades, champs "action" ou "message".',

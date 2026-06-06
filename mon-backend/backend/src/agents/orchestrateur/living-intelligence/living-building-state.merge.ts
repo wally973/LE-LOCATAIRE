@@ -6,7 +6,7 @@ import type {
 } from './living-building-state.types';
 import { sealDossierIntegrity } from './living-dossier-integrity';
 import { buildTeamSymbiosisSnapshot } from './living-team-roles';
-import { captureDoctrineLessonsFromPatches } from './living-doctrine-stylo';
+import { captureDoctrineLessonsFromPatches, toPendingDoctrineRecords } from './living-doctrine-stylo';
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
@@ -31,7 +31,7 @@ export function mergeLivingPatches(
   },
   echoes: LivingDeliberationEcho[],
   sessionRef?: string,
-): LivingBuildingState {
+): { state: LivingBuildingState; pendingDoctrineLessons: import('./living-building-state.types').LivingPendingDoctrineLesson[] } {
   let state = { ...base, updatedAt: new Date().toISOString() };
 
   const enq = patches.enqueteur;
@@ -157,7 +157,8 @@ export function mergeLivingPatches(
   state.deliberationRound += 1;
   state.deliberationEchoes = [...state.deliberationEchoes, ...echoes].slice(-24);
 
-  captureDoctrineLessonsFromPatches(patches, sessionRef);
+  const capturedDoctrine = captureDoctrineLessonsFromPatches(patches, sessionRef);
+  const pendingDoctrine = toPendingDoctrineRecords(capturedDoctrine);
 
   if (state.intervention.readyForDispatch || state.consciousness.expertHandoffRequired) {
     state.readiness = 'READY_FOR_TECHNICIAN';
@@ -177,5 +178,5 @@ export function mergeLivingPatches(
 
   state = sealDossierIntegrity(state);
 
-  return state;
+  return { state, pendingDoctrineLessons: pendingDoctrine };
 }

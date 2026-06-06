@@ -95,6 +95,9 @@ export interface LiaLabVisualization {
   /** Niveau 6 — instruments de bord + prisme */
   symmetricConsole: LiaLabFactRow[];
   instrumentsPilotBrief: string | null;
+  /** Phase B — Gardien souverain */
+  guardianConsole?: { label: string; value: string }[];
+  guardianMurmures?: string[];
 }
 
 const PHASE_LABELS_FR: Record<string, string> = {
@@ -269,6 +272,35 @@ export function buildLabVisualization(params: {
       : defaultAgents;
 
   const sym = living.symmetricDeliberation;
+  const guardian = living.guardianReview;
+  const guardianConsole: LiaLabFactRow[] = guardian
+    ? [
+        { label: 'Verdict', value: guardian.verdict },
+        {
+          label: 'Missions déclenchées',
+          value: guardian.missionsTriggered.join(' · ') || '—',
+        },
+        {
+          label: 'Parole originale',
+          value: guardian.originalParole.slice(0, 120) + (guardian.originalParole.length > 120 ? '…' : ''),
+        },
+        {
+          label: 'Parole finale',
+          value: guardian.finalParole.slice(0, 120) + (guardian.finalParole.length > 120 ? '…' : ''),
+        },
+        {
+          label: 'Re-délibération',
+          value: guardian.redeliberationBrief ?? '—',
+        },
+        {
+          label: 'Doctrine en attente',
+          value: String(guardian.pendingDoctrineLessons?.length ?? living.doctrinePending?.length ?? 0),
+        },
+      ]
+    : [{ label: 'Verdict', value: '— en attente premier tour Gardien —' }];
+
+  const guardianMurmures = guardian?.murmures ?? [];
+
   const symmetricConsole: LiaLabFactRow[] = [
     { label: 'Niveau', value: sym ? `Symétrique ${sym.level}` : '—' },
     { label: 'Visage Lia', value: sym?.interlocutorFace ?? 'locataire' },
@@ -348,6 +380,8 @@ export function buildLabVisualization(params: {
     },
     symmetricConsole,
     instrumentsPilotBrief: sym?.instrumentsBoard.pilotBrief ?? null,
+    guardianConsole,
+    guardianMurmures,
   };
 }
 
@@ -461,5 +495,7 @@ function emptyLivingFallback(params: {
     },
     lastTenantMessage: null,
     reasoningSource: 'living_intelligence',
+    guardianReview: null,
+    doctrinePending: [],
   };
 }

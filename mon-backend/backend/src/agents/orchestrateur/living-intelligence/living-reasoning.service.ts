@@ -1,5 +1,5 @@
 /**
- * Cœur de raisonnement — INPUT → DÉLIBÉRATION (3 agents parallèles) → OUTPUT.
+ * Cœur de raisonnement — INPUT → DÉLIBÉRATION → GARDIEN → OUTPUT.
  */
 import { Injectable } from '@nestjs/common';
 import type { LiaIntakeState } from '../intake/lia-intake.service';
@@ -8,6 +8,8 @@ import { normalizeCompanionLanguage } from '../../shared/lia-dialogue-languages'
 import type { CompanionLanguage } from '../conversation/lia-companion.types';
 import type { LiaTenantSocialContext } from '../../shared/lia-jarvis-identity';
 import { LivingDeliberationEngine } from './living-deliberation.engine';
+import { LivingGuardianService } from './living-guardian.service';
+import type { LivingDeliberationTurnResult } from './living-building-state.types';
 import {
   LivingBuildingStateRepository,
   readLivingStateFromIntake,
@@ -30,8 +32,62 @@ import { dossierTransmisStatus } from '../conversation/lia-message-ui-status';
 export class LivingReasoningService {
   constructor(
     private readonly deliberation: LivingDeliberationEngine,
+    private readonly guardian: LivingGuardianService,
     private readonly repository: LivingBuildingStateRepository,
   ) {}
+
+  /** Délibération + revue souveraine du Gardien (Phase B). */
+  private async runGuardedTurn(params: {
+    living: import('./living-building-state.types').LivingBuildingState;
+    message: string;
+    mode: 'opening' | 'tenant_turn';
+    social?: LiaTenantSocialContext | null;
+  }): Promise<LivingDeliberationTurnResult> {
+    let result = await this.deliberation.deliberate({
+      state: params.living,
+      tenantMessage: params.message,
+      mode: params.mode,
+      tenantSocial: params.social,
+    });
+
+    let review = this.guardian.review({
+      result,
+      tenantSocial: params.social,
+      pendingDoctrineLessons: result.pendingDoctrineLessons ?? [],
+    });
+
+    if (review.verdict === 'RE-DELIBERATE' && review.redeliberationBrief) {
+      result = await this.deliberation.deliberate({
+        state: review.livingState,
+        tenantMessage: params.message,
+        mode: params.mode,
+        tenantSocial: params.social,
+        guardianRedeliberationNote: review.redeliberationBrief,
+      });
+      review = this.guardian.review({
+        result,
+        tenantSocial: params.social,
+        pendingDoctrineLessons: result.pendingDoctrineLessons ?? [],
+      });
+    }
+
+    const tenantMessage =
+      review.verdict === 'OVERRIDE' ? review.finalParole : result.tenantMessage;
+
+    return {
+      ...result,
+      tenantMessage,
+      livingState: {
+        ...review.livingState,
+        guardianReview: {
+          ...review.livingState.guardianReview!,
+          verdict: review.verdict,
+          finalParole: tenantMessage,
+        },
+        doctrinePending: result.pendingDoctrineLessons ?? review.livingState.doctrinePending,
+      },
+    };
+  }
 
   async runTurn(params: {
     mode: 'opening' | 'tenant_turn';
@@ -133,11 +189,11 @@ export class LivingReasoningService {
       jarvisFacts: nuclearFlushJarvisFacts(params.state.jarvisFacts),
     };
 
-    const result = await this.deliberation.deliberate({
-      state: living,
-      tenantMessage: params.message,
+    const result = await this.runGuardedTurn({
+      living,
+      message: params.message,
       mode: params.mode,
-      tenantSocial: social,
+      social,
     });
 
     living = sealDossierIntegrity(result.livingState);

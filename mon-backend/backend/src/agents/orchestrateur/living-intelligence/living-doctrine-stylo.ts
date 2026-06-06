@@ -1,11 +1,12 @@
 /**
  * Stylo des agents — capture de sagesse dans knowledge/doctrine/.
- * Phase C N7 : le LLM écrit ses leçons ; l'Architecte valide en amont produit.
+ * Phase B : le Gardien intercepte — PENDING_ADMIN_SIGNATURE jusqu'à signature Architecte.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 
 export type DoctrineAuthor = 'enqueteur' | 'archiviste' | 'majordome' | 'architecte';
+export type DoctrineLessonStatus = 'PENDING_ADMIN_SIGNATURE' | 'SIGNED';
 
 export interface DoctrineLesson {
   id: string;
@@ -13,8 +14,11 @@ export interface DoctrineLesson {
   title: string;
   body: string;
   createdAt: string;
+  status: DoctrineLessonStatus;
   sessionRef?: string;
   filePath: string;
+  signedAt?: string | null;
+  signedBy?: string | null;
 }
 
 function slugify(raw: string): string {
@@ -55,14 +59,30 @@ function parseLessonFile(filePath: string): DoctrineLesson | null {
     const createdAt =
       meta.match(/^createdAt:\s*(.+)$/m)?.[1]?.trim() ?? new Date().toISOString();
     const sessionRef = meta.match(/^sessionRef:\s*(.+)$/m)?.[1]?.trim();
+    const statusRaw = meta.match(/^status:\s*(.+)$/m)?.[1]?.trim();
+    const status: DoctrineLessonStatus =
+      statusRaw === 'SIGNED' ? 'SIGNED' : 'PENDING_ADMIN_SIGNATURE';
+    const signedAt = meta.match(/^signedAt:\s*(.+)$/m)?.[1]?.trim() ?? null;
+    const signedBy = meta.match(/^signedBy:\s*(.+)$/m)?.[1]?.trim() ?? null;
     const id = path.basename(filePath, '.md');
-    return { id, author, title, body, createdAt, sessionRef, filePath };
+    return {
+      id,
+      author,
+      title,
+      body,
+      createdAt,
+      status,
+      sessionRef,
+      filePath,
+      signedAt,
+      signedBy,
+    };
   } catch {
     return null;
   }
 }
 
-/** Charge les leçons pour enrichir la bibliothèque agents (sans commentaire interprété). */
+/** Charge les leçons signées pour la bibliothèque agents (Loi uniquement). */
 export function loadDoctrineBibliotheque(limit = 12): Array<{
   id: string;
   author: DoctrineAuthor;
@@ -87,6 +107,7 @@ export function loadDoctrineBibliotheque(limit = 12): Array<{
     if (out.length >= limit) break;
     const lesson = parseLessonFile(path.join(dir, file));
     if (!lesson?.body.trim()) continue;
+    if (lesson.status !== 'SIGNED') continue;
     out.push({
       id: lesson.id,
       author: lesson.author,
@@ -98,12 +119,34 @@ export function loadDoctrineBibliotheque(limit = 12): Array<{
   return out;
 }
 
-/** Le Stylo — écrit une leçon proposée par un agent après délibération. */
+/** Leçons en attente de signature Architecte (cockpit). */
+export function listPendingDoctrineLessons(limit = 20): DoctrineLesson[] {
+  const dir = resolveDoctrineDirectory();
+  const out: DoctrineLesson[] = [];
+  try {
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.md') && f !== 'README.md')
+      .sort()
+      .reverse();
+    for (const file of files) {
+      if (out.length >= limit) break;
+      const lesson = parseLessonFile(path.join(dir, file));
+      if (lesson?.status === 'PENDING_ADMIN_SIGNATURE') out.push(lesson);
+    }
+  } catch {
+    return [];
+  }
+  return out;
+}
+
+/** Le Stylo — écrit une leçon (interceptée par le Gardien → PENDING). */
 export function appendDoctrineLesson(params: {
   author: DoctrineAuthor;
   title: string;
   body: string;
   sessionRef?: string;
+  status?: DoctrineLessonStatus;
 }): DoctrineLesson {
   const dir = resolveDoctrineDirectory();
   const title = params.title.trim() || 'Leçon sans titre';
@@ -111,6 +154,10 @@ export function appendDoctrineLesson(params: {
   if (!body) {
     throw new Error('Stylo — corps de leçon vide');
   }
+
+  const status =
+    params.status ??
+    (params.author === 'architecte' ? 'SIGNED' : 'PENDING_ADMIN_SIGNATURE');
 
   const createdAt = new Date().toISOString();
   const day = createdAt.slice(0, 10);
@@ -127,6 +174,9 @@ export function appendDoctrineLesson(params: {
     '---',
     `author: ${params.author}`,
     `createdAt: ${createdAt}`,
+    `status: ${status}`,
+    status === 'SIGNED' ? `signedAt: ${createdAt}` : 'signedAt:',
+    status === 'SIGNED' ? 'signedBy: architecte' : 'signedBy:',
     params.sessionRef ? `sessionRef: ${params.sessionRef}` : '',
     `title: ${title}`,
     '---',
@@ -144,12 +194,44 @@ export function appendDoctrineLesson(params: {
     title,
     body,
     createdAt,
+    status,
     sessionRef: params.sessionRef,
     filePath,
+    signedAt: status === 'SIGNED' ? createdAt : null,
+    signedBy: status === 'SIGNED' ? 'architecte' : null,
   };
 }
 
-/** Extrait doctrineLesson des rapports experts et écrit si présent. */
+/** Signature Architecte — la leçon devient Loi dans la bibliothèque. */
+export function signDoctrineLesson(lessonId: string, signedBy = 'architecte'): DoctrineLesson | null {
+  const dir = resolveDoctrineDirectory();
+  const filePath = path.join(dir, `${lessonId}.md`);
+  if (!fs.existsSync(filePath)) return null;
+  const lesson = parseLessonFile(filePath);
+  if (!lesson) return null;
+
+  const signedAt = new Date().toISOString();
+  const frontMatter = [
+    '---',
+    `author: ${lesson.author}`,
+    `createdAt: ${lesson.createdAt}`,
+    'status: SIGNED',
+    `signedAt: ${signedAt}`,
+    `signedBy: ${signedBy}`,
+    lesson.sessionRef ? `sessionRef: ${lesson.sessionRef}` : '',
+    `title: ${lesson.title}`,
+    '---',
+    '',
+    lesson.body,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  fs.writeFileSync(filePath, frontMatter, 'utf8');
+  return parseLessonFile(filePath);
+}
+
+/** Extrait doctrineLesson des rapports experts — Gardien intercepte avant Loi. */
 export function captureDoctrineLessonsFromPatches(
   patches: {
     enqueteur?: Record<string, unknown> | null;
@@ -169,6 +251,7 @@ export function captureDoctrineLessonsFromPatches(
           title: `Leçon ${author} — ${new Date().toISOString().slice(0, 10)}`,
           body: lesson.trim(),
           sessionRef,
+          status: 'PENDING_ADMIN_SIGNATURE',
         }),
       );
       return;
@@ -182,6 +265,7 @@ export function captureDoctrineLessonsFromPatches(
           title: title.trim() || `Leçon ${author}`,
           body: body.trim(),
           sessionRef,
+          status: 'PENDING_ADMIN_SIGNATURE',
         }),
       );
     }
@@ -191,4 +275,17 @@ export function captureDoctrineLessonsFromPatches(
   tryCapture('archiviste', patches.archiviste);
   tryCapture('majordome', patches.majordome);
   return captured;
+}
+
+/** Convertit pour le Gardien / LIVING_BUILDING_STATE. */
+export function toPendingDoctrineRecords(
+  lessons: DoctrineLesson[],
+): import('./living-building-state.types').LivingPendingDoctrineLesson[] {
+  return lessons.map((l) => ({
+    id: l.id,
+    author: l.author,
+    title: l.title,
+    status: l.status,
+    filePath: l.filePath,
+  }));
 }

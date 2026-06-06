@@ -79,10 +79,11 @@ export interface LiaLabVisualization {
 }
 
 export interface LabChatMessage {
-  role: 'tenant' | 'lia';
+  role: 'tenant' | 'lia' | 'architect';
   text: string;
   at: string;
   uiStatusLabel?: string;
+  doctrineLessonId?: string;
 }
 
 export interface LabSessionView {

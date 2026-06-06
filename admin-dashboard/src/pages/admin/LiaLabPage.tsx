@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   getLabErrorMessage,
   LAB_DIALOGUE_LANGUAGES,
@@ -692,11 +693,28 @@ const LiaLabPage: React.FC = () => {
             {session?.messages.map((m, i) => (
               <div
                 key={`${m.at}-${i}`}
-                className={`lia-lab-bubble ${m.role === 'tenant' ? 'tenant' : 'lia'}`}
+                className={`lia-lab-bubble ${
+                  m.role === 'tenant'
+                    ? 'tenant'
+                    : m.role === 'architect'
+                      ? 'architect'
+                      : 'lia'
+                }`}
               >
                 {m.text}
+                {m.role === 'architect' && m.doctrineLessonId ? (
+                  <div className="lia-lab-architect-actions">
+                    <Link to="/admin/doctrine-registry" className="lia-lab-architect-link">
+                      Ouvrir le Registre de Sagesse
+                    </Link>
+                  </div>
+                ) : null}
                 <div className="lia-lab-bubble-meta">
-                  {m.role === 'tenant' ? 'Locataire' : 'Jarvis / Lia'}
+                  {m.role === 'tenant'
+                    ? 'Locataire'
+                    : m.role === 'architect'
+                      ? 'Pour l\'Architecte'
+                      : 'Jarvis / Lia'}
                   {m.uiStatusLabel ? ` · ${m.uiStatusLabel}` : ''}
                 </div>
               </div>

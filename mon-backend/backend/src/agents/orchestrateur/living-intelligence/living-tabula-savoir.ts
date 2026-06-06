@@ -3,7 +3,7 @@
  */
 import { loadLegalReferencesCatalogFromFile } from '../../../legal-references/legal-reference.loader';
 import { loadPathologyIndex } from '../../chercheur/research/knowledge-index.loader';
-import { loadDoctrineBibliotheque } from './living-doctrine-stylo';
+import { loadSignedDoctrineForDeliberation } from './living-doctrine-stylo';
 import type { LivingSavoirConsultation } from './living-building-state.types';
 
 const MAX_LIBRARY_CHARS = 12_000;
@@ -28,6 +28,7 @@ export interface RawSavoirBibliotheque {
     title: string;
     body: string;
     createdAt: string;
+    signedAt?: string | null;
   }>;
 }
 
@@ -72,7 +73,7 @@ export function loadRawSavoirBibliotheque(): RawSavoirBibliotheque {
   return trimBibliothequeSize({
     pathologies,
     loisEtDecrets,
-    doctrine: loadDoctrineBibliotheque(8),
+    doctrine: loadSignedDoctrineForDeliberation(48),
   });
 }
 

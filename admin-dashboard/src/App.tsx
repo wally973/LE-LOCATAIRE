@@ -27,6 +27,7 @@ import AdminTicketDetailPage from '@pages/admin/AdminTicketDetailPage';
 import AdminAvatarsPage from '@pages/admin/AdminAvatarsPage';
 import AdminIaStatsPage from '@pages/admin/AdminIaStatsPage';
 import LiaLabPage from '@pages/admin/LiaLabPage';
+import DoctrineRegistryPage from '@pages/admin/DoctrineRegistryPage';
 import LandlordDashboardPage from '@pages/bailleur/LandlordDashboardPage';
 import LandlordHousingsPage from '@pages/bailleur/LandlordHousingsPage';
 import LandlordHousingDetailPage from '@pages/bailleur/LandlordHousingDetailPage';
@@ -84,6 +85,7 @@ function App() {
             <Route path="avatars" element={<AdminAvatarsPage />} />
             <Route path="ia-stats" element={<AdminIaStatsPage />} />
             <Route path="lia-lab" element={<LiaLabPage />} />
+            <Route path="doctrine-registry" element={<DoctrineRegistryPage />} />
           </Route>
         </Route>
 

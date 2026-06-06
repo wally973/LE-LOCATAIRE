@@ -11,12 +11,14 @@ import { buildLabTenantSocialContext } from '../agents/shared/lia-tenant-social-
 import { buildLabVisualization, type LiaLabVisualization } from './lia-lab-visualization';
 import { isLivingIntelligenceEnabled } from '../agents/orchestrateur/living-intelligence/living-intelligence.config';
 import { readLivingStateFromIntake } from '../agents/orchestrateur/living-intelligence/living-building-state.repository';
+import { buildArchitectDoctrinePrompt } from '../agents/orchestrateur/living-intelligence/living-doctrine-stylo';
 
 export interface LabChatMessage {
-  role: 'tenant' | 'lia';
+  role: 'tenant' | 'lia' | 'architect';
   text: string;
   at: string;
   uiStatusLabel?: string;
+  doctrineLessonId?: string;
 }
 
 export interface LabSessionView {
@@ -45,6 +47,8 @@ interface LabSession {
   lastClosedTicketTitle?: string;
   state: LiaIntakeState;
   messages: LabChatMessage[];
+  /** Leçons doctrine déjà proposées à l'Architecte (évite répétition). */
+  announcedDoctrineIds: Set<string>;
 }
 
 @Injectable()
@@ -157,6 +161,7 @@ export class LiaLabService {
         },
       },
       messages: [],
+      announcedDoctrineIds: new Set(),
     };
     this.sessions.set(id, session);
     return this.toView(session);
@@ -241,6 +246,7 @@ export class LiaLabService {
       at: new Date().toISOString(),
       uiStatusLabel: turn.uiStatus?.label,
     });
+    this.appendArchitectDoctrinePrompts(session);
 
     return this.toView(session);
   }
@@ -382,6 +388,30 @@ export class LiaLabService {
     const s = this.sessions.get(id);
     if (!s) throw new NotFoundException('Session Lia-Lab introuvable');
     return s;
+  }
+
+  /** Propose au Registre de Sagesse après délibération Gardien PASS. */
+  private appendArchitectDoctrinePrompts(session: LabSession): void {
+    const living = readLivingStateFromIntake(session.state.jarvisFacts);
+    if (!living?.guardianReview) return;
+    if (living.guardianReview.verdict !== 'PASS') return;
+
+    const pending =
+      living.guardianReview.pendingDoctrineLessons ??
+      living.doctrinePending ??
+      [];
+    if (!pending.length) return;
+
+    for (const lesson of pending) {
+      if (session.announcedDoctrineIds.has(lesson.id)) continue;
+      session.announcedDoctrineIds.add(lesson.id);
+      session.messages.push({
+        role: 'architect',
+        text: buildArchitectDoctrinePrompt(lesson.title),
+        at: new Date().toISOString(),
+        doctrineLessonId: lesson.id,
+      });
+    }
   }
 
   private toView(session: LabSession): LabSessionView {

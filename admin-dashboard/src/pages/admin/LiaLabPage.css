@@ -300,6 +300,35 @@
   border: 1px solid #1f4038;
 }
 
+.lia-lab-bubble.architect {
+  align-self: center;
+  max-width: 92%;
+  background: linear-gradient(135deg, #f4ead5 0%, #e8dcc0 100%);
+  color: #2c2416;
+  border: 1px solid #c4b08a;
+  box-shadow: 0 2px 12px rgba(44, 36, 22, 0.12);
+}
+
+.lia-lab-architect-actions {
+  margin-top: 10px;
+}
+
+.lia-lab-architect-link {
+  display: inline-block;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  color: #5c2e0a;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid #8b4513;
+  border-radius: 4px;
+}
+
+.lia-lab-architect-link:hover {
+  background: rgba(139, 69, 19, 0.12);
+}
+
 .lia-lab-bubble-meta {
   font-size: 10px;
   color: var(--lab-muted);

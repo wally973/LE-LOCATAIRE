@@ -1,9 +1,14 @@
 /**
  * Stylo des agents — capture de sagesse dans knowledge/doctrine/.
- * Phase B : le Gardien intercepte — PENDING_ADMIN_SIGNATURE jusqu'à signature Architecte.
+ * Phase C : JARVIS_DOCTRINE_LEDGER + fichiers .md — Loi signée injectée en délibération.
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  listLedgerLessons,
+  removeLedgerEntry,
+  upsertLedgerEntry,
+} from './living-doctrine-ledger';
 
 export type DoctrineAuthor = 'enqueteur' | 'archiviste' | 'majordome' | 'architecte';
 export type DoctrineLessonStatus = 'PENDING_ADMIN_SIGNATURE' | 'SIGNED';
@@ -90,37 +95,37 @@ export function loadDoctrineBibliotheque(limit = 12): Array<{
   body: string;
   createdAt: string;
 }> {
-  const dir = resolveDoctrineDirectory();
-  let files: string[] = [];
-  try {
-    files = fs
-      .readdirSync(dir)
-      .filter((f) => f.endsWith('.md') && f !== 'README.md')
-      .sort()
-      .reverse();
-  } catch {
-    return [];
-  }
-
-  const out: ReturnType<typeof loadDoctrineBibliotheque> = [];
-  for (const file of files) {
-    if (out.length >= limit) break;
-    const lesson = parseLessonFile(path.join(dir, file));
-    if (!lesson?.body.trim()) continue;
-    if (lesson.status !== 'SIGNED') continue;
-    out.push({
-      id: lesson.id,
-      author: lesson.author,
-      title: lesson.title,
-      body: lesson.body.slice(0, 2000),
-      createdAt: lesson.createdAt,
-    });
-  }
-  return out;
+  const signed = loadSignedDoctrineForDeliberation(limit);
+  return signed.map(({ id, author, title, body, createdAt }) => ({
+    id,
+    author,
+    title,
+    body,
+    createdAt,
+  }));
 }
 
 /** Leçons en attente de signature Architecte (cockpit). */
 export function listPendingDoctrineLessons(limit = 20): DoctrineLesson[] {
+  const ledgerPending = listLedgerLessons({
+    status: 'PENDING_ADMIN_SIGNATURE',
+    limit,
+  });
+  if (ledgerPending.length > 0) {
+    return ledgerPending.map((l) => ({
+      id: l.id,
+      author: l.author,
+      title: l.title,
+      body: l.body,
+      createdAt: l.createdAt,
+      status: l.status,
+      sessionRef: l.sessionRef,
+      filePath: l.filePath,
+      signedAt: l.signedAt ?? null,
+      signedBy: l.signedBy ?? null,
+    }));
+  }
+
   const dir = resolveDoctrineDirectory();
   const out: DoctrineLesson[] = [];
   try {
@@ -188,7 +193,7 @@ export function appendDoctrineLesson(params: {
 
   fs.writeFileSync(filePath, frontMatter, 'utf8');
 
-  return {
+  const lesson: DoctrineLesson = {
     id: path.basename(fileName, '.md'),
     author: params.author,
     title,
@@ -200,6 +205,8 @@ export function appendDoctrineLesson(params: {
     signedAt: status === 'SIGNED' ? createdAt : null,
     signedBy: status === 'SIGNED' ? 'architecte' : null,
   };
+  upsertLedgerEntry(lesson);
+  return lesson;
 }
 
 /** Signature Architecte — la leçon devient Loi dans la bibliothèque. */
@@ -228,7 +235,67 @@ export function signDoctrineLesson(lessonId: string, signedBy = 'architecte'): D
     .join('\n');
 
   fs.writeFileSync(filePath, frontMatter, 'utf8');
-  return parseLessonFile(filePath);
+  const signed = parseLessonFile(filePath);
+  if (signed) upsertLedgerEntry(signed);
+  return signed;
+}
+
+/** Rejet Architecte — supprime la leçon et l'entrée ledger. */
+export function rejectDoctrineLesson(lessonId: string): boolean {
+  const dir = resolveDoctrineDirectory();
+  const filePath = path.join(dir, `${lessonId}.md`);
+  if (!fs.existsSync(filePath)) return false;
+  fs.unlinkSync(filePath);
+  removeLedgerEntry(lessonId);
+  return true;
+}
+
+/** Toutes les leçons signées — injectées en délibération (Loi immortelle). */
+export function loadSignedDoctrineForDeliberation(limit = 48): Array<{
+  id: string;
+  author: DoctrineAuthor;
+  title: string;
+  body: string;
+  createdAt: string;
+  signedAt?: string | null;
+}> {
+  const fromLedger = listLedgerLessons({ status: 'SIGNED', limit });
+  if (fromLedger.length > 0) {
+    return fromLedger.map((l) => ({
+      id: l.id,
+      author: l.author,
+      title: l.title,
+      body: l.body.slice(0, 2000),
+      createdAt: l.createdAt,
+      signedAt: l.signedAt,
+    }));
+  }
+
+  const dir = resolveDoctrineDirectory();
+  const out: ReturnType<typeof loadSignedDoctrineForDeliberation> = [];
+  try {
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.md') && f !== 'README.md')
+      .sort()
+      .reverse();
+    for (const file of files) {
+      if (out.length >= limit) break;
+      const lesson = parseLessonFile(path.join(dir, file));
+      if (!lesson?.body.trim() || lesson.status !== 'SIGNED') continue;
+      out.push({
+        id: lesson.id,
+        author: lesson.author,
+        title: lesson.title,
+        body: lesson.body.slice(0, 2000),
+        createdAt: lesson.createdAt,
+        signedAt: lesson.signedAt,
+      });
+    }
+  } catch {
+    return [];
+  }
+  return out;
 }
 
 /** Extrait doctrineLesson des rapports experts — Gardien intercepte avant Loi. */
@@ -275,6 +342,17 @@ export function captureDoctrineLessonsFromPatches(
   tryCapture('archiviste', patches.archiviste);
   tryCapture('majordome', patches.majordome);
   return captured;
+}
+
+/** Sujet lisible pour le cockpit Architecte (Lia-Lab). */
+export function extractDoctrineSubject(title: string): string {
+  return title.replace(/^Leçon\s+\w+\s*—\s*/i, '').trim() || title.trim() || 'sans titre';
+}
+
+/** Message Lia → Architecte après délibération réussie (Phase C). */
+export function buildArchitectDoctrinePrompt(title: string): string {
+  const subject = extractDoctrineSubject(title);
+  return `Architecte, j'ai noté une nouvelle leçon sur « ${subject} ». Voulez-vous que je la soumette à votre signature ?`;
 }
 
 /** Convertit pour le Gardien / LIVING_BUILDING_STATE. */

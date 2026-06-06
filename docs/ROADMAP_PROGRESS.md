@@ -30,19 +30,32 @@
 | Filtre protection sociale | ✅ | Veto effort physique |
 | Stylo — PENDING_ADMIN_SIGNATURE | ✅ | `living-doctrine-stylo.ts` |
 | Murmures Gardien — console Lia-Lab | ✅ | `guardianConsole` + `guardianMurmures` |
-| Signature Architecte cockpit | ⬜ | `signDoctrineLesson()` prêt |
+| Signature Architecte cockpit | ✅ | `DoctrineRegistryPage` + API `/doctrine-ledger` |
 | Lia-Lab — visualisation verrou temps réel | 🟡 | Safety + Gardien sections |
 
 ---
 
-## Phase C — Système de Capture de Sagesse (Le Stylo)
+## Phase C — Gouvernance Doctrine (Registre de Sagesse)
+
+| Étape | Statut | Notes |
+|-------|--------|-------|
+| `JARVIS_DOCTRINE_LEDGER.json` | ✅ | Index structuré PENDING / SIGNED |
+| API NestJS list / sign / reject | ✅ | `doctrine-ledger/` |
+| Cockpit Admin « Registre de Sagesse » | ✅ | `/admin/doctrine-registry` |
+| Injection Loi signée en délibération | ✅ | `loadSignedDoctrineForDeliberation(48)` |
+| Prompt Architecte post-délibération Lia-Lab | ✅ | rôle `architect` + lien registre |
+| Groq — champ `doctrineLesson` dans rapports experts | 🟡 | Branché merge → Stylo |
+
+---
+
+## Phase C (legacy) — Système de Capture de Sagesse (Le Stylo)
 
 | Étape | Statut | Notes |
 |-------|--------|-------|
 | Répertoire `knowledge/doctrine/` | ✅ | Stylo des agents |
 | API écriture leçons (`living-doctrine-stylo.ts`) | ✅ | Append après délibération |
-| Injection doctrine dans bibliothèque agents | 🟡 | Chargement lessons en lecture |
-| Workflow validation Architecte | ⬜ | Revue humaine avant promotion |
+| Injection doctrine dans bibliothèque agents | ✅ | Leçons SIGNED uniquement |
+| Workflow validation Architecte | ✅ | Registre + sceau |
 | Groq — champ `doctrineLesson` dans rapports experts | 🟡 | Branché merge → Stylo |
 
 ---

@@ -29,6 +29,7 @@ import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { AgentsModule } from './agents/agents.module';
 import { LegalReferencesModule } from './legal-references/legal-references.module';
 import { LiaLabModule } from './lia-lab/lia-lab.module';
+import { DoctrineLedgerModule } from './doctrine-ledger/doctrine-ledger.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { LiaLabModule } from './lia-lab/lia-lab.module';
     AgentsModule,
     LegalReferencesModule,
     LiaLabModule,
+    DoctrineLedgerModule,
   ],
 })
 export class AppModule {}

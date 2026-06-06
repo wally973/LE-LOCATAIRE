@@ -94,6 +94,9 @@ const AdminLayout: React.FC = () => {
             <Link to="/admin/lia-lab" className="nav-link">
               Lia-Lab (Jarvis)
             </Link>
+            <Link to="/admin/doctrine-registry" className="nav-link">
+              Registre de Sagesse
+            </Link>
           </nav>
         </aside>
 

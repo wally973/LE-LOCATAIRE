@@ -1,6 +1,8 @@
 /**
- * Le Gardien — couche souveraine post-délibération (Phase B N7).
- * Quatre missions : cohérence, sécurité, protection sociale, doctrine (Stylo).
+ * @deprecated Remplacé par LivingCyberGardienService — Jacques hors délibération.
+ * Conservé pour référence / tests historiques uniquement.
+ *
+ * Ancien Gardien — couche souveraine post-délibération (Phase B N7).
  */
 import { Injectable, Logger } from '@nestjs/common';
 import type { LiaTenantSocialContext } from '../../shared/lia-jarvis-identity';

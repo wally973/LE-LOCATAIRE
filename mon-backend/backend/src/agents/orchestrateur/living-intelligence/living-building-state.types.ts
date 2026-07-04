@@ -166,6 +166,8 @@ export interface LivingInstrumentsBoard {
 
 /** Rapports d'expertise libres (JSON carnet de bord — Niveau 6). */
 export interface LivingExpertReports {
+  /** Carnet Lia — phase Scénographe (ancrage 3D avant Paul/Pierre). */
+  liaScenographe?: Record<string, unknown> | null;
   enqueteur: Record<string, unknown> | null;
   archiviste: Record<string, unknown> | null;
   majordomeFacts: Record<string, unknown> | null;
@@ -202,6 +204,8 @@ export interface LivingSavoirConsultation {
 export interface LivingBuildingState {
   schema: 'LIVING_BUILDING_STATE';
   version: 3 | 6;
+  /** ID unique — destruction physique à chaque nouvelle conversation (N7). */
+  stateInstanceId?: string;
   updatedAt: string;
   language: CompanionLanguage;
   readiness: LivingReadiness;
@@ -224,8 +228,10 @@ export interface LivingBuildingState {
   teamSymbiosis: LivingTeamSymbiosis;
   /** Niveau 6 — délibération symétrique */
   symmetricDeliberation: LivingSymmetricDeliberation;
-  /** Gardien N7 — dernier verdict souverain */
+  /** @deprecated Gardien moral retiré de la délibération — voir cyberGardienAudit */
   guardianReview?: LivingGuardianReview | null;
+  /** Jacques — Cyber-Gardien (couche externe, hors Paul/Pierre). */
+  cyberGardienAudit?: LivingCyberGardienAudit | null;
   /** Leçons Stylo en attente signature Architecte */
   doctrinePending?: LivingPendingDoctrineLesson[];
   lastTenantMessage: string | null;
@@ -242,7 +248,20 @@ export interface LivingDeliberationTurnResult {
   pendingDoctrineLessons?: LivingPendingDoctrineLesson[];
 }
 
-/** Mission sacrée du Gardien (Phase B N7). */
+/** Audit Cyber-Gardien — forteresse (inputs, mémoire, doctrine). */
+export interface LivingCyberGardienAudit {
+  layer: 'CYBER_GARDIEN';
+  inputBlocked: boolean;
+  inputBlockReason: string | null;
+  memoryIntegrityOk: boolean;
+  ghostsDetected: string[];
+  doctrineMurmures: string[];
+  /** Toujours false — Jacques ne filtre plus la parole Lia. */
+  deliberationFiltered: boolean;
+  auditedAt: string;
+}
+
+/** @deprecated Ancien Gardien moral — conservé pour rétrocompatibilité lecture. */
 export type LivingGuardianMission = 'COHERENCE' | 'SAFETY' | 'SOCIAL' | 'DOCTRINE';
 
 export type LivingGuardianVerdictKind = 'PASS' | 'RE-DELIBERATE' | 'OVERRIDE';

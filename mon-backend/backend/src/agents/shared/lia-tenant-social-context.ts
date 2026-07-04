@@ -18,10 +18,6 @@ function inferAgeBand(hints?: {
   firstName?: string;
 }): LiaTenantAgeBand {
   if (hints?.ageBand && hints.ageBand !== 'unknown') return hints.ageBand;
-  const name = (hints?.firstName ?? '').toLowerCase();
-  if (/marie|jeanne|paulette|gisele|germaine|rené|rene|pierre|marguerite/.test(name)) {
-    return 'senior';
-  }
   return 'unknown';
 }
 

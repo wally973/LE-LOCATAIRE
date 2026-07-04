@@ -62,6 +62,10 @@ export interface LiaIntakeState {
   /** Changement de sujet suspect — confirmation explicite requise avant fermeture. */
   topicChangePending?: boolean;
   pendingTopicLabel?: string;
+  /** Évite un double appel Grock sur le même message locataire. */
+  grockAlreadyCalled: boolean;
+  /** Cache mémoire uniquement — toujours null dans Ticket.aiLastDecision.intake. */
+  lastGrockReply: import('./lia-jarvis-pilot.service').JarvisPilotTurn | null;
 }
 
 export interface IntakeReactiveTurn {
@@ -72,6 +76,8 @@ export interface IntakeReactiveTurn {
   nextQuestionText: string | null;
   /** Statut affiché sous ce message Lia (synchronisé avec la parole). */
   uiStatus?: import('../conversation/lia-message-ui-status').LiaMessageUiStatus;
+  /** Parole déjà poussée dans le fil (ex. auto-conclusion bailleur). */
+  hostMessageAlreadySent?: boolean;
 }
 
 /** @deprecated — arbres scriptés supprimés (Living Intelligence). */
@@ -95,14 +101,33 @@ export function parseIntakeState(
   if (!aiLastDecision || typeof aiLastDecision !== 'object') return null;
   const raw = (aiLastDecision as { intake?: LiaIntakeState }).intake;
   if (!raw || raw.phase == null) return null;
-  return raw;
+  return normalizeIntakeState(raw);
+}
+
+/** Valeurs par défaut et champs non persistés (cache Grock en mémoire seulement). */
+export function normalizeIntakeState(state: LiaIntakeState): LiaIntakeState {
+  return {
+    ...state,
+    grockAlreadyCalled: state.grockAlreadyCalled ?? false,
+    lastGrockReply: null,
+  };
+}
+
+/** État intake sérialisable dans Ticket.aiLastDecision — sans cache Grock. */
+export function sanitizeIntakeForTicket(state: LiaIntakeState): LiaIntakeState {
+  return {
+    ...state,
+    grockAlreadyCalled: state.grockAlreadyCalled ?? false,
+    lastGrockReply: null,
+  };
 }
 
 export function buildIntakePayload(
   state: LiaIntakeState,
   companion?: CompanionUiState,
 ): Record<string, unknown> {
-  return companion ? { intake: state, companion } : { intake: state };
+  const intake = sanitizeIntakeForTicket(state);
+  return companion ? { intake, companion } : { intake };
 }
 
 /** Fusionne des champs dans aiLastDecision sans perdre intake / companion. */
@@ -321,9 +346,24 @@ export class LiaIntakeService {
       intakeMode: 'jarvis',
       jarvisFacts: jarvisFactsFromExtract ?? {},
       skippedQuestionIds: [...(skippedFromExtract ?? [])],
+      grockAlreadyCalled: false,
+      lastGrockReply: null,
     };
     const jarvisState = ensureJarvisOrganizer(base, title, description);
-    return this.reconcileStepIndex(jarvisState);
+    const reconciled = this.reconcileStepIndex(jarvisState);
+
+    // Éclairage : si le locataire a déjà tout donné (ampoule, compteur/disjoncteur…)
+    // et qu'aucune photo n'est utile, on ne le fait pas répéter — l'intake est
+    // saturé, on passe directement en DONE (le diagnostic prend le relais).
+    if (
+      reconciled.category === 'ELECTRICITY' &&
+      isElectricityLightingIntakeSaturated(reconciled) &&
+      !needsContextualElectricityPhoto(reconciled)
+    ) {
+      return this.markDone(reconciled);
+    }
+
+    return reconciled;
   }
 
   /** Toutes les questions fixes d'une catégorie (désactivées si parcours organisateur). */
@@ -594,6 +634,8 @@ export class LiaIntakeService {
       stepIndex: questions.length,
       answers,
       signals,
+      grockAlreadyCalled: false,
+      lastGrockReply: null,
     };
     if (requirePhoto && this.needsPhoto(base)) {
       return { ...base, phase: 'AWAITING_PHOTO' };

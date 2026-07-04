@@ -7,6 +7,7 @@ import {
   isFollowUpClosed,
   buildIntakePayload,
   mergeAiLastDecision,
+  sanitizeIntakeForTicket,
   parseIntakeState,
   type LiaIntakeState,
 } from '../intake/lia-intake.service';
@@ -108,7 +109,7 @@ export class LiaSharedStateService {
     });
     const patch: Record<string, unknown> = { agent };
     if (intake) {
-      Object.assign(patch, { intake });
+      Object.assign(patch, { intake: sanitizeIntakeForTicket(intake) });
     }
     await this.prisma.ticket.update({
       where: { id: ticketId },

@@ -24,6 +24,7 @@ export function createInitialSymmetricDeliberation(
       pilotBrief: 'Instruments de bord — en attente de délibération.',
     },
     expertReports: {
+      liaScenographe: null,
       enqueteur: null,
       archiviste: null,
       majordomeFacts: null,

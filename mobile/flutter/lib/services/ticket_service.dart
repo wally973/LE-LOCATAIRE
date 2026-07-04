@@ -190,6 +190,10 @@ class TicketService {
   static bool shouldOfferPhoto(Map<String, dynamic>? ticket) {
     if (isAwaitingTenantPhoto(ticket)) return true;
     if (ticket == null) return false;
+    // Dossier conclu (intake terminé ou fil clos) : plus d'invite photo.
+    // La relance explicite passe par le statut AWAITING_TENANT_PHOTO ci-dessus.
+    if (intakePhase(ticket) == 'DONE') return false;
+    if (isFollowUpClosed(ticket)) return false;
     if (intakePhase(ticket) == 'INTAKE') return false;
     final companion = CompanionState.fromTicketJson(ticket);
     return companion?.photoRequested == true;
@@ -199,10 +203,10 @@ class TicketService {
     if (ticket == null) return null;
     final ai = ticket['aiLastDecision'];
     if (ai is! Map) return null;
-    final aiMap = Map<String, dynamic>.from(ai as Map);
+    final aiMap = Map<String, dynamic>.from(ai);
     final intake = aiMap['intake'];
     if (intake is! Map) return null;
-    final intakeMap = Map<String, dynamic>.from(intake as Map);
+    final intakeMap = Map<String, dynamic>.from(intake);
     return intakeMap['phase'] as String?;
   }
 

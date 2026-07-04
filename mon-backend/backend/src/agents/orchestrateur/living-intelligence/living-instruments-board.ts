@@ -3,6 +3,7 @@
  */
 import type { LivingBuildingState, LivingDeliberationEcho } from './living-building-state.types';
 import { tripleFluxToDisplayLabel } from '../../../ai/lia-triple-flux-charge';
+import { extractExpertInsight } from './living-majordome-parole';
 
 export interface LivingInstrumentsBoard {
   updatedAt: string;
@@ -67,9 +68,9 @@ export function buildInstrumentsBoard(
 
   return {
     updatedAt: new Date().toISOString(),
-    enqueteurInsight: last('enqueteur'),
-    archivisteInsight: last('archiviste'),
-    majordomeFactsInsight: last('majordome'),
+    enqueteurInsight: last('enqueteur') ?? extractExpertInsight(expertReports?.enqueteur),
+    archivisteInsight: last('archiviste') ?? extractExpertInsight(expertReports?.archiviste),
+    majordomeFactsInsight: last('majordome') ?? extractExpertInsight(expertReports?.majordome),
     activeFlows: state.vision3d.activeFlows,
     mentalModels: state.vision3d.mentalModels,
     chargeHorizon: tripleFluxToDisplayLabel(state.legalVerdict.chargeHorizon),

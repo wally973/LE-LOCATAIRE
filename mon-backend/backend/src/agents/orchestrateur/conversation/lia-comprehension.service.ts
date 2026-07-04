@@ -81,13 +81,16 @@ export class LiaComprehensionService {
 
     const locale =
       turn.state.preferredLanguage === 'gcf' ? 'gcf-GP' : 'fr-FR';
-    await this.conversation.appendMessage(
-      ticketId,
-      'LIA_HOST',
-      turn.acknowledgment,
-      locale,
-      { uiStatus: turn.uiStatus },
-    );
+    // Auto-conclusion Grock : la parole a déjà été postée par la conclusion — pas de doublon.
+    if (!turn.autoConclusionApplied) {
+      await this.conversation.appendMessage(
+        ticketId,
+        'LIA_HOST',
+        turn.acknowledgment,
+        locale,
+        { uiStatus: turn.uiStatus },
+      );
+    }
     if (turn.nextQuestion) {
       await this.conversation.appendMessage(
         ticketId,
@@ -108,6 +111,47 @@ export class LiaComprehensionService {
 
   recordAnswer(state: LiaIntakeState, answer: string): LiaIntakeState {
     return this.intake.recordAnswer(state, answer);
+  }
+
+  /**
+   * INV1 — preuve/réponse revenue après un sondage : on relance Grock (tour
+   * locataire). Grock produit lui-même la conclusion (parole + état terminal) ;
+   * le pilote finalise et transmet. Aucun texte métier codé ici : le message
+   * affiché est toujours celui de Grock.
+   */
+  async resolveGateFollowup(params: {
+    ticketId: number;
+    intake: LiaIntakeState;
+    message: string;
+    title: string;
+    description: string;
+    tenantFirstName?: string;
+    residenceUnitNumber?: string | null;
+  }): Promise<LiaIntakeState> {
+    const turn = await this.jarvis.runTenantTurn({
+      state: { ...params.intake, intakeMode: 'jarvis' },
+      message: params.message,
+      title: params.title,
+      description: params.description,
+      tenantFirstName: params.tenantFirstName,
+      ticketId: params.ticketId,
+      residenceUnitNumber: params.residenceUnitNumber ?? undefined,
+    });
+
+    // Si le pilote a déjà conclu, la parole a été postée (pas de doublon).
+    if (turn.acknowledgment && !turn.autoConclusionApplied) {
+      const locale =
+        turn.state.preferredLanguage === 'gcf' ? 'gcf-GP' : 'fr-FR';
+      await this.conversation.appendMessage(
+        params.ticketId,
+        'LIA_HOST',
+        turn.acknowledgment,
+        locale,
+        { uiStatus: turn.uiStatus },
+      );
+    }
+
+    return turn.state;
   }
 
   processTenantReply(params: {

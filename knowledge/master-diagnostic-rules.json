@@ -1,326 +1,256 @@
 {
-  "version": 1,
-  "updatedAt": "2026-05-22",
-  "method": "Savoir-Voir",
-  "description": "Arbres de décision multi-corps d'état — observation, capteurs, élimination, conclusion",
-  "domains": [
+  "schema": "PASSIVE_KNOWLEDGE_SHEET",
+  "version": 2,
+  "updatedAt": "2026-06-13",
+  "method": "Savoir-Voir-passif",
+  "description": "Fiches multi-corps d’état — observation et sécurité, sans arbre de questions ni élimination scriptée.",
+  "prioriteTerritoriale": {
+    "dominant": "GUYANE",
+    "regle": "RTAA-DOM / climat tropical prime sur toute règle nationale contradictoire."
+  },
+  "fiches": [
     {
       "id": "ELECTRICITY",
+      "lot": "ELECTRICITY",
       "label": "Électricité",
-      "category": "ELECTRICITY",
       "keywords": [
-        "electri", "électri", "prise", "disjonct", "tableau", "ampoule",
-        "grésill", "gresill", "brul", "brûl", "étincelle", "etincelle",
-        "courant", "lumiere", "lumière", "interrupteur"
+        "electri",
+        "électri",
+        "prise",
+        "disjonct",
+        "tableau",
+        "ampoule",
+        "grésill",
+        "gresill",
+        "brul",
+        "brûl",
+        "étincelle",
+        "etincelle",
+        "courant",
+        "lumiere",
+        "lumière",
+        "interrupteur"
       ],
-      "criticalSensors": [
-        {
-          "id": "electric_scope",
-          "label": "Périmètre (une pièce / tout le logement)",
-          "required": true,
-          "intakeQuestionId": "scope"
-        },
-        {
-          "id": "danger_signs",
-          "label": "Signes de danger (grésillement, odeur de brûlé, étincelles)",
-          "required": true
-        },
-        {
-          "id": "breaker_behavior",
-          "label": "Comportement du disjoncteur / tableau",
-          "required": false
-        }
+      "signesUtiles": [
+        "Périmètre (une pièce / tout le logement)",
+        "Signes de danger (grésillement, odeur de brûlé, étincelles)",
+        "Comportement du disjoncteur / tableau"
       ],
-      "hypotheses": [
+      "pistesConnues": [
         {
-          "id": "hyp_elec_tenant_bulb",
           "label": "Ampoule ou consommable usé (menue réparation locataire)",
-          "defaultProbability": 0.35,
-          "responsibilityHint": "LOCATAIRE"
+          "chargeHint": "LOCATAIRE"
         },
         {
-          "id": "hyp_elec_tenant_socket",
           "label": "Prise / interrupteur accessible usé (entretien locatif)",
-          "defaultProbability": 0.25,
-          "responsibilityHint": "LOCATAIRE"
+          "chargeHint": "LOCATAIRE"
         },
         {
-          "id": "hyp_elec_installation_defect",
           "label": "Défaut d’installation fixe ou liaison dangereuse (charge bailleur)",
-          "defaultProbability": 0.25,
-          "responsibilityHint": "BAILLEUR"
+          "chargeHint": "BAILLEUR"
         },
         {
-          "id": "hyp_elec_overload",
           "label": "Surcharge multiprise / usage locatif",
-          "defaultProbability": 0.15,
-          "responsibilityHint": "LOCATAIRE"
+          "chargeHint": "LOCATAIRE"
         }
       ],
-      "eliminationRules": [
-        {
-          "id": "rule_elec_danger_installation",
-          "whenTextMatches": "grésill|gresill|sent le brul|odeur de brul|étincelle|etincelle|fil denud|arc electri",
-          "eliminate": ["hyp_elec_tenant_bulb", "hyp_elec_tenant_socket", "hyp_elec_overload"],
-          "boost": { "hyp_elec_installation_defect": 0.78 },
-          "eliminationReason": "Signes de surchauffe ou arc : incompatible avec simple ampoule — installation ou liaison à contrôler en urgence."
-        },
-        {
-          "id": "rule_elec_general_outage",
-          "whenTextMatches": "tout le logement|plus de courant|coupure generale|tableau",
-          "eliminate": ["hyp_elec_tenant_bulb"],
-          "boost": { "hyp_elec_installation_defect": 0.65 },
-          "eliminationReason": "Panne généralisée : orientation installation / tableau, pas simple ampoule."
-        }
+      "notesTerrain": [
+        "Signes de surchauffe ou arc : incompatible avec simple ampoule — installation ou liaison à contrôler en urgence.",
+        "Panne généralisée : orientation installation / tableau, pas simple ampoule."
       ],
-      "urgentDangerPatterns": [
-        "grésill", "gresill", "sent le brul", "odeur de brul", "étincelle",
-        "etincelle", "fil denud", "fumée noire", "fumee noire"
+      "signesUrgence": [
+        "grésill",
+        "gresill",
+        "sent le brul",
+        "odeur de brul",
+        "étincelle",
+        "etincelle",
+        "fil denud",
+        "fumée noire",
+        "fumee noire"
       ],
-      "urgentSafetyMessage": "Coupez le disjoncteur du circuit concerné si vous pouvez le faire sans danger. N’utilisez plus cette prise. Un agent du bailleur est alerté en urgence."
+      "messageSecurite": "Coupez le disjoncteur du circuit concerné si vous pouvez le faire sans danger. N’utilisez plus cette prise. Un agent du bailleur est alerté en urgence."
     },
     {
       "id": "CARPENTRY",
+      "lot": "CARPENTRY",
       "label": "Menuiserie",
-      "category": "CARPENTRY",
       "keywords": [
-        "menuiserie", "porte", "fenetre", "fenêtre", "volet", "gond",
-        "poignee", "poignée", "parquet", "plinthe", "cadre", "serrure bois",
-        "clé", "cle", "clef", "clés", "perdu", "perdue", "oublié", "oublie"
+        "menuiserie",
+        "porte",
+        "fenetre",
+        "fenêtre",
+        "volet",
+        "gond",
+        "poignee",
+        "poignée",
+        "parquet",
+        "plinthe",
+        "cadre",
+        "serrure bois",
+        "clé",
+        "cle",
+        "clef",
+        "clés",
+        "perdu",
+        "perdue",
+        "oublié",
+        "oublie"
       ],
-      "criticalSensors": [
-        {
-          "id": "carpentry_element",
-          "label": "Élément concerné (porte, fenêtre, volet, parquet…)",
-          "required": true
-        },
-        {
-          "id": "carpentry_symptom",
-          "label": "Symptôme (ferme mal, grince, cassé, affaissement)",
-          "required": true
-        },
-        {
-          "id": "humidity_link",
-          "label": "Lien humidité / infiltration visible",
-          "required": false
-        }
+      "signesUtiles": [
+        "Élément concerné (porte, fenêtre, volet, parquet…)",
+        "Symptôme (ferme mal, grince, cassé, affaissement)",
+        "Lien humidité / infiltration visible"
       ],
-      "hypotheses": [
+      "pistesConnues": [
         {
-          "id": "hyp_carp_tenant_adjust",
           "label": "Réglage / graissage / entretien courant locataire",
-          "defaultProbability": 0.45,
-          "responsibilityHint": "LOCATAIRE"
+          "chargeHint": "LOCATAIRE"
         },
         {
-          "id": "hyp_carp_wear_tenant",
           "label": "Usure d’usage locatif (poignée, butée, joint)",
-          "defaultProbability": 0.3,
-          "responsibilityHint": "LOCATAIRE"
+          "chargeHint": "LOCATAIRE"
         },
         {
-          "id": "hyp_carp_frame_structure",
           "label": "Cadre / dormant / structure menuiserie (bailleur)",
-          "defaultProbability": 0.25,
-          "responsibilityHint": "BAILLEUR"
+          "chargeHint": "BAILLEUR"
         },
         {
-          "id": "hyp_carp_lost_key",
           "label": "Clé perdue ou oubliée — accès à rouvrir",
-          "defaultProbability": 0.15,
-          "responsibilityHint": "LOCATAIRE"
+          "chargeHint": "LOCATAIRE"
         }
       ],
-      "eliminationRules": [
-        {
-          "id": "rule_carp_lost_key_tenant",
-          "whenTextMatches": "perdu|perdue|perdus|oublie|oublié|oubliee|sans cle|sans clé|cle perdue|clé perdue",
-          "eliminate": ["hyp_carp_tenant_adjust", "hyp_carp_wear_tenant", "hyp_carp_frame_structure"],
-          "boost": { "hyp_carp_lost_key": 0.88 },
-          "eliminationReason": "Clé perdue par le locataire — charge locative (87-712), pas intervention bailleur gratuite."
-        },
-        {
-          "id": "rule_carp_humidity_bailleur",
-          "whenTextMatches": "gonfle|humid|infiltr|pourrit|moisi|cadre pourri",
-          "eliminate": ["hyp_carp_tenant_adjust", "hyp_carp_wear_tenant"],
-          "boost": { "hyp_carp_frame_structure": 0.72 },
-          "eliminationReason": "Déformation ou pourriture liée à l’humidité : cadre / structure, pas simple entretien locatif."
-        }
+      "notesTerrain": [
+        "Clé perdue par le locataire — charge locative (87-712), pas intervention bailleur gratuite.",
+        "Déformation ou pourriture liée à l’humidité : cadre / structure, pas simple entretien locatif."
       ],
-      "urgentDangerPatterns": []
+      "signesUrgence": [],
+      "messageSecurite": null
     },
     {
       "id": "VMC",
+      "lot": "VMC",
       "label": "VMC / ventilation",
-      "category": "VMC",
       "keywords": [
-        "vmc", "ventilation", "aeration", "aération", "extracteur",
-        "hotte", "bouche d.?air", "condensat vmc"
+        "vmc",
+        "ventilation",
+        "aeration",
+        "aération",
+        "extracteur",
+        "hotte",
+        "bouche d.?air",
+        "condensat vmc"
       ],
-      "criticalSensors": [
-        {
-          "id": "vmc_symptom",
-          "label": "Symptôme (bruit, faible débit, arrêt, condensation)",
-          "required": true
-        },
-        {
-          "id": "vmc_room",
-          "label": "Pièce (cuisine, SDB, WC)",
-          "required": true
-        },
-        {
-          "id": "filter_maintained",
-          "label": "Entretien filtres / bouches récent",
-          "required": false
-        }
+      "signesUtiles": [
+        "Symptôme (bruit, faible débit, arrêt, condensation)",
+        "Pièce (cuisine, SDB, WC)",
+        "Entretien filtres / bouches récent"
       ],
-      "hypotheses": [
+      "pistesConnues": [
         {
-          "id": "hyp_vmc_tenant_filter",
           "label": "Filtres ou bouches encrassés (entretien locataire)",
-          "defaultProbability": 0.5,
-          "responsibilityHint": "LOCATAIRE"
+          "chargeHint": "LOCATAIRE"
         },
         {
-          "id": "hyp_vmc_motor_collective",
           "label": "Moteur / réseau collectif VMC (bailleur)",
-          "defaultProbability": 0.35,
-          "responsibilityHint": "BAILLEUR"
+          "chargeHint": "BAILLEUR"
         },
         {
-          "id": "hyp_vmc_duct_block",
           "label": "Conduit obstrué ou défaillance extraction",
-          "defaultProbability": 0.15,
-          "responsibilityHint": "BAILLEUR"
+          "chargeHint": "BAILLEUR"
         }
       ],
-      "eliminationRules": [
-        {
-          "id": "rule_vmc_no_air_collective",
-          "whenTextMatches": "plus d.?air|ne tourne plus|arret complet|odeur renferme immeuble",
-          "eliminate": ["hyp_vmc_tenant_filter"],
-          "boost": { "hyp_vmc_motor_collective": 0.7 },
-          "eliminationReason": "Arrêt général ou odeurs immeuble : réseau collectif, pas seulement un filtre de bouche."
-        }
+      "notesTerrain": [
+        "Arrêt général ou odeurs immeuble : réseau collectif, pas seulement un filtre de bouche."
       ],
-      "urgentDangerPatterns": []
+      "signesUrgence": [],
+      "messageSecurite": null
     },
     {
       "id": "TERMITES",
+      "lot": "TERMITES",
       "label": "Termites / insectes xylophages",
-      "category": "TERMITES",
       "keywords": [
-        "termite", "capricorne", "vrillette", "insecte bois", "sciure",
-        "galeries", "bois troue", "xylophage"
+        "termite",
+        "capricorne",
+        "vrillette",
+        "insecte bois",
+        "sciure",
+        "galeries",
+        "bois troue",
+        "xylophage"
       ],
-      "criticalSensors": [
-        {
-          "id": "termite_evidence",
-          "label": "Preuve visible (galeries, sciure, insectes, ailes)",
-          "required": true
-        },
-        {
-          "id": "wood_location",
-          "label": "Localisation (plinthe, charpente, parquet, menuiserie)",
-          "required": true
-        },
-        {
-          "id": "building_floor",
-          "label": "Étage du logement",
-          "required": false
-        }
+      "signesUtiles": [
+        "Preuve visible (galeries, sciure, insectes, ailes)",
+        "Localisation (plinthe, charpente, parquet, menuiserie)",
+        "Étage du logement"
       ],
-      "hypotheses": [
+      "pistesConnues": [
         {
-          "id": "hyp_term_surface",
           "label": "Atteinte localisée menuiserie / parquet (nuance selon bail)",
-          "defaultProbability": 0.3,
-          "responsibilityHint": "NUANCE"
+          "chargeHint": "NUANCE"
         },
         {
-          "id": "hyp_term_structure",
           "label": "Charpente / structure bois immeuble (bailleur)",
-          "defaultProbability": 0.55,
-          "responsibilityHint": "BAILLEUR"
+          "chargeHint": "BAILLEUR"
         },
         {
-          "id": "hyp_term_false_alarm",
           "label": "Traces anciennes ou autre insecte à confirmer",
-          "defaultProbability": 0.15,
-          "responsibilityHint": "NUANCE"
+          "chargeHint": "NUANCE"
         }
       ],
-      "eliminationRules": [
-        {
-          "id": "rule_term_charpente",
-          "whenTextMatches": "charpente|comble|poutre|plafond bois|structure",
-          "eliminate": ["hyp_term_surface", "hyp_term_false_alarm"],
-          "boost": { "hyp_term_structure": 0.8 },
-          "eliminationReason": "Atteinte structure bois : traitement curatif immeuble — charge bailleur."
-        }
+      "notesTerrain": [
+        "Atteinte structure bois : traitement curatif immeuble — charge bailleur."
       ],
-      "urgentDangerPatterns": []
+      "signesUrgence": [],
+      "messageSecurite": null
     },
     {
       "id": "COMMON_AREAS",
+      "lot": "COMMON_AREAS",
       "label": "Parties communes",
-      "category": "COMMON_AREAS",
       "keywords": [
-        "parties communes", "hall", "cage d.?escalier", "ascenseur",
-        "ascenceur", "parking collectif", "local poubelle", "toiture commune",
-        "facade commune", "colonne"
+        "parties communes",
+        "hall",
+        "cage d.?escalier",
+        "ascenseur",
+        "ascenceur",
+        "parking collectif",
+        "local poubelle",
+        "toiture commune",
+        "facade commune",
+        "colonne"
       ],
-      "criticalSensors": [
-        {
-          "id": "common_area_type",
-          "label": "Zone (hall, ascenseur, cage, parking, toiture)",
-          "required": true
-        },
-        {
-          "id": "collective_scope",
-          "label": "Impact collectif (plusieurs logements / sécurité)",
-          "required": true
-        },
-        {
-          "id": "elevator_trapped",
-          "label": "Personne bloquée en ascenseur",
-          "required": false
-        }
+      "signesUtiles": [
+        "Zone (hall, ascenseur, cage, parking, toiture)",
+        "Impact collectif (plusieurs logements / sécurité)",
+        "Personne bloquée en ascenseur"
       ],
-      "hypotheses": [
+      "pistesConnues": [
         {
-          "id": "hyp_common_elevator",
           "label": "Panne ou danger ascenseur (bailleur / maintenance)",
-          "defaultProbability": 0.35,
-          "responsibilityHint": "BAILLEUR"
+          "chargeHint": "BAILLEUR"
         },
         {
-          "id": "hyp_common_leak",
           "label": "Fuite ou infiltration parties communes",
-          "defaultProbability": 0.35,
-          "responsibilityHint": "BAILLEUR"
+          "chargeHint": "BAILLEUR"
         },
         {
-          "id": "hyp_common_cleaning",
           "label": "Propreté / dégradation passagère (nuance)",
-          "defaultProbability": 0.3,
-          "responsibilityHint": "NUANCE"
+          "chargeHint": "NUANCE"
         }
       ],
-      "eliminationRules": [
-        {
-          "id": "rule_elevator_trapped",
-          "whenTextMatches": "bloque|coince|personne dans|secours ascenseur",
-          "eliminate": ["hyp_common_leak", "hyp_common_cleaning"],
-          "boost": { "hyp_common_elevator": 0.9 },
-          "eliminationReason": "Personne bloquée : urgence ascenseur — bailleur et maintenance immédiats."
-        }
+      "notesTerrain": [
+        "Personne bloquée : urgence ascenseur — bailleur et maintenance immédiats."
       ],
-      "urgentDangerPatterns": [
-        "bloque dans l.?ascenseur", "coince dans l.?ascenseur",
-        "personne dans l.?ascenseur", "ascenseur bloque", "chute ascenseur"
+      "signesUrgence": [
+        "bloque dans l.?ascenseur",
+        "coince dans l.?ascenseur",
+        "personne dans l.?ascenseur",
+        "ascenseur bloque",
+        "chute ascenseur"
       ],
-      "urgentSafetyMessage": "Si une personne est bloquée, appelez les secours (18 / 112) et le numéro d’astreinte ascenseur. Le bailleur est alerté en urgence."
+      "messageSecurite": "Si une personne est bloquée, appelez les secours (18 / 112) et le numéro d’astreinte ascenseur. Le bailleur est alerté en urgence."
     }
   ]
 }

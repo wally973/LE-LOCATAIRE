@@ -11,6 +11,27 @@ export interface DetectedClaim {
   excerpt: string;
 }
 
+const electricityPatterns = [
+  /pas\s+de\s+courant/i,
+  /plus\s+de\s+courant/i,
+  /prise/i,
+  /prises/i,
+  /disjoncteur/i,
+  /tableau\s+électrique/i,
+  /court[-\s]?circuit/i,
+  /électricité/i,
+];
+
+/** Détection fiable d'un signalement électricité (courant, prise, disjoncteur…). */
+export function detectElectricityClaim(text: string): boolean {
+  const raw = text.trim();
+  if (!raw) return false;
+  const norm = normalizeForMatch(raw);
+  return electricityPatterns.some(
+    (pattern) => pattern.test(raw) || pattern.test(norm),
+  );
+}
+
 const TOPIC_RULES: {
   id: string;
   category: IntakeCategory;
@@ -34,12 +55,11 @@ const TOPIC_RULES: {
     category: 'ELECTRICITY',
     label: 'Électricité / éclairage',
     patterns: [
+      ...electricityPatterns,
       /[eé]lectri/i,
       /lumi[eè]re/i,
       /ampoule/i,
-      /disjoncteur/i,
       /compteur/i,
-      /plus de courant/i,
       /panne.*(courant|[eé]lec)/i,
     ],
   },

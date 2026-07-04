@@ -60,11 +60,18 @@ export class LiaDiagnosticCapabilityService {
         );
         return;
       }
+      const intake = parseIntakeState(ticket?.aiLastDecision);
+      if (intake?.intakeMode === 'jarvis') {
+        this.logger.debug(
+          `Ticket ${ticketId} : enquête Grock active — pipeline ai-routing ignoré.`,
+        );
+        return;
+      }
+
       const flags = ticket?.landlordProfileId
         ? await this.featureFlags.getQualificationFlags(ticket.landlordProfileId)
         : await this.featureFlags.pickQualificationFlags({});
 
-      const intake = parseIntakeState(ticket?.aiLastDecision);
       const jarvisCtx = buildJarvisDiagnosticEnrichment(intake);
 
       let feedback = [jarvisCtx, tenantFeedback].filter(Boolean).join('\n\n');

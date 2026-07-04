@@ -23,7 +23,6 @@ import { UpdateTenantProfileDto } from './dto/update-tenant-profile.dto';
 import { AiDiagnosticsService } from '../ai-diagnostics/ai-diagnostics.service';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 import { DetectClaimsDto } from './dto/detect-claims.dto';
-import { detectMultipleClaims } from '../lia/lia-multi-claim';
 
 @ApiTags('tenant')
 @ApiBearerAuth('bearer')
@@ -56,14 +55,21 @@ export class TenantController {
   @Roles('LOCATAIRE')
   @ApiOperation({
     summary:
-      'Détecte plusieurs sujets dans une description (un ticket = une réclamation)',
+      'Indice de sujets dans une description (Lia/Grock tranche ensuite — pas de split automatique)',
   })
   detectClaims(@Body() dto: DetectClaimsDto) {
-    const claims = detectMultipleClaims(dto.description, dto.description);
+    const text = dto.description.trim();
+    const label = text.length <= 80 ? text : `${text.slice(0, 77)}…`;
+    const singleClaim = {
+      id: 'signalement-unique',
+      category: 'GENERIC',
+      label,
+      excerpt: text,
+    };
     return {
-      count: claims.length,
-      multiple: claims.length > 1,
-      claims,
+      count: 1,
+      multiple: false,
+      claims: [singleClaim],
     };
   }
 

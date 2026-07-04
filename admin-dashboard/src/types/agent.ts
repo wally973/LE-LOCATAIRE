@@ -8,6 +8,7 @@ export interface ReferentReclamationRow {
   responsibility: string;
   metier: string;
   metierCode: string | null;
+  aiSeverity: string | null;
   joursSansTraitement: number;
   affichageRetard: string;
   createdAt: string;
@@ -31,4 +32,14 @@ export interface ReferentReclamationsResponse {
   scopeLabel: string;
   items: ReferentReclamationRow[];
   total: number;
+}
+
+/** Message GET /tickets/:id/messages */
+export interface TicketMessageRow {
+  id: number;
+  ticketId: number;
+  role: 'TENANT' | 'LIA_HOST' | 'LIA_SYSTEM' | string;
+  content: string;
+  locale: string;
+  createdAt: string;
 }

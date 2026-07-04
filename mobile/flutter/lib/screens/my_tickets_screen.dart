@@ -167,7 +167,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                                 style: const TextStyle(fontSize: 11),
                               ),
                               backgroundColor:
-                                  _statusColor(status).withOpacity(0.15),
+                                  _statusColor(status).withValues(alpha: 0.15),
                               side: BorderSide.none,
                             ),
                             onTap: () => _openConversation(id),

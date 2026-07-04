@@ -8,6 +8,7 @@ const SENSOR_LABELS: Partial<Record<keyof DiagnosticSensors, string>> = {
   water_aspect: 'Aspect de l’eau',
   building_floor: 'Niveau du logement',
   timing_pattern: 'Créneau horaire',
+  symptom_anchor: 'Ancrage du symptôme',
 };
 
 /** Ex. « Diagnostic établi en mode Saison sèche. » */

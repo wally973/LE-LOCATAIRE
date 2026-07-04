@@ -16,4 +16,21 @@ describe('buildTenantFacingMessage', () => {
     expect(msg).not.toMatch(/Synthèse de l’analyse/);
     expect(msg).not.toMatch(/Oui \/ Non/);
   });
+
+  it('message bailleur eau/humidité avec conseil utile et assurance', () => {
+    const msg = buildTenantFacingMessage({
+      responsibility: 'BAILLEUR',
+      category: 'HUMIDITY',
+      title: 'Toiture / infiltration',
+      description: 'infiltration dans la buanderie au plafond',
+      tenantFirstName: 'Marie',
+      intake: { signals: { roomHint: 'buanderie' } } as never,
+    });
+
+    expect(msg).toMatch(/charge du bailleur/i);
+    expect(msg).toMatch(/plafond|d’au-dessus/i);
+    expect(msg).toMatch(/assurance habitation/i);
+    expect(msg).not.toMatch(/artisan partenaire/i);
+    expect(msg).not.toMatch(/Synthèse de l’analyse/);
+  });
 });

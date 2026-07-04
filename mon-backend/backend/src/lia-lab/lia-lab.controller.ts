@@ -7,6 +7,7 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
@@ -17,10 +18,11 @@ import { LiaLabService } from './lia-lab.service';
 import {
   CreateLabSessionDto,
   LabMessageDto,
+  LabPathologyQuestionDto,
   LabTtsDto,
 } from './dto/lia-lab.dto';
 
-/** Lia-Lab — intercom Jarvis (ADMIN) : STT, TTS, chat sandbox + console visualisation. */
+/** Lia-Lab — Intercom Grock (mono-agent, ADMIN). */
 @ApiTags('lia-lab')
 @ApiBearerAuth()
 @Controller('lia-lab')
@@ -29,24 +31,9 @@ import {
 export class LiaLabController {
   constructor(private readonly lab: LiaLabService) {}
 
-  @Get('presets/juridique')
-  juridiquePresets() {
-    return { presets: this.lab.listJuridiquePresets() };
-  }
-
-  @Post('sessions')
-  createSession(@Body() dto: CreateLabSessionDto) {
-    return this.lab.createSession(dto);
-  }
-
   @Post('sessions/start')
   startSession(@Body() dto: CreateLabSessionDto) {
     return this.lab.startSession(dto);
-  }
-
-  @Post('sessions/:id/opening')
-  openSession(@Param('id') id: string) {
-    return this.lab.runOpening(id);
   }
 
   @Post('sessions/:id/message')
@@ -54,14 +41,32 @@ export class LiaLabController {
     return this.lab.sendTenantMessage(id, dto.text);
   }
 
+  @Post('sessions/:id/photo')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('photo', {
+      limits: { fileSize: 8 * 1024 * 1024 },
+    }),
+  )
+  photo(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('caption') caption?: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Photo requise (champ photo).');
+    }
+    return this.lab.sendTenantPhoto(
+      id,
+      file.buffer,
+      file.mimetype || 'image/jpeg',
+      caption,
+    );
+  }
+
   @Get('sessions/:id/visualization')
   visualization(@Param('id') id: string) {
     return this.lab.getVisualization(id);
-  }
-
-  @Get('sessions/:id/deliberation-preview')
-  deliberationPreview(@Param('id') id: string) {
-    return this.lab.getDeliberationPreview(id);
   }
 
   @Post('sessions/:id/discard')
@@ -70,13 +75,21 @@ export class LiaLabController {
     return { ok: true };
   }
 
+  @Post('admin/purge-living-state')
+  purgeLivingState() {
+    return this.lab.purgeAllLivingBuildingStates();
+  }
+
+  @Get('groq/status')
+  groqStatus() {
+    return this.lab.getGroqStatus();
+  }
+
   @Post('transcribe')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('audio'))
   async transcribe(@UploadedFile() file: Express.Multer.File) {
-    if (!file?.buffer?.length) {
-      return { text: '' };
-    }
+    if (!file?.buffer?.length) return { text: '' };
     const text = await this.lab.transcribeAudio(
       file.buffer,
       file.mimetype || 'audio/webm',
@@ -87,5 +100,11 @@ export class LiaLabController {
   @Post('tts')
   async tts(@Body() dto: LabTtsDto) {
     return this.lab.synthesizeSpeech(dto.text, dto.language ?? 'fr');
+  }
+
+  /** Consultation pathologie — question directe, sans scénario Intercom. */
+  @Post('pathology/ask')
+  async askPathology(@Body() dto: LabPathologyQuestionDto) {
+    return this.lab.askPathology(dto.question, dto.language ?? 'fr');
   }
 }

@@ -22,6 +22,18 @@ describe('Phase 4 — produit fini (clim Guyane, saison sèche)', () => {
     contextText: `${title} ${description}`,
   });
 
+  // Le juriste doit être déterministe ici : on teste la logique de règles
+  // (différentiel clim → LOCATAIRE), pas l'appel LLM réseau non déterministe.
+  let prevJuristEnabled: string | undefined;
+  beforeAll(() => {
+    prevJuristEnabled = process.env.LIA_JURIST_ENABLED;
+    process.env.LIA_JURIST_ENABLED = 'false';
+  });
+  afterAll(() => {
+    if (prevJuristEnabled === undefined) delete process.env.LIA_JURIST_ENABLED;
+    else process.env.LIA_JURIST_ENABLED = prevJuristEnabled;
+  });
+
   it('1. Accueil créole « Bonjou »', async () => {
     const companion = new LiaCompanionService(new LiaHostService());
     const greeting = await companion.produceGuidance({

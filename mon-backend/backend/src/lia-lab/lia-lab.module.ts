@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
-import { LiaModule } from '../lia/lia.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { GrockModule } from '../grock/grock.module';
 import { LiaLabController } from './lia-lab.controller';
 import { LiaLabService } from './lia-lab.service';
 
 @Module({
-  imports: [LiaModule],
+  imports: [GrockModule, PrismaModule],
   controllers: [LiaLabController],
   providers: [LiaLabService],
 })

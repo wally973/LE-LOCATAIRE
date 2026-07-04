@@ -1,0 +1,189 @@
+.grock-learning {
+  --gl-accent: #6d5efc;
+  --gl-high: #e5484d;
+  --gl-warn: #f5a623;
+  --gl-ok: #30a46c;
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.gl-header h1 {
+  margin: 0 0 6px;
+  font-size: 1.6rem;
+}
+.gl-subtitle {
+  max-width: 780px;
+  color: var(--text-secondary, #555);
+  line-height: 1.5;
+}
+.gl-meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #777);
+}
+.gl-link {
+  color: var(--gl-accent);
+}
+
+.gl-error {
+  background: #fde8e8;
+  color: #b42318;
+  border: 1px solid #f5c2c0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.gl-loading,
+.gl-empty {
+  color: var(--text-secondary, #777);
+  padding: 16px 0;
+}
+
+.gl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 16px;
+}
+@media (max-width: 900px) {
+  .gl-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.gl-col h2 {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+
+.gl-card,
+.gl-lesson,
+.gl-form {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e4e4ee);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.gl-sev-high {
+  border-left: 4px solid var(--gl-high);
+}
+.gl-sev-warn {
+  border-left: 4px solid var(--gl-warn);
+}
+
+.gl-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.gl-kind {
+  font-weight: 600;
+}
+.gl-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: #999;
+}
+.gl-badge-high {
+  background: var(--gl-high);
+}
+.gl-badge-warn {
+  background: var(--gl-warn);
+}
+.gl-badge-ok {
+  background: var(--gl-ok);
+}
+
+.gl-summary {
+  margin: 6px 0;
+  line-height: 1.45;
+}
+.gl-evidence {
+  margin: 8px 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #555);
+}
+.gl-evidence li {
+  margin-bottom: 4px;
+}
+
+.gl-btn {
+  border: 1px solid var(--border, #d0d0e0);
+  background: #f4f4fb;
+  color: #333;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+.gl-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.gl-btn-primary {
+  background: var(--gl-accent);
+  border-color: var(--gl-accent);
+  color: #fff;
+}
+.gl-btn-sign {
+  background: var(--gl-ok);
+  border-color: var(--gl-ok);
+  color: #fff;
+}
+.gl-btn-reject {
+  background: #fff;
+  border-color: var(--gl-high);
+  color: var(--gl-high);
+}
+
+.gl-form label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.gl-form input,
+.gl-form textarea {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #d0d0e0);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  box-sizing: border-box;
+}
+.gl-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.gl-chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.gl-form-actions,
+.gl-lesson-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.gl-lesson-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #777);
+}
+.gl-lesson-draft {
+  border-left: 4px solid var(--gl-warn);
+}

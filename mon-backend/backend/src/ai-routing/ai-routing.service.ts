@@ -6,6 +6,8 @@ import {
   Optional,
 } from '@nestjs/common';
 import { Prisma, TicketResponsibility } from '@prisma/client';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiDiagnosticsService } from '../ai-diagnostics/ai-diagnostics.service';
@@ -16,6 +18,7 @@ import {
   appendIntakeContextToFeedback,
   parseIntakeState,
   mergeAiLastDecision,
+  sanitizeIntakeForTicket,
 } from '../lia/lia-intake.service';
 import {
   buildTenantCaseContext,
@@ -52,6 +55,11 @@ import { toCompanionUiState } from '../agents/orchestrateur/conversation/lia-com
 import type { IntakeCategory } from '../agents/orchestrateur/intake/lia-intake.service';
 import { isSavonneuseR1RefoulementSensors } from '../agents/shared/refoulement-eu-context';
 import { buildJarvisDiagnosticEnrichment } from '../agents/orchestrateur/intake/lia-jarvis-reasoning';
+import { GrockService } from '../grock/grock.service';
+import type {
+  GrockChatMessage,
+  GrockImageAttachment,
+} from '../grock/grock.service';
 
 /**
  * Seuil de confiance global : en-dessous, l'IA demande une re-photo (P1).
@@ -93,6 +101,7 @@ export class AiRoutingService {
      */
     @Optional() private readonly videoLibrary?: VideoLibraryService,
     @Optional() private readonly maintenanceMapper?: MaintenanceContractMapperService,
+    @Optional() private readonly grock?: GrockService,
   ) {}
 
   /**
@@ -109,6 +118,12 @@ export class AiRoutingService {
       },
     });
     if (!ticket) throw new NotFoundException('Ticket introuvable');
+
+    const route = 'grock';
+    let forceGrock = false;
+    if (route === 'grock') {
+      forceGrock = true;
+    }
 
     if (
       !opts.force &&
@@ -140,6 +155,15 @@ export class AiRoutingService {
           })
         : ticket;
     if (!ticketWithDocs) throw new NotFoundException('Ticket introuvable');
+
+    if (forceGrock && this.grock) {
+      return this.analyzeTicketWithGrock({
+        ticketId,
+        ticket: ticketWithDocs,
+        tenantFeedback: opts.tenantFeedback,
+        photoUrl: incomingPhotoUrl ?? undefined,
+      });
+    }
 
     const attempt = ticketWithDocs.aiAttempts + 1;
 
@@ -455,9 +479,287 @@ export class AiRoutingService {
     return updated;
   }
 
+  private async analyzeTicketWithGrock(params: {
+    ticketId: number;
+    ticket: {
+      id: number;
+      title: string;
+      description: string;
+      aiLastDecision: unknown;
+      tenant: { userId: number; firstName: string };
+      housing: { id: number; landlordId: number };
+      landlordProfileId: number | null;
+    };
+    tenantFeedback?: string;
+    photoUrl?: string;
+  }) {
+    if (!this.grock) {
+      throw new BadRequestException('Grock indisponible pour ce routage.');
+    }
+
+    // Nouvelle entrée locataire (photo re-uploadée ou précision) = vrai tour de
+    // dialogue. Le verrou grockAlreadyCalled ne doit protéger que le double
+    // appel d'ouverture automatique — sinon la photo revenue ne relance jamais
+    // Grock (« ça analyse puis plus rien »).
+    const hasNewTenantInput = Boolean(
+      params.tenantFeedback?.trim() || params.photoUrl?.trim(),
+    );
+
+    const intakeState = parseIntakeState(params.ticket.aiLastDecision);
+    if (intakeState?.grockAlreadyCalled && !hasNewTenantInput) {
+      return this.prisma.ticket.findUniqueOrThrow({
+        where: { id: params.ticketId },
+        include: {
+          housing: true,
+          tenant: true,
+          socialCase: true,
+        },
+      });
+    }
+
+    // Photo(s) rattachée(s) au ticket : on les transmet à Grock (perception
+    // Pixtral puis conclusion), exactement comme le Lab. Sans image, Grock ne
+    // peut pas conclure après avoir réclamé une photo.
+    const images = await this.loadTicketImagesForGrock(params.ticketId);
+
+    const tenantMessage =
+      params.tenantFeedback?.trim() ||
+      (images.length
+        ? 'Photo envoyée par le locataire'
+        : `${params.ticket.title}\n${params.ticket.description}`);
+
+    // Historique du fil pour le contexte (ex. Grock vient de réclamer la photo).
+    // Mistral exige que la conversation se termine par un tour LOCATAIRE : on
+    // append donc toujours le message courant en dernier.
+    const thread = await this.loadThreadForGrock(params.ticketId);
+    const sessionMessages: GrockChatMessage[] = [
+      ...thread,
+      {
+        id: `tenant-${Date.now()}`,
+        role: 'user',
+        text: tenantMessage,
+        createdAt: new Date(),
+      },
+    ];
+
+    const grockTurn = await this.grock.runTurn({
+      tenantFirstName: params.ticket.tenant.firstName,
+      title: params.ticket.title,
+      description: params.ticket.description,
+      language: 'fr-FR',
+      ticketHistory: await this.grock.loadTenantTicketHistory(
+        params.ticket.tenant.firstName,
+      ),
+      sessionMessages,
+      tenantMessage,
+      mode: hasNewTenantInput ? 'tenant_turn' : 'opening',
+      images: images.length ? images : undefined,
+    });
+
+    const decision: AiPipelineDecision = {
+      responsibility: this.grockStateToResponsibility(grockTurn.state),
+      category: 'GROCK',
+      severity:
+        grockTurn.state === 'SAFETY' || grockTurn.state === 'sinistre'
+          ? 'URGENT_CRITIQUE'
+          : 'MEDIUM',
+      confidence: 0.99,
+      needsMorePhoto: grockTurn.state === 'NEED_PHOTO',
+      message: grockTurn.acknowledgment,
+      socialFlag: false,
+      pipelineSteps: [
+        {
+          name: 'grock',
+          decision: grockTurn.state,
+          confidence: 0.99,
+          extra: {
+            thinking: grockTurn.thinking,
+            next_action: grockTurn.nextAction,
+            note_interne: grockTurn.noteInterne,
+            model: grockTurn.model,
+            fromLlm: grockTurn.fromLlm,
+            visualPerception: grockTurn.visualPerception,
+            visionModel: grockTurn.visionModel,
+          },
+        },
+      ],
+    };
+
+    const aiLastDecision = mergeAiLastDecision(params.ticket.aiLastDecision, {
+      route: 'grock',
+      forceGrock: true,
+      responsibility: decision.responsibility,
+      category: decision.category,
+      severity: decision.severity,
+      confidence: decision.confidence,
+      needsMorePhoto: decision.needsMorePhoto,
+      messageForTenant: grockTurn.acknowledgment,
+      grock: {
+        thinking: grockTurn.thinking,
+        state: grockTurn.state,
+        next_action: grockTurn.nextAction,
+        acknowledgment: grockTurn.acknowledgment,
+        note_interne: grockTurn.noteInterne,
+        model: grockTurn.model,
+      },
+      pipelineSteps: decision.pipelineSteps,
+      ...(intakeState
+        ? {
+            intake: sanitizeIntakeForTicket({
+              ...intakeState,
+              grockAlreadyCalled: true,
+            }),
+          }
+        : {}),
+    });
+
+    await this.prisma.ticket.update({
+      where: { id: params.ticketId },
+      data: {
+        aiLastDecision: aiLastDecision as Prisma.InputJsonValue,
+        responsibility: decision.responsibility,
+        status: decision.responsibility === 'PENDING' ? 'OPEN' : 'OPEN',
+      },
+    });
+
+    await this.appendGrockMessageToThread(params.ticketId, grockTurn.acknowledgment);
+
+    return this.prisma.ticket.findUniqueOrThrow({
+      where: { id: params.ticketId },
+      include: {
+        housing: true,
+        tenant: true,
+        socialCase: true,
+      },
+    });
+  }
+
   // --------------------------------------------------------------------------
   // Internes
   // --------------------------------------------------------------------------
+
+  /**
+   * Traduit fidèlement l'état de la Tête 4 (Décision) de Grock en responsabilité
+   * ticket. Fini le « tout ce qui n'est pas READY_TICKET = PENDING » qui écrasait
+   * les verdicts locataire : une charge d'entretien locatif conclut LOCATAIRE.
+   */
+  private grockStateToResponsibility(state: string): TicketResponsibility {
+    switch (state) {
+      // Verdicts finaux de responsabilité
+      case 'bailleur_responsable':
+      case 'READY_TICKET':
+        return 'BAILLEUR';
+      case 'locataire_responsable':
+        return 'LOCATAIRE';
+      // Sinistre : le bailleur coordonne, l'assurance indemnise → escalade humaine
+      case 'sinistre':
+        return 'ESCALADE_BAILLEUR';
+      // États de dialogue encore ouverts (question, photo, sécurité, action…)
+      default:
+        return 'PENDING';
+    }
+  }
+
+  /** Charge la photo la plus récente du ticket en base64 pour Grock/Pixtral. */
+  private async loadTicketImagesForGrock(
+    ticketId: number,
+  ): Promise<GrockImageAttachment[]> {
+    const docs = await this.prisma.document.findMany({
+      where: { ticketId },
+      orderBy: { createdAt: 'desc' },
+    });
+    for (const d of docs) {
+      const url = typeof d.url === 'string' ? d.url.trim() : '';
+      if (!url) continue;
+      const img = await this.loadImageInline(url);
+      if (img) return [img];
+    }
+    return [];
+  }
+
+  /** Reconstitue le fil (locataire + Lia) en messages Grock pour le contexte. */
+  private async loadThreadForGrock(
+    ticketId: number,
+  ): Promise<GrockChatMessage[]> {
+    const rows = await this.prisma.ticketMessage.findMany({
+      where: { ticketId, role: { in: ['TENANT', 'LIA_HOST'] } },
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+    });
+    // Mistral attend une alternance user/assistant : on fusionne les messages
+    // consécutifs de même rôle (ex. deux relances Lia sans réponse locataire).
+    const merged: GrockChatMessage[] = [];
+    for (const m of rows) {
+      const role: GrockChatMessage['role'] =
+        m.role === 'LIA_HOST' ? 'assistant' : 'user';
+      const last = merged[merged.length - 1];
+      if (last && last.role === role) {
+        last.text = `${last.text}\n${m.content}`.trim();
+        continue;
+      }
+      merged.push({
+        id: String(m.id),
+        role,
+        text: m.content,
+        createdAt: m.createdAt,
+      });
+    }
+    return merged;
+  }
+
+  /** Lit une photo (/uploads local ou URL) et renvoie son contenu base64. */
+  private async loadImageInline(
+    photoUrl: string,
+  ): Promise<GrockImageAttachment | null> {
+    try {
+      const uploadsMatch = /\/uploads\/([^/?#]+)$/i.exec(photoUrl);
+      if (uploadsMatch) {
+        const filePath = join(process.cwd(), 'uploads', uploadsMatch[1]!);
+        const buf = await readFile(filePath);
+        const ext = uploadsMatch[1]!.split('.').pop()?.toLowerCase();
+        const mimeType =
+          ext === 'png'
+            ? 'image/png'
+            : ext === 'webp'
+              ? 'image/webp'
+              : 'image/jpeg';
+        return { mimeType, base64: buf.toString('base64') };
+      }
+      const res = await fetch(photoUrl);
+      if (!res.ok) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
+      const mimeType = res.headers.get('content-type') ?? 'image/jpeg';
+      return { mimeType, base64: buf.toString('base64') };
+    } catch {
+      return null;
+    }
+  }
+
+  private async appendGrockMessageToThread(
+    ticketId: number,
+    acknowledgment: string,
+  ): Promise<void> {
+    const text = acknowledgment.trim();
+    if (!text) return;
+
+    const last = await this.prisma.ticketMessage.findFirst({
+      where: { ticketId, role: 'LIA_HOST' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (last?.content.trim() === text) return;
+
+    await this.prisma.ticketMessage.create({
+      data: {
+        ticketId,
+        role: 'LIA_HOST',
+        content: text,
+        locale: 'fr-FR',
+        metadata: JSON.parse(
+          JSON.stringify({ route: 'grock', forceGrock: true }),
+        ) as Prisma.InputJsonValue,
+      },
+    });
+  }
 
   /** Affiche le résultat du diagnostic dans le fil (pas seulement aiLastDecision). */
   private async appendDiagnosticMessageToThread(
@@ -514,10 +816,7 @@ export class AiRoutingService {
     domain: NonNullable<ReturnType<typeof detectMasterDomain>>,
     missingIds: string[],
   ): AiPipelineDecision {
-    const labels = domain.criticalSensors
-      .filter((s) => missingIds.includes(s.id))
-      .map((s) => s.label)
-      .join(' ; ');
+    const labels = (domain.signesUtiles ?? missingIds).join(' ; ');
     return {
       responsibility: 'PENDING',
       category: domain.category,

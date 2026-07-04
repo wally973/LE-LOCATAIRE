@@ -15,8 +15,8 @@ import { LiaOrchestratorService } from '../lia/lia-orchestrator.service';
 import { LiaConversationService } from '../lia/lia-conversation.service';
 import { CaseReferenceService } from './case-reference.service';
 import { TenantOccupancyService } from '../tenant-occupancy/tenant-occupancy.service';
+import { BailleurScopeService } from '../auth/scope/bailleur-scope.service';
 import { buildLandlordInfoEvents } from '../lia/lia-landlord-history';
-import { detectMultipleClaims } from '../lia/lia-multi-claim';
 import { parseIntakeState } from '../lia/lia-intake.service';
 
 @Injectable()
@@ -31,6 +31,7 @@ export class TicketsService {
     private readonly liaConversation: LiaConversationService,
     private readonly caseRef: CaseReferenceService,
     private readonly occupancy: TenantOccupancyService,
+    private readonly scopeService: BailleurScopeService,
   ) {}
 
   /**
@@ -66,16 +67,6 @@ export class TicketsService {
       throw new ForbiddenException(
         'Vous ne pouvez ouvrir un ticket que pour votre logement actuel',
       );
-    }
-
-    const claims = detectMultipleClaims(dto.title, dto.description);
-    if (claims.length > 1 && !dto.claimCategory?.trim()) {
-      throw new BadRequestException({
-        code: 'MULTIPLE_CLAIMS',
-        message:
-          'Plusieurs problèmes distincts détectés. Créez une demande séparée pour chaque sujet.',
-        claims,
-      });
     }
 
     const ticket = await this.prisma.ticket.create({
@@ -406,12 +397,23 @@ export class TicketsService {
 
     if (!ticket) throw new NotFoundException('Ticket introuvable');
 
-    if (role === 'BAILLEUR') {
-      const lp = await this.prisma.landlordProfile.findUnique({
-        where: { userId },
-      });
-      if (!lp || ticket.housing.landlordId !== lp.id) {
+    if (role === 'BAILLEUR' || role === 'AGENT') {
+      const scope = await this.scopeService.resolve({ id: userId, role });
+      if (!scope.landlordProfileId) {
         throw new ForbiddenException('Vous ne pouvez pas modifier ce ticket');
+      }
+      const landlordId = ticket.landlordProfileId ?? ticket.housing.landlordId;
+      if (landlordId !== scope.landlordProfileId) {
+        throw new ForbiddenException('Vous ne pouvez pas modifier ce ticket');
+      }
+      if (role === 'AGENT' && scope.agenceId != null) {
+        const housing = await this.prisma.housing.findUnique({
+          where: { id: ticket.housingId },
+          select: { agenceId: true },
+        });
+        if (housing?.agenceId !== scope.agenceId) {
+          throw new ForbiddenException('Ticket hors de votre secteur');
+        }
       }
     } else if (role === 'LOCATAIRE') {
       const tp = await this.prisma.tenantProfile.findUnique({

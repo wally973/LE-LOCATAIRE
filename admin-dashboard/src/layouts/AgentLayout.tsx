@@ -23,7 +23,7 @@ const AgentLayout: React.FC = () => {
           >
             ☰
           </button>
-          <h1>Référent secteur — Le Locataire</h1>
+          <h1>Technicien secteur — Le Locataire</h1>
         </div>
         <div className="ld-actions">
           <NotificationBell />
@@ -43,7 +43,7 @@ const AgentLayout: React.FC = () => {
         <aside className={`ld-sidebar ${open ? 'open' : 'closed'}`}>
           <nav>
             <NavLink to="/agent/reclamations" className={navCls}>
-              Réclamations
+              Mes alertes
             </NavLink>
           </nav>
         </aside>

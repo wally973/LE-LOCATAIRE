@@ -61,6 +61,23 @@ function extractWaterAspect(text: string): string | undefined {
   return undefined;
 }
 
+function extractSymptomAnchor(text: string): string | undefined {
+  const t = normalizeClinicalText(text);
+  const anchors: Array<[RegExp, string]> = [
+    [/plafond|faux plafond/, 'plafond'],
+    [/mur|cloison|paroi/, 'mur'],
+    [/angle|coin/, 'angle'],
+    [/sol|au sol|par terre|plancher|carrelage|flaque|nappe|milieu de la piece|milieu du salon/, 'sol'],
+    [/derriere|derrière/, 'derrière un équipement ou un meuble'],
+    [/sous\s+(?:l'|le|la|un|une)?\s*(evier|lavabo|machine|wc|toilette|chauffe eau)/, 'sous équipement'],
+    [/evier|lavabo|wc|toilette|machine a laver|chauffe eau/, 'équipement sanitaire'],
+  ];
+  for (const [pattern, label] of anchors) {
+    if (pattern.test(t)) return label;
+  }
+  return undefined;
+}
+
 /** Ex. « 19h-21h », « entre 19 et 21 », « le soir vers 20h ». */
 function extractTimingPattern(text: string): string | undefined {
   const t = normalizeClinicalText(text);
@@ -127,6 +144,10 @@ export function extractDiagnosticSensors(params: {
   const weatherAnswer = params.intakeAnswers?.weather_context?.trim();
   sensors.weather_context =
     weatherAnswer || extractWeatherContext(merged) || undefined;
+
+  const anchorAnswer = params.intakeAnswers?.symptom_anchor?.trim();
+  sensors.symptom_anchor =
+    anchorAnswer || extractSymptomAnchor(merged) || undefined;
 
   return Object.fromEntries(
     Object.entries(sensors).filter(([, v]) => v != null && String(v).length > 0),
@@ -202,6 +223,7 @@ export function formatDiagnosticSensorsBrief(sensors: DiagnosticSensors): string
   if (sensors.weather_context) {
     parts.push(`météo=${sensors.weather_context}`);
   }
+  if (sensors.symptom_anchor) parts.push(`symptôme=${sensors.symptom_anchor}`);
   if (!parts.length) return '';
   return 'Capteurs diagnostic : ' + parts.join(' ; ');
 }

@@ -41,4 +41,4 @@ Avant toute modification significative, **lire** :
 - Réponses et **commentaires de code en français**
 - Commits **uniquement sur demande explicite** du porteur
 - Diff minimal : ne pas refactorer hors périmètre
-- Pilote : bailleur social **2terHabitat** (Guyane) — pas de références SIGUY/SIMKO dans le code
+- Pilote : bailleur social **Guyane** — libellés génériques dans le code (pas de nom d’organisme) ; pas de références SIGUY/SIMKO

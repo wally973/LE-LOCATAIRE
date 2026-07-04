@@ -1,839 +1,413 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  discardGrockLabSession,
   getLabErrorMessage,
   LAB_DIALOGUE_LANGUAGES,
-  startLabSession,
-  sendLabMessage,
+  askGrockPathology,
+  sendGrockLabMessage,
+  sendGrockLabPhoto,
+  startGrockLabSession,
   synthesizeLabSpeech,
   transcribeLabAudio,
-  fetchLabDeliberationPreview,
-  discardLabSession,
+  type GrockLabSessionView,
+  type GrockPathologyAnswerView,
   type LabDialogueLanguage,
-  type LabSessionView,
-  type LiaLabVisualization,
 } from '@services/liaLabApi';
 import { getErrorMessage } from '@services/apiClient';
 import authService from '@services/authService';
 import './LiaLabPage.css';
 
-function VisualizationConsole({ viz }: { viz: LiaLabVisualization | null }) {
-  if (!viz) {
-    return (
-      <div className="lia-lab-console">
-        <p style={{ color: 'var(--lab-muted)' }}>
-          Démarrez une session pour afficher les capteurs Jarvis.
-        </p>
-      </div>
-    );
+const SETUP_KEY = 'grock-lab-setup-v1';
+
+function extractVisibleGrockText(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{')) return text;
+
+  try {
+    const parsed = JSON.parse(trimmed) as { acknowledgment?: unknown };
+    if (typeof parsed.acknowledgment === 'string' && parsed.acknowledgment.trim()) {
+      return parsed.acknowledgment.trim();
+    }
+  } catch {
+    const match = trimmed.match(/"acknowledgment"\s*:\s*"([^"]+)"/s);
+    if (match?.[1]?.trim()) {
+      return match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').trim();
+    }
   }
 
-  return (
-    <div className="lia-lab-console">
-      {viz.safetyOverride ? (
-        <section className="lia-lab-safety-override">
-          <h4>Safety Override — arc électrique</h4>
-          <span className="lia-lab-tag urgent">{viz.safetyOverride.priority}</span>
-          <span className="lia-lab-tag urgent">{viz.safetyOverride.forceKind}</span>
-          <p style={{ margin: '8px 0 4px', fontSize: 13 }}>
-            <strong>Bouclier :</strong>{' '}
-            <span
-              className={
-                viz.safetyOverride.shieldDelivered
-                  ? 'lia-lab-shield-ok'
-                  : 'lia-lab-shield-missing'
-              }
-            >
-              {viz.safetyOverride.shieldStatus}
-            </span>
-          </p>
-          {viz.safetyOverride.surgicalProbe ? (
-            <p style={{ margin: '4px 0', fontSize: 13, color: 'var(--lab-muted)' }}>
-              <strong>Enquête chirurgicale :</strong> {viz.safetyOverride.surgicalProbe}
-            </p>
-          ) : null}
-          {viz.safetyOverride.ticketSummary ? (
-            <p style={{ margin: '4px 0', fontSize: 13 }}>
-              <strong>Ticket bailleur :</strong> {viz.safetyOverride.ticketSummary}
-            </p>
-          ) : null}
-          {viz.safetyOverride.investigationPhase ? (
-            <span className="lia-lab-tag flow">{viz.safetyOverride.investigationPhase}</span>
-          ) : null}
-        </section>
-      ) : null}
-
-      {viz.guardianConsole && viz.guardianConsole.length > 0 ? (
-        <section className="lia-lab-guardian">
-          <h4>Le Gardien — murmures souverains</h4>
-          <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--lab-muted)' }}>
-            Couche post-délibération · cohérence · sécurité · protection · Stylo
-          </p>
-          <dl className="lia-lab-facts">
-            {viz.guardianConsole.map((row) => (
-              <React.Fragment key={row.label}>
-                <dt>{row.label}</dt>
-                <dd
-                  className={
-                    row.label === 'Verdict' && row.value === 'OVERRIDE'
-                      ? 'lia-lab-guardian-override'
-                      : row.label === 'Verdict' && row.value === 'RE-DELIBERATE'
-                        ? 'lia-lab-guardian-redelib'
-                        : undefined
-                  }
-                >
-                  {row.value}
-                </dd>
-              </React.Fragment>
-            ))}
-          </dl>
-          {viz.guardianMurmures && viz.guardianMurmures.length > 0 ? (
-            <ul className="lia-lab-guardian-murmures">
-              {viz.guardianMurmures.map((m, i) => (
-                <li key={`${i}-${m.slice(0, 24)}`}>{m}</li>
-              ))}
-            </ul>
-          ) : null}
-        </section>
-      ) : null}
-
-      <section>
-        <h4>Mode urgence</h4>
-        {viz.urgencyMode ? (
-          <span className="lia-lab-tag urgent">{viz.urgencyMode}</span>
-        ) : (
-          <span className="lia-lab-tag">— standard —</span>
-        )}
-      </section>
-
-      <section>
-        <h4>Flux actifs</h4>
-        {(viz.activeFlowLabels ?? viz.activeFlows).length === 0 ? (
-          <span className="lia-lab-tag">aucun détecté</span>
-        ) : (
-          (viz.activeFlowLabels ?? viz.activeFlows).map((f) => (
-            <span key={f} className="lia-lab-tag flow">
-              {f}
-            </span>
-          ))
-        )}
-      </section>
-
-      <section>
-        <h4>Modèles mentaux (VISUAL_LOGIC)</h4>
-        {viz.mentalModels.length === 0 ? (
-          <p style={{ margin: 0, color: 'var(--lab-muted)' }}>En attente de signes…</p>
-        ) : (
-          <ul style={{ margin: 0, paddingLeft: 16 }}>
-            {viz.mentalModels.map((m) => (
-              <li key={m}>{m}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h4>Capteurs</h4>
-        <span className="lia-lab-tag">Lot : {viz.detectedLot}</span>
-        <span className="lia-lab-tag">
-          Langue dialogue (choix locataire) : {viz.dialogueLanguageLabel ?? viz.language}
-        </span>
-        {viz.tenantLanguageLabel &&
-        viz.tenantLanguageLabel !== viz.dialogueLanguageLabel ? (
-          <span className="lia-lab-tag">Locataire : {viz.tenantLanguageLabel}</span>
-        ) : null}
-        <span className="lia-lab-tag">
-          Phase : {viz.intakePhaseLabel ?? viz.intakePhase}
-        </span>
-        {viz.handoffRecommended ? (
-          <span className="lia-lab-tag urgent">Handoff secteur</span>
-        ) : null}
-      </section>
-
-      {viz.housingPerspective ? (
-        <section>
-          <h4>Perspective logement (inscription)</h4>
-          <p style={{ margin: 0, color: 'var(--lab-muted)', fontSize: 13 }}>{viz.housingPerspective}</p>
-        </section>
-      ) : null}
-
-      {viz.symmetricConsole && viz.symmetricConsole.length > 0 ? (
-        <section className="lia-lab-symmetric">
-          <h4>Intelligence Symétrique — Niveau 6</h4>
-          <dl className="lia-lab-facts">
-            {viz.symmetricConsole.map((row) => (
-              <React.Fragment key={row.label}>
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
-              </React.Fragment>
-            ))}
-          </dl>
-          {viz.instrumentsPilotBrief ? (
-            <pre className="lia-lab-instruments">{viz.instrumentsPilotBrief}</pre>
-          ) : null}
-        </section>
-      ) : null}
-
-      {viz.teamSymbiosis ? (
-        <section className="lia-lab-team">
-          <h4>Équipe de délibération — cerveau collectif</h4>
-          <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--lab-muted)' }}>
-            Enquêteur · Archiviste · Majordome — un cerveau, trois regards.
-            {viz.teamSymbiosis.dossierSealed ? (
-              <span className="lia-lab-tag urgent" style={{ marginLeft: 8 }}>
-                Dossier scellé — {viz.teamSymbiosis.primaryTrade ?? 'métier'}
-              </span>
-            ) : null}
-          </p>
-          <ul className="lia-lab-team-grid">
-            {viz.teamSymbiosis.agents.map((agent) => (
-              <li
-                key={agent.role}
-                className={`lia-lab-team-card lia-lab-team-card--${agent.role}`}
-              >
-                <strong>{agent.label}</strong>
-                <span className="lia-lab-team-mission">{agent.mission}</span>
-                <p className="lia-lab-team-insight">{agent.lastInsight}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {viz.councilEchoes && viz.councilEchoes.length > 0 ? (
-        <section className="lia-lab-council">
-          <h4>Échos délibération — tour parallèle Groq</h4>
-          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-            {viz.councilEchoes.map((e, i) => (
-              <li
-                key={`${e.agent}-${i}`}
-                className={`lia-lab-council-echo${
-                  e.agent === 'Archiviste' || e.agent === 'Juriste (console)'
-                    ? ' lia-lab-council-echo--juriste'
-                    : e.agent === 'Diagnostiqueur'
-                      ? ' lia-lab-council-echo--pathologiste'
-                      : e.agent === 'Agent Social'
-                        ? ' lia-lab-council-echo--social'
-                        : ''
-                }`}
-              >
-                <strong>{e.agent}</strong>
-                <span className="lia-lab-tag flow">{e.heard}</span>
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--lab-muted)' }}>{e.insight}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section>
-        <h4>Vision 3D — LIVING_BUILDING_STATE</h4>
-        <span className="lia-lab-tag flow">
-          {viz.simulationDomainLabel ?? 'Raisonnement par état — Niveau 5'}
-        </span>
-        {viz.scene3DRows && viz.scene3DRows.length > 0 ? (
-          <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
-            {viz.scene3DRows.map((row) => (
-              <li key={row.label}>
-                {row.label} : {row.value}
-              </li>
-            ))}
-          </ul>
-        ) : viz.scene3D ? (
-          <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
-            {Object.entries(viz.scene3D)
-              .filter(([, v]) => v)
-              .map(([k, v]) => (
-                <li key={k}>
-                  {k} : {v}
-                </li>
-              ))}
-          </ul>
-        ) : (
-          <p style={{ margin: 0, color: 'var(--lab-muted)' }}>Scène en cours d’instanciation…</p>
-        )}
-      </section>
-
-      {viz.physicalHypotheses && viz.physicalHypotheses.length > 0 ? (
-        <section>
-          <h4>Ce que Lia visualise (hypothèses physiques)</h4>
-          <ul style={{ margin: 0, paddingLeft: 16 }}>
-            {viz.physicalHypotheses.map((h) => (
-              <li key={h}>{h}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section>
-        <h4>Hypothèses actives / écartées</h4>
-        <p style={{ margin: '4px 0', color: 'var(--lab-muted)' }}>
-          Actives : {viz.kbCausesActive.join(' · ') || '—'}
-        </p>
-        {viz.kbCausesEliminated.length > 0 ? (
-          <p style={{ margin: '4px 0', color: 'var(--lab-muted)' }}>
-            Écartées : {viz.kbCausesEliminated.join(', ')}
-          </p>
-        ) : null}
-      </section>
-
-      {viz.consciousnessConsole && viz.consciousnessConsole.length > 0 ? (
-        <section className="lia-lab-consciousness">
-          <h4>Conscience professionnelle (interne)</h4>
-          <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--lab-muted)' }}>
-            Délibération et doute visibles ici — le chat reste rassurant et certain.
-          </p>
-          <dl className="lia-lab-facts">
-            {viz.consciousnessConsole.map((row) => (
-              <React.Fragment key={row.label}>
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
-              </React.Fragment>
-            ))}
-          </dl>
-        </section>
-      ) : null}
-
-      {viz.savoirSources && viz.savoirSources.length > 0 ? (
-        <section className="lia-lab-savoir">
-          <h4>Sources de Savoir Consultées</h4>
-          <ul className="lia-lab-savoir-list">
-            {viz.savoirSources.map((s) => (
-              <li
-                key={`${s.agent}-${s.corpus}-${s.ref}`}
-                className={`lia-lab-savoir-item lia-lab-savoir-item--${s.agent}`}
-              >
-                <div className="lia-lab-savoir-head">
-                  <strong>{s.agentLabel}</strong>
-                  <span className="lia-lab-tag flow">{s.corpus}</span>
-                  <span className="lia-lab-tag">
-                    pertinence {Math.round(s.relevance * 100)}%
-                  </span>
-                </div>
-                <p className="lia-lab-savoir-title">
-                  {s.url ? (
-                    <a href={s.url} target="_blank" rel="noreferrer">
-                      {s.label}
-                    </a>
-                  ) : (
-                    s.label
-                  )}
-                </p>
-                {s.hypothesisLabel ? (
-                  <p className="lia-lab-savoir-hypo">Piste : {s.hypothesisLabel}</p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section>
-        <h4>Moteur &amp; référentiels</h4>
-        <ul style={{ margin: 0, paddingLeft: 16 }}>
-          {viz.afpolRefs.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ul>
-      </section>
-
-      {viz.visualizationNote ? (
-        <section>
-          <h4>Note de visualisation Jarvis</h4>
-          <p style={{ margin: 0 }}>{viz.visualizationNote}</p>
-        </section>
-      ) : null}
-
-      <section>
-        <h4>jarvisFacts (état partagé)</h4>
-        <dl className="lia-lab-facts">
-          {(viz.jarvisFactsConsole ?? Object.entries(viz.jarvisFacts)).length === 0 ? (
-            <dd style={{ margin: 0, color: 'var(--lab-muted)' }}>vide</dd>
-          ) : viz.jarvisFactsConsole ? (
-            viz.jarvisFactsConsole.map((row) => (
-              <React.Fragment key={row.label}>
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
-              </React.Fragment>
-            ))
-          ) : (
-            Object.entries(viz.jarvisFacts).map(([k, v]) => (
-              <React.Fragment key={k}>
-                <dt>{k}</dt>
-                <dd>{v}</dd>
-              </React.Fragment>
-            ))
-          )}
-        </dl>
-      </section>
-    </div>
-  );
+  return 'Réponse technique masquée côté locataire. Consultez le panneau Thinking Grock.';
 }
 
 const LiaLabPage: React.FC = () => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [tenantFirstName, setTenantFirstName] = useState('Marie');
-  const [residenceUnitNumber, setResidenceUnitNumber] = useState('5F');
-  const [dialogueLanguage, setDialogueLanguage] = useState<LabDialogueLanguage>('fr');
-  const [session, setSession] = useState<LabSessionView | null>(null);
+  const saved = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(SETUP_KEY) ?? '{}') as Record<string, string>;
+    } catch {
+      return {};
+    }
+  })();
+
+  const [title, setTitle] = useState(saved.title ?? '');
+  const [description, setDescription] = useState(saved.description ?? '');
+  const [tenantFirstName, setTenantFirstName] = useState(saved.tenantFirstName ?? 'Marie');
+  const [language, setLanguage] = useState<LabDialogueLanguage>(
+    (saved.language as LabDialogueLanguage) ?? 'fr',
+  );
+  const [session, setSession] = useState<GrockLabSessionView | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [deliberationPreview, setDeliberationPreview] = useState<{
-    models: { majordome: string; enqueteur: string; archiviste: string };
-    deliberationEchoes: { agent: string; model: string; insight: string }[];
-  } | null>(null);
-  const [promptModalOpen, setPromptModalOpen] = useState(false);
-  const [promptLoading, setPromptLoading] = useState(false);
-
+  const [pathologyQ, setPathologyQ] = useState('');
+  const [pathologyA, setPathologyA] = useState<GrockPathologyAnswerView | null>(null);
+  const [pathologyBusy, setPathologyBusy] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem(
+      SETUP_KEY,
+      JSON.stringify({ title, description, tenantFirstName, language }),
+    );
+  }, [title, description, tenantFirstName, language]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [session?.messages]);
 
-  const resetConversation = () => {
+  const resetConversation = useCallback(() => {
     const sid = session?.sessionId;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
-    setSpeaking(false);
-    setRecording(false);
-    setPromptModalOpen(false);
-    setPromptPreview(null);
     setSession(null);
     setDraft('');
     setError(null);
     setBusy(false);
-    if (sid) {
-      void discardLabSession(sid).catch(() => {
-        /* purge best-effort */
-      });
-    }
-  };
+    setPathologyA(null);
+    if (sid) void discardGrockLabSession(sid).catch(() => undefined);
+  }, [session?.sessionId]);
 
-  const sessionIdRef = useRef<string | null>(null);
-  sessionIdRef.current = session?.sessionId ?? null;
-
-  const playTts = useCallback(async (text: string, language: LabDialogueLanguage) => {
-    if (!text.trim()) return;
-    setSpeaking(true);
+  const playTts = useCallback(async (text: string, lang: LabDialogueLanguage) => {
     try {
-      const { audioBase64, mimeType } = await synthesizeLabSpeech(text, language);
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+      const { audioBase64, mimeType } = await synthesizeLabSpeech(text, lang);
       const audio = new Audio(`data:${mimeType};base64,${audioBase64}`);
       audioRef.current = audio;
-      audio.onended = () => setSpeaking(false);
-      audio.onerror = () => setSpeaking(false);
       await audio.play();
-    } catch (e) {
-      setSpeaking(false);
-      setError(getErrorMessage(e, 'Synthèse vocale indisponible (ElevenLabs).'));
+    } catch {
+      /* TTS optionnel */
     }
   }, []);
-
-  const sendText = useCallback(
-    async (text: string, sessionId?: string) => {
-      const sid = sessionId ?? session?.sessionId;
-      if (!sid || !text.trim() || busy) return;
-      setBusy(true);
-      setError(null);
-      try {
-        const view = await sendLabMessage(sid, text.trim());
-        setSession(view);
-        setDraft('');
-        const lastLia = [...view.messages].reverse().find((m) => m.role === 'lia');
-        if (lastLia?.text) {
-          void playTts(lastLia.text, view.visualization.language);
-        }
-      } catch (e) {
-        setError(getLabErrorMessage(e, 'Erreur envoi message.'));
-      } finally {
-        setBusy(false);
-      }
-    },
-    [session?.sessionId, playTts, busy],
-  );
 
   const startSession = async () => {
     const t = title.trim();
     const d = description.trim();
     if (!t || !d) {
-      setError('Renseignez le titre et la description avant de démarrer Jarvis.');
+      setError('Renseignez titre et description du signalement.');
       return;
     }
-    if (!authService.isAuthenticated()) {
-      setError('Connectez-vous avec un compte ADMIN pour utiliser Lia-Lab.');
+    if (!authService.isAuthenticated() || authService.getRole() !== 'ADMIN') {
+      setError('Lia-Lab réservé aux comptes ADMIN.');
       return;
     }
-    if (authService.getRole() !== 'ADMIN') {
-      setError('Lia-Lab est réservé aux comptes ADMIN.');
-      return;
-    }
-
     setBusy(true);
     setError(null);
     try {
-      const view = await startLabSession({
+      const view = await startGrockLabSession({
         title: t,
         description: d,
         tenantFirstName: tenantFirstName.trim() || 'Marie',
-        language: dialogueLanguage,
-        residenceUnitNumber: residenceUnitNumber.trim() || undefined,
+        language,
       });
-      if (!view.messages?.length) {
-        setError('Jarvis n’a renvoyé aucun message — redémarrez le backend puis réessayez.');
-        return;
-      }
       setSession(view);
-      setDraft('');
-      const openingLia = [...view.messages].reverse().find((m) => m.role === 'lia');
-      if (openingLia?.text) {
-        void playTts(openingLia.text, view.visualization.language);
-      }
+      const opening = [...view.messages].reverse().find((m) => m.role === 'grock');
+      if (opening?.text) void playTts(opening.text, language);
     } catch (e) {
-      setError(getLabErrorMessage(e, 'Impossible de démarrer la session Lia-Lab.'));
+      setError(getLabErrorMessage(e, 'Impossible de démarrer Grock.'));
     } finally {
       setBusy(false);
     }
   };
 
-  const stopRecording = useCallback(() => {
-    const rec = mediaRecorderRef.current;
-    if (rec && rec.state !== 'inactive') {
-      rec.stop();
-    }
-    setRecording(false);
-  }, []);
-
-  const startRecording = async () => {
+  const sendMessage = async (text: string) => {
+    if (!session?.sessionId || !text.trim() || busy) return;
+    setBusy(true);
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
-      const recorder = new MediaRecorder(stream, { mimeType: mime });
-      chunksRef.current = [];
-      recorder.ondataavailable = (ev) => {
-        if (ev.data.size > 0) chunksRef.current.push(ev.data);
-      };
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mime });
-        if (blob.size < 200) return;
-        setBusy(true);
-        try {
-          const text = await transcribeLabAudio(blob);
-          setDraft((d) => (d ? `${d} ${text}` : text));
-          const sid = sessionIdRef.current;
-          if (sid) {
-            await sendLabMessage(sid, text.trim()).then((view) => {
-              setSession(view);
-              setDraft('');
-              const lastLia = [...view.messages].reverse().find((m) => m.role === 'lia');
-              if (lastLia?.text) {
-                void playTts(lastLia.text, view.visualization.language);
-              }
-            });
-          }
-        } catch (e) {
-          setError(getErrorMessage(e, 'Transcription échouée (Groq Whisper).'));
-        } finally {
-          setBusy(false);
-        }
-      };
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setRecording(true);
+      const view = await sendGrockLabMessage(session.sessionId, text.trim());
+      setSession(view);
+      setDraft('');
+      const last = [...view.messages].reverse().find((m) => m.role === 'grock');
+      if (last?.text) void playTts(last.text, language);
     } catch (e) {
-      setError(getErrorMessage(e, 'Micro inaccessible.'));
-    }
-  };
-
-  const toggleMic = () => {
-    if (recording) stopRecording();
-    else void startRecording();
-  };
-
-  const lastLiaMessage = [...(session?.messages ?? [])]
-    .reverse()
-    .find((m) => m.role === 'lia');
-
-  const openPromptPreview = async () => {
-    if (!session?.sessionId || promptLoading) return;
-    setPromptLoading(true);
-    setError(null);
-    try {
-      const preview = await fetchLabDeliberationPreview(session.sessionId);
-      setDeliberationPreview(preview);
-      setPromptModalOpen(true);
-    } catch (e) {
-      setError(getLabErrorMessage(e, 'Impossible de charger le prompt système.'));
+      setError(getLabErrorMessage(e, 'Erreur envoi message.'));
     } finally {
-      setPromptLoading(false);
+      setBusy(false);
+    }
+  };
+
+  const sendPhoto = async (file: File, caption?: string) => {
+    if (!session?.sessionId || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const view = await sendGrockLabPhoto(session.sessionId, file, caption);
+      setSession(view);
+      setDraft('');
+      const last = [...view.messages].reverse().find((m) => m.role === 'grock');
+      if (last?.text) void playTts(last.text, language);
+    } catch (e) {
+      setError(getLabErrorMessage(e, 'Erreur envoi photo.'));
+    } finally {
+      setBusy(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const onPhotoSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void sendPhoto(file, draft.trim() || undefined);
+  };
+
+  const loadBuanderiePreset = () => {
+    setTitle('Fuite buanderie');
+    setDescription('Fuite d\'eau dans la buanderie.');
+    setDraft("J'ai de l'eau dans ma buanderie.");
+  };
+
+  const askPathology = async () => {
+    const q = pathologyQ.trim();
+    if (!q || pathologyBusy) return;
+    setPathologyBusy(true);
+    setError(null);
+    try {
+      const res = await askGrockPathology(q, language);
+      setPathologyA(res);
+    } catch (e) {
+      setError(getLabErrorMessage(e, 'Impossible de répondre à la question pathologie.'));
+    } finally {
+      setPathologyBusy(false);
     }
   };
 
   return (
-    <div className="lia-lab">
+    <div className="lia-lab lia-lab-page">
       <header className="lia-lab-header">
         <div>
-          <h2>Lia-Lab — Intercom Jarvis</h2>
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--lab-muted)' }}>
-            Voice-first · STT Groq · TTS ElevenLabs · sandbox sans ticket réel
+          <h2>Grock — Intercom mono-agent</h2>
+          <p className="lia-lab-sub">
+            Message Marie · bibliothèque AFPOL · 5 derniers tickets Supabase · vision Pixtral (photos).
+            Amnésie totale à chaque nouvelle conversation.
           </p>
         </div>
-        {session ? (
+        <div className="lia-lab-header-actions">
+          <Link to="/admin" className="lia-lab-link">
+            ← Dashboard
+          </Link>
           <button type="button" className="lia-lab-reset-btn" onClick={resetConversation}>
             Nouvelle conversation
           </button>
-        ) : null}
+        </div>
       </header>
 
-      {error ? <div className="lia-lab-error">{error}</div> : null}
+      {error ? <p className="lia-lab-error">{error}</p> : null}
 
-      {session?.bridgeStatus?.livingIntelligenceEnabled ? (
-        <div className="lia-lab-bridge-ok" role="status">
-          Intelligence Symétrique (Niveau 6) — LIVING_BUILDING_STATE · délibération Groq
-          (Majordome 70B · Enquêteur 8B · Archiviste 8B)
-        </div>
-      ) : session?.bridgeStatus ? (
-        <div className="lia-lab-error" role="status">
-          GROQ_API_KEY absente — Living Intelligence indisponible. Redémarrez le backend avec GROQ_API_KEY.
-        </div>
-      ) : null}
-
-      <div className="lia-lab-grid">
-        <div className="lia-lab-panel">
-          <div className="lia-lab-panel-title">Vue locataire (chat)</div>
-
-          {!session ? (
-            <div className="lia-lab-setup">
-              <input
-                value={tenantFirstName}
-                onChange={(e) => setTenantFirstName(e.target.value)}
-                placeholder="Prénom locataire"
-                aria-label="Prénom"
-              />
-              <label className="lia-lab-lang-label" htmlFor="lia-lab-lang">
-                Langue du dialogue Jarvis (choix locataire)
-              </label>
+      {!session ? (
+        <section className="lia-lab-setup">
+          <label>
+            Titre signalement
+            <input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </label>
+          <label>
+            Description
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+          </label>
+          <div className="lia-lab-setup-row">
+            <label>
+              Prénom locataire (Supabase)
+              <input value={tenantFirstName} onChange={(e) => setTenantFirstName(e.target.value)} />
+            </label>
+            <label>
+              Langue
               <select
-                id="lia-lab-lang"
-                value={dialogueLanguage}
-                onChange={(e) =>
-                  setDialogueLanguage(e.target.value as LabDialogueLanguage)
-                }
-                aria-label="Langue du dialogue"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as LabDialogueLanguage)}
               >
-                {LAB_DIALOGUE_LANGUAGES.map((opt) => (
-                  <option key={opt.code} value={opt.code}>
-                    {opt.label}
+                {LAB_DIALOGUE_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
                   </option>
                 ))}
               </select>
-              <label className="lia-lab-lang-label" htmlFor="lia-lab-unit">
-                Lot locataire (inscription)
-              </label>
-              <input
-                id="lia-lab-unit"
-                value={residenceUnitNumber}
-                onChange={(e) => setResidenceUnitNumber(e.target.value)}
-                placeholder="Ex. 5F (collectif) ou 26 (plein pied)"
-                aria-label="Numéro de lot"
-                title="5F ≈ bâtiment collectif · 26 ≈ plein pied"
-              />
-              <p className="lia-lab-unit-hint">
-                5F → collectif (voisins, parties communes) · 26 → plein pied (piste locale)
-              </p>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Titre signalement (libre)"
-                aria-label="Titre"
-              />
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Décrivez votre situation comme le locataire…"
-                aria-label="Description"
-              />
-              <div className="lia-lab-setup-actions">
-                <button
-                  type="button"
-                  disabled={busy || !title.trim() || !description.trim()}
-                  onClick={() => void startSession()}
-                >
-                  {busy ? 'Connexion…' : 'Démarrer Jarvis'}
-                </button>
-                <button
-                  type="button"
-                  className={`lia-lab-icon-btn ${recording ? 'recording' : ''}`}
-                  onClick={toggleMic}
-                  title="Dicter la description (STT)"
-                  aria-label="Micro"
-                >
-                  🎤
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="lia-lab-messages">
-            {session?.messages.map((m, i) => (
-              <div
-                key={`${m.at}-${i}`}
-                className={`lia-lab-bubble ${
-                  m.role === 'tenant'
-                    ? 'tenant'
-                    : m.role === 'architect'
-                      ? 'architect'
-                      : 'lia'
-                }`}
-              >
-                {m.text}
-                {m.role === 'architect' && m.doctrineLessonId ? (
-                  <div className="lia-lab-architect-actions">
-                    <Link to="/admin/doctrine-registry" className="lia-lab-architect-link">
-                      Ouvrir le Registre de Sagesse
-                    </Link>
-                  </div>
-                ) : null}
-                <div className="lia-lab-bubble-meta">
-                  {m.role === 'tenant'
-                    ? 'Locataire'
-                    : m.role === 'architect'
-                      ? 'Pour l\'Architecte'
-                      : 'Jarvis / Lia'}
-                  {m.uiStatusLabel ? ` · ${m.uiStatusLabel}` : ''}
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
+            </label>
           </div>
-
-          {session ? (
-            <>
-              <div className="lia-lab-status">
-                Session {session.sessionId.slice(0, 8)}… · {busy ? 'traitement…' : 'prêt'}
-              </div>
-              <div className="lia-lab-compose">
-                <button
-                  type="button"
-                  className={`lia-lab-icon-btn ${recording ? 'recording' : ''}`}
-                  onClick={toggleMic}
-                  disabled={busy}
-                  title="Parler (STT)"
-                  aria-label="Micro"
+          <div className="lia-lab-setup-actions">
+            <button type="button" onClick={loadBuanderiePreset}>
+              Preset buanderie
+            </button>
+            <button type="button" className="lia-lab-primary" disabled={busy} onClick={() => void startSession()}>
+              {busy ? 'Démarrage…' : 'Démarrer Grock'}
+            </button>
+          </div>
+        </section>
+      ) : (
+        <div className="lia-lab-grock-grid">
+          <section className="lia-lab-chat" aria-label="Intercom Grock">
+            <h3>Intercom Grock · {session.tenantFirstName}</h3>
+            <p className="lia-lab-meta">
+              {session.title} — modèle {session.model ?? 'Mistral'}
+              {session.visionModel ? ` · vision ${session.visionModel}` : ''}
+            </p>
+            <div className="lia-lab-messages">
+              {session.messages.map((m, i) => (
+                <div
+                  key={`${m.at}-${i}`}
+                  className={`lia-lab-bubble ${m.role === 'grock' ? 'lia' : 'tenant'}`}
                 >
-                  🎤
-                </button>
-                <textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Écrire ou dicter…"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      void sendText(draft);
-                    }
-                  }}
+                  <strong>{m.role === 'grock' ? 'Grock' : session.tenantFirstName} · </strong>
+                  {m.role === 'grock' ? extractVisibleGrockText(m.text) : m.text}
+                  {m.imagePreview ? (
+                    <img
+                      className="lia-lab-photo-preview"
+                      src={m.imagePreview}
+                      alt="Photo envoyée par le locataire"
+                    />
+                  ) : null}
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="lia-lab-compose">
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Message de Marie… (légende optionnelle avant photo)"
+                disabled={busy}
+                rows={2}
+              />
+              <div className="lia-lab-compose-actions">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic"
+                  className="lia-lab-photo-input"
                   disabled={busy}
+                  onChange={onPhotoSelected}
                 />
                 <button
                   type="button"
-                  className={`lia-lab-icon-btn ${speaking ? 'speaking' : ''}`}
-                  disabled={!lastLiaMessage?.text || busy}
-                  onClick={() =>
-                    void playTts(lastLiaMessage!.text, session.visualization.language)
-                  }
-                  title="Relire dernière réponse (TTS)"
-                  aria-label="Haut-parleur"
+                  disabled={busy}
+                  onClick={() => photoInputRef.current?.click()}
+                  title="Envoyer une photo — perception Pixtral"
                 >
-                  🔊
+                  {busy ? 'Analyse…' : '📷 Photo'}
                 </button>
                 <button
                   type="button"
-                  className="lia-lab-icon-btn"
+                  className="lia-lab-primary"
                   disabled={busy || !draft.trim()}
-                  onClick={() => void sendText(draft)}
-                  title="Envoyer"
-                  aria-label="Envoyer"
+                  onClick={() => void sendMessage(draft)}
                 >
-                  ➤
+                  Envoyer
                 </button>
               </div>
-            </>
-          ) : null}
-        </div>
+            </div>
+          </section>
 
-        <div className="lia-lab-panel">
-          <div className="lia-lab-panel-title lia-lab-panel-title-row">
-            <span>Console de visualisation (expert — français)</span>
-            {session ? (
-              <button
-                type="button"
-                className="lia-lab-prompt-btn"
-                onClick={() => void openPromptPreview()}
-                disabled={promptLoading || busy}
-                title="Boîte noire — prompt système Groq"
-                aria-label="Voir le prompt système"
-              >
-                {promptLoading ? '…' : '👁'}
-                <span className="lia-lab-prompt-btn-label">Voir le prompt système</span>
-              </button>
-            ) : null}
-          </div>
-          <VisualizationConsole viz={session?.visualization ?? null} />
-        </div>
-      </div>
-
-      {promptModalOpen && deliberationPreview ? (
-        <div
-          className="lia-lab-modal-backdrop"
-          role="presentation"
-          onClick={() => setPromptModalOpen(false)}
-        >
-          <div
-            className="lia-lab-modal"
-            role="dialog"
-            aria-labelledby="lia-lab-prompt-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="lia-lab-modal-header">
-              <div>
-                <h3 id="lia-lab-prompt-title">Délibération parallèle — modèles Groq</h3>
-                <p className="lia-lab-modal-meta">
-                  Majordome {deliberationPreview.models.majordome} · Enquêteur{' '}
-                  {deliberationPreview.models.enqueteur} · Archiviste{' '}
-                  {deliberationPreview.models.archiviste}
-                </p>
+          <aside className="lia-lab-side">
+            <section className="lia-lab-pathology" aria-label="Consultation pathologie">
+              <h3>Consultation pathologie (sans scénario)</h3>
+              <p className="lia-lab-muted">
+                Pose une question directe (ex: « Infiltration au plafond : quelles causes probables ? »).
+              </p>
+              <textarea
+                value={pathologyQ}
+                onChange={(e) => setPathologyQ(e.target.value)}
+                placeholder="Votre question…"
+                rows={3}
+                disabled={pathologyBusy}
+              />
+              <div className="lia-lab-compose-actions" style={{ marginTop: 8 }}>
+                <button type="button" disabled={pathologyBusy || !pathologyQ.trim()} onClick={() => void askPathology()}>
+                  {pathologyBusy ? 'Analyse…' : 'Répondre'}
+                </button>
+                {pathologyA?.model ? (
+                  <span className="lia-lab-meta">modèle {pathologyA.model}</span>
+                ) : null}
               </div>
-              <button
-                type="button"
-                className="lia-lab-modal-close"
-                onClick={() => setPromptModalOpen(false)}
-                aria-label="Fermer"
-              >
-                ×
-              </button>
-            </header>
-            <pre className="lia-lab-prompt-pre">
-              {JSON.stringify(deliberationPreview.deliberationEchoes, null, 2)}
-            </pre>
-          </div>
+              {pathologyA?.answer ? (
+                <pre className="lia-lab-perception-pre" style={{ marginTop: 10 }}>
+                  {pathologyA.answer}
+                </pre>
+              ) : null}
+            </section>
+
+            <section className="lia-lab-state" aria-label="État conversationnel Grock">
+              <h3>[État Grock]</h3>
+              <div className="lia-lab-state-row">
+                <span>state</span>
+                <strong>{session.state ?? '—'}</strong>
+              </div>
+              <div className="lia-lab-state-row">
+                <span>next_action</span>
+                <strong>{session.nextAction ?? '—'}</strong>
+              </div>
+            </section>
+
+            <section className="lia-lab-thinking" aria-label="Thinking Grock">
+              <h3>[Thinking Grock]</h3>
+              {session.thinking ? (
+                <pre className="lia-lab-thinking-pre">{session.thinking}</pre>
+              ) : (
+                <p className="lia-lab-muted">
+                  Aucun raisonnement structuré reçu pour le moment.
+                </p>
+              )}
+            </section>
+
+            <section className="lia-lab-perception" aria-label="Perception visuelle brute">
+              <h3>[Perception Visuelle Brute]</h3>
+              {session.visualPerception ? (
+                <>
+                  {session.visionModel ? (
+                    <p className="lia-lab-meta">Modèle vision : {session.visionModel}</p>
+                  ) : null}
+                  <pre className="lia-lab-perception-pre">{session.visualPerception}</pre>
+                </>
+              ) : (
+                <p className="lia-lab-muted">
+                  Aucune photo analysée. Envoyez une image pour que Grock ouvre les yeux sur la scène.
+                </p>
+              )}
+            </section>
+
+            <h3>Mémoire Marie (Supabase)</h3>
+            <p className="lia-lab-meta">
+              {session.ticketHistory.length} ticket(s) chargé(s) au démarrage — hors tests labo.
+            </p>
+            {session.ticketHistory.length === 0 ? (
+              <p className="lia-lab-muted">Aucun ticket antérieur pour ce prénom.</p>
+            ) : (
+              <ul className="lia-lab-history">
+                {session.ticketHistory.map((t) => (
+                  <li key={`${t.createdAt}-${t.title}`}>
+                    <strong>
+                      il y a {t.daysAgo}j · {t.status}
+                    </strong>
+                    <div>{t.title}</div>
+                    <div className="lia-lab-muted">{t.description.slice(0, 120)}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
         </div>
-      ) : null}
+      )}
     </div>
   );
 };

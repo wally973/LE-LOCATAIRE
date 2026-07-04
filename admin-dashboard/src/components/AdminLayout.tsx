@@ -97,6 +97,9 @@ const AdminLayout: React.FC = () => {
             <Link to="/admin/doctrine-registry" className="nav-link">
               Registre de Sagesse
             </Link>
+            <Link to="/admin/grock-learning" className="nav-link">
+              Apprentissage Grock
+            </Link>
           </nav>
         </aside>
 

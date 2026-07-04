@@ -525,6 +525,49 @@
       "sortOrder": 70
     },
     {
+      "slug": "sinistre-degats-eaux",
+      "kind": "FICHE_SP",
+      "category": "INSURANCE",
+      "title": "Sinistre — dégâts des eaux",
+      "summary": "Déclaration rapide à l'assureur, limitation des dégâts, constat amiable, preuves.",
+      "content": "En cas de dégât des eaux : couper l'eau si possible, limiter le dommage, prévenir voisin/bailleur/syndic, prendre des photos datées. Déclarer le sinistre à l'assurance habitation dans les délais du contrat (souvent 5 jours ouvrés). Un constat amiable dégât des eaux peut être utile entre voisins. Conserver photos, factures, échanges et expertises. La garantie recours des voisins et des tiers peut indemniser un voisin touché par un sinistre provenant du logement.",
+      "responsibilityHint": "A_ANALYSER",
+      "keywords": ["sinistre", "dégât des eaux", "assurance", "constat amiable", "déclaration", "voisin"],
+      "sources": [
+        {
+          "label": "Service Public — dégâts des eaux F1352",
+          "url": "https://www.service-public.fr/particuliers/vosdroits/F1352",
+          "article": null
+        },
+        {
+          "label": "Service Public — assurance locataire F31300",
+          "url": "https://www.service-public.fr/particuliers/vosdroits/F31300",
+          "article": null
+        }
+      ],
+      "exceptions": ["Force majeure reconnue", "Réseau collectif bailleur"],
+      "sortOrder": 71
+    },
+    {
+      "slug": "sinistre-naturel-guyane",
+      "kind": "FICHE_SP",
+      "category": "INSURANCE",
+      "title": "Sinistre naturel — Guyane (PPRN, CAT NAT)",
+      "summary": "Distinguer aléa naturel, entretien bâti et réseau collectif ; déclaration assurance.",
+      "content": "En Guyane, inondations, vents violents et autres aléas peuvent déclencher une procédure sinistre. Déclarer rapidement à l'assurance habitation. L'indemnisation catastrophe naturelle suppose en principe un arrêté interministériel. Le bailleur reste concerné par sécurité, clos/couvert, structure et remise en état technique selon la cause retenue. Vérifier PPRN et état des risques pour l'adresse concernée.",
+      "responsibilityHint": "BAILLEUR",
+      "keywords": ["sinistre", "guyane", "PPRN", "catastrophe naturelle", "inondation", "cyclone", "assurance"],
+      "sources": [
+        {
+          "label": "Préfecture Guyane — risques naturels",
+          "url": "https://www.guyane.gouv.fr/Actions-de-l-Etat/Environnement-Energie-et-Amenagement/Risques-naturels/Les-risques-naturels/Plans-de-prevention-des-risques-naturels",
+          "article": null
+        }
+      ],
+      "exceptions": [],
+      "sortOrder": 72
+    },
+    {
       "slug": "procedure-conciliation",
       "kind": "FICHE_SP",
       "category": "PROCEDURE",

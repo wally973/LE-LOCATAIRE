@@ -64,7 +64,7 @@ async function main() {
   if (!landlord) {
     landlord = await prisma.landlordProfile.create({
       data: {
-        name: '2terHabitat Démo',
+        name: 'Bailleur social Démo',
         userId: bailleurUser.id,
         featureFlags: { create: {} },
       },

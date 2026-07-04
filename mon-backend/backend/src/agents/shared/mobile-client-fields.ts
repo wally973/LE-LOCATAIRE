@@ -39,6 +39,7 @@ export function extractMobileFields(ticket: JsonMap): MobileTicketFields {
     'timing_pattern',
     'building_floor',
     'weather_context',
+    'symptom_anchor',
   ] as const;
 
   const mergedSensors: Record<string, string> = {};

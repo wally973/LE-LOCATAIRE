@@ -36,7 +36,7 @@ export function getSavoirVoirMethodBrief(): SavoirVoirMethodBrief {
         order: 2,
         name: 'Organisateur — questions ciblées',
         what:
-          'Lia pose des questions simples (intake), pilotées par le catalogue logique des pannes (`panne-diagnostic-logique.json`) pour éliminer des causes.',
+          'Lia s’appuie sur des fiches de connaissance passives (`panne-diagnostic-logique.json`, `master-diagnostic-rules.json`) — enrichissement documentaire, pas séquence de questions imposée.',
         technicianRole:
           'Vérifier les réponses intake : elles complètent ou confirment la description.',
       },

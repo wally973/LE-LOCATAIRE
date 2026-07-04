@@ -59,15 +59,6 @@ export class LiaOrchestratorService {
 
     const flags = await this.qualFlags(ticket.landlordProfileId);
 
-    await this.conversation.appendMessage(
-      ticketId,
-      'TENANT',
-      this.formatInitialTenantMessage(ticket.title, ticket.description),
-    );
-
-    const intro = this.intake.welcomeIntro(ticket.tenant.firstName);
-    await this.conversation.appendMessage(ticketId, 'LIA_HOST', intro);
-
     const ticketRefs = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
       select: {
@@ -75,6 +66,18 @@ export class LiaOrchestratorService {
         tenant: { select: { dossierNumber: true } },
       },
     });
+
+    await this.conversation.appendMessage(
+      ticketId,
+      'TENANT',
+      this.formatInitialTenantMessage(ticket.title, ticket.description),
+    );
+
+    if (!flags.liaConversationEnabled) {
+      const intro = this.intake.welcomeIntro(ticket.tenant.firstName);
+      await this.conversation.appendMessage(ticketId, 'LIA_HOST', intro);
+    }
+
     if (ticketRefs?.caseNumber) {
       const dossier = ticketRefs.tenant.dossierNumber ?? '—';
       await this.conversation.appendMessage(

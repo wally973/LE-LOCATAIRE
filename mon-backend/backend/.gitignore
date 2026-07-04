@@ -52,6 +52,11 @@ pids
 *.seed
 *.pid.lock
 
+# Intercom Maître — leçons Architecte (local, hors dist/)
+/data/intercom-maitre/**
+!data/intercom-maitre/
+!data/intercom-maitre/.gitkeep
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 

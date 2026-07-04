@@ -385,6 +385,8 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
         !analyzing && (awaitingPhoto || TicketService.shouldOfferPhoto(_ticket));
     final responsibility = _ticket?['responsibility'] as String?;
     final followUpClosed = TicketService.isFollowUpClosed(_ticket);
+    final showComposerPhotoButton =
+        !followUpClosed && !analyzing && !_uploadingPhoto;
     final showArtisanChoice = !followUpClosed &&
         !analyzing &&
         !awaitingPhoto &&
@@ -508,7 +510,7 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
                   child: Text(
                     'Répondez à Lia en langage naturel (depuis quand, '
                     'ce que vous avez déjà essayé, quelle pièce…). '
-                    'Elle adapte ses questions. La photo viendra ensuite.',
+                    'Elle adapte ses questions. Vous pouvez aussi ajouter une photo avec l’icône.',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.amber.shade900,
@@ -533,7 +535,7 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
                 controller: _input,
                 sending: _sending,
                 onSend: _send,
-                showPhotoButton: showPhotoActions,
+                showPhotoButton: showComposerPhotoButton,
                 onPhoto: _uploadingPhoto ? null : () => _addPhoto(),
               ),
           ],

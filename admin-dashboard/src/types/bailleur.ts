@@ -121,6 +121,7 @@ export interface BailleurTicket {
   responsibility?: TicketResponsibilityUi | string;
   aiCategory?: string | null;
   aiConfidence?: number | null;
+  aiSeverity?: string | null;
   escalatedAt?: string | null;
   escalationReason?: string | null;
   aiAttempts?: number;

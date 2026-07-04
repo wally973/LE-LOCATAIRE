@@ -38,25 +38,31 @@ export function mergeLivingPatches(
   if (enq) {
     const v = asRecord(enq.vision3d);
     if (v) {
+      const pick = (key: keyof typeof state.vision3d) => {
+        if (!(key in v)) return state.vision3d[key];
+        const raw = v[key as string];
+        if (raw == null || raw === '') return null;
+        if (key === 'rooms') return asStringArray(raw);
+        if (key === 'hypotheses' && Array.isArray(raw)) return raw as typeof state.vision3d.hypotheses;
+        if (key === 'activeFlows' || key === 'mentalModels') return asStringArray(raw);
+        if (key === 'climate') {
+          const c = asString(raw);
+          return c === 'tropical_humid' || c === 'dry_season' ? c : state.vision3d.climate;
+        }
+        return asString(raw) || null;
+      };
       state.vision3d = {
         ...state.vision3d,
-        floorLevel: asString(v.floorLevel) || state.vision3d.floorLevel,
-        rooms: asStringArray(v.rooms).length ? asStringArray(v.rooms) : state.vision3d.rooms,
-        element: asString(v.element) || state.vision3d.element,
-        symptomAnchor: asString(v.symptomAnchor) || state.vision3d.symptomAnchor,
-        above: asString(v.above) || state.vision3d.above,
-        below: asString(v.below) || state.vision3d.below,
-        climate:
-          (asString(v.climate) as LivingVision3D['climate']) || state.vision3d.climate,
-        activeFlows: asStringArray(v.activeFlows).length
-          ? asStringArray(v.activeFlows)
-          : state.vision3d.activeFlows,
-        mentalModels: asStringArray(v.mentalModels).length
-          ? asStringArray(v.mentalModels)
-          : state.vision3d.mentalModels,
-        hypotheses: Array.isArray(v.hypotheses)
-          ? (v.hypotheses as LivingVision3D['hypotheses'])
-          : state.vision3d.hypotheses,
+        floorLevel: pick('floorLevel') as string | null,
+        rooms: pick('rooms') as string[],
+        element: pick('element') as string | null,
+        symptomAnchor: pick('symptomAnchor') as string | null,
+        above: pick('above') as string | null,
+        below: pick('below') as string | null,
+        climate: pick('climate') as LivingVision3D['climate'],
+        activeFlows: pick('activeFlows') as string[],
+        mentalModels: pick('mentalModels') as string[],
+        hypotheses: pick('hypotheses') as LivingVision3D['hypotheses'],
       };
     }
     const int = asRecord(enq.intervention);
@@ -108,6 +114,19 @@ export function mergeLivingPatches(
 
   const arch = patches.archiviste;
   if (arch) {
+    const qPaul = asString(arch.questionPourPaul);
+    if (qPaul) {
+      state = {
+        ...state,
+        symmetricDeliberation: state.symmetricDeliberation
+          ? {
+              ...state.symmetricDeliberation,
+              contradictionActive: true,
+              contradictionNote: `Pierre → Paul : ${qPaul}`,
+            }
+          : state.symmetricDeliberation,
+      };
+    }
     const lv = asRecord(arch.legalVerdict);
     if (lv) {
       state.legalVerdict = {
@@ -167,14 +186,11 @@ export function mergeLivingPatches(
   const lastInsight = (agent: LivingDeliberationEcho['agent']) =>
     [...state.deliberationEchoes].reverse().find((e) => e.agent === agent)?.insight;
 
-  state.teamSymbiosis = {
-    ...buildTeamSymbiosisSnapshot({
-      enqueteur: lastInsight('enqueteur'),
-      archiviste: lastInsight('archiviste'),
-      majordome: lastInsight('majordome'),
-    }),
-    updatedAt: new Date().toISOString(),
-  };
+  state.teamSymbiosis = buildTeamSymbiosisSnapshot({
+    enqueteur: lastInsight('enqueteur'),
+    archiviste: lastInsight('archiviste'),
+    majordome: lastInsight('majordome'),
+  });
 
   state = sealDossierIntegrity(state);
 

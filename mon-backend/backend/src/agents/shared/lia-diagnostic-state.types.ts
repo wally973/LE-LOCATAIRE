@@ -65,6 +65,8 @@ export interface DiagnosticSensors {
   building_floor?: string;
   /** Contexte pluviométrique (ex. "Saison sèche"). */
   weather_context?: string;
+  /** Ancrage du symptôme visible (ex. plafond, mur, sol, angle, sous équipement). */
+  symptom_anchor?: string;
   /** Électricité — périmètre de la panne (master-diagnostic-rules). */
   electric_scope?: string;
   /** Électricité — signes de danger immédiat. */

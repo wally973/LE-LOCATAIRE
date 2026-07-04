@@ -35,12 +35,13 @@ export function detectJarvisDialogueIntent(
   message: string,
   ticketTitle: string,
   ticketDescription: string,
+  ticketCategory: IntakeCategory | null = null,
 ): JarvisDialogueIntent {
   const msg = message.trim();
   if (!msg) return 'fact';
   if (META_QUESTION_RE.test(msg)) return 'meta_question';
   if (CONTESTATION_RE.test(msg)) return 'reassurance';
-  if (isConfirmedTopicChange(msg, ticketTitle, ticketDescription, null)) {
+  if (isConfirmedTopicChange(msg, ticketTitle, ticketDescription, ticketCategory)) {
     return 'topic_change_candidate';
   }
   return 'fact';

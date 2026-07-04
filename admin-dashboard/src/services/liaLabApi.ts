@@ -1,217 +1,104 @@
 import axios from 'axios';
 import { apiClient, getErrorMessage } from './apiClient';
 
-/** Langues proposées au locataire (choix explicite). */
 export const LAB_DIALOGUE_LANGUAGES = [
   { code: 'fr', label: 'Français' },
   { code: 'gcf', label: 'Créole guyanais' },
   { code: 'en', label: 'Anglais' },
-  { code: 'pt', label: 'Portugais (Brésil)' },
-  { code: 'es', label: 'Espagnol (Caraïbes)' },
+  { code: 'pt', label: 'Portugais' },
+  { code: 'es', label: 'Espagnol' },
   { code: 'hat', label: 'Créole haïtien' },
 ] as const;
 
 export type LabDialogueLanguage = (typeof LAB_DIALOGUE_LANGUAGES)[number]['code'];
 
-export interface LiaLabVisualization {
-  mentalModels: string[];
-  activeFlows: string[];
-  activeFlowLabels?: string[];
-  detectedLot: string;
-  urgencyMode: string | null;
-  /** Safety Override — bouclier arc électrique */
-  safetyOverride?: {
-    forceKind: string;
-    priority: string;
-    shieldStatus: string;
-    shieldDelivered: boolean;
-    surgicalProbe: string | null;
-    ticketSummary: string | null;
-    investigationPhase: string | null;
-  } | null;
-  language: LabDialogueLanguage;
-  dialogueLanguageLabel?: string;
-  consoleLanguage?: 'fr';
-  jarvisFacts: Record<string, string>;
-  jarvisFactsConsole?: { label: string; value: string }[];
-  visualizationNote: string | null;
-  kbPanneId: string | null;
-  kbPanneLabel: string | null;
-  kbCausesActive: string[];
-  kbCausesEliminated: string[];
-  afpolRefs: string[];
-  intakePhase: string;
-  intakePhaseLabel?: string;
-  handoffRecommended: boolean;
-  tenantLanguage?: string;
-  tenantLanguageLabel?: string;
-  simulationDomain?: string | null;
-  simulationDomainLabel?: string | null;
-  scene3D?: Record<string, string | null>;
-  scene3DRows?: { label: string; value: string }[];
-  physicalHypotheses?: string[];
-  livingBuildingState?: unknown;
-  livingStateConsole?: { label: string; value: string }[];
-  councilEchoes?: { agent: string; heard: string; insight: string }[];
-  housingPerspective?: string | null;
-  savoirSources?: {
-    agent: string;
-    agentLabel: string;
-    corpus: string;
-    ref: string;
-    title: string;
-    url?: string;
-    label: string;
-    relevance: number;
-    hypothesisLabel?: string;
-  }[];
-  consciousnessConsole?: { label: string; value: string }[];
-  symmetricConsole?: { label: string; value: string }[];
-  instrumentsPilotBrief?: string | null;
-  guardianConsole?: { label: string; value: string }[];
-  guardianMurmures?: string[];
-  teamSymbiosis?: {
-    charter: string;
-    agents: { role: string; label: string; mission: string; lastInsight: string }[];
-    dossierSealed: boolean;
-    primaryTrade: string | null;
-  };
+export interface GrockTicketHistoryRow {
+  caseNumber: string | null;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  daysAgo: number;
 }
 
-export interface LabChatMessage {
-  role: 'tenant' | 'lia' | 'architect';
+export interface GrockLabMessage {
+  role: 'tenant' | 'grock';
   text: string;
   at: string;
-  uiStatusLabel?: string;
-  doctrineLessonId?: string;
+  imagePreview?: string;
 }
 
-export interface LabSessionView {
+export interface GrockLabSessionView {
   sessionId: string;
   title: string;
   description: string;
   tenantFirstName: string;
-  messages: LabChatMessage[];
-  visualization: LiaLabVisualization;
-  bridgeStatus?: {
-    livingIntelligenceEnabled: boolean;
-    reasoningSource: string | null;
-  };
+  language: string;
+  messages: GrockLabMessage[];
+  ticketHistory: GrockTicketHistoryRow[];
+  model: string | null;
+  groqConfigured: boolean;
+  visualPerception: string | null;
+  visionModel: string | null;
+  thinking: string | null;
+  state: string | null;
+  nextAction: string | null;
 }
 
-export interface LabJuridiquePreset {
-  id: string;
-  label: string;
-  title: string;
-  description: string;
-  housingUnit: string;
-  legalThemeId: string;
-  perimetre: string;
-  tenantTurnHint: string | null;
+export interface GrockVisualization {
+  agent: string;
+  model: string;
+  visionModel?: string | null;
+  ticketHistoryCount: number;
+  ticketHistory: GrockTicketHistoryRow[];
+  messageCount: number;
+  visualPerception?: string | null;
+  thinking?: string | null;
+  state?: string | null;
+  nextAction?: string | null;
+  perceptionTitle?: string;
+  note: string;
 }
 
-export async function fetchLabJuridiquePresets(): Promise<LabJuridiquePreset[]> {
-  const { data } = await apiClient.get<{ presets: LabJuridiquePreset[] }>(
-    '/lia-lab/presets/juridique',
-    { timeout: LAB_REQUEST_TIMEOUT_MS },
-  );
-  return data.presets ?? [];
+export interface GrockPathologyAnswerView {
+  answer: string;
+  model: string;
+  language: string;
 }
 
-const LAB_REQUEST_TIMEOUT_MS = 30_000;
+const LAB_REQUEST_TIMEOUT_MS = 120_000;
 
-/** Message d’erreur explicite pour Lia-Lab (auth, backend, rôle). */
-export function getLabErrorMessage(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const status = err.response?.status;
-    if (status === 401) {
-      return 'Session expirée ou non connecté — déconnectez-vous puis reconnectez-vous avec un compte ADMIN.';
-    }
-    if (status === 403) {
-      return 'Lia-Lab est réservé aux comptes ADMIN.';
-    }
-    if (!err.response) {
-      return 'Backend injoignable — lancez le backend (npm run start:dev) sur http://localhost:3000.';
+export function getLabErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const msg = (error.response?.data as { message?: string | string[] })?.message;
+    if (Array.isArray(msg)) return msg.join(' · ');
+    if (typeof msg === 'string' && msg.trim()) return msg;
+    if (error.code === 'ECONNABORTED') {
+      return 'Grock met trop de temps — réessayez (quota Groq ou réseau).';
     }
   }
-  return getErrorMessage(err, fallback);
+  return getErrorMessage(error, fallback);
 }
 
-export async function createLabSession(body: {
-  title: string;
-  description: string;
-  tenantFirstName?: string;
-}): Promise<LabSessionView> {
-  const { data } = await apiClient.post<LabSessionView>('/lia-lab/sessions', body, {
-    timeout: LAB_REQUEST_TIMEOUT_MS,
-  });
-  return data;
-}
-
-/** Crée la session + ouverture Jarvis (un seul appel). */
-export async function startLabSession(body: {
+export async function startGrockLabSession(body: {
   title: string;
   description: string;
   tenantFirstName?: string;
   language?: LabDialogueLanguage;
-  residenceUnitNumber?: string;
-}): Promise<LabSessionView> {
-  const { data } = await apiClient.post<LabSessionView>('/lia-lab/sessions/start', body, {
-    timeout: LAB_REQUEST_TIMEOUT_MS,
-  });
-  return data;
-}
-
-export async function runLabOpening(sessionId: string): Promise<LabSessionView> {
-  const { data } = await apiClient.post<LabSessionView>(
-    `/lia-lab/sessions/${sessionId}/opening`,
-    undefined,
+}): Promise<GrockLabSessionView> {
+  const { data } = await apiClient.post<GrockLabSessionView>(
+    '/lia-lab/sessions/start',
+    body,
     { timeout: LAB_REQUEST_TIMEOUT_MS },
   );
   return data;
 }
 
-export interface LabPromptPreview {
-  sessionId: string;
-  generatedAt: string;
-  tenantFirstName: string;
-  mode: 'opening' | 'tenant_turn';
-  messageContext: string;
-  llmBridgeEnabled: boolean;
-  systemPrompt: string;
-  sections: {
-    identity: string;
-    missionJarvis: string;
-    teamBrief: string;
-    investigationProtocol: string;
-    jsonRules: string;
-    visualLogic: string;
-  };
-  sectionLabels: Record<string, string>;
-}
-
-export async function discardLabSession(sessionId: string): Promise<void> {
-  await apiClient.post(`/lia-lab/sessions/${sessionId}/discard`);
-}
-
-export async function fetchLabDeliberationPreview(sessionId: string): Promise<{
-  sessionId: string;
-  models: { majordome: string; enqueteur: string; archiviste: string };
-  deliberationEchoes: { agent: string; model: string; insight: string }[];
-  livingState: unknown;
-}> {
-  const { data } = await apiClient.get(
-    `/lia-lab/sessions/${sessionId}/deliberation-preview`,
-    { timeout: LAB_REQUEST_TIMEOUT_MS },
-  );
-  return data;
-}
-
-export async function sendLabMessage(
+export async function sendGrockLabMessage(
   sessionId: string,
   text: string,
-): Promise<LabSessionView> {
-  const { data } = await apiClient.post<LabSessionView>(
+): Promise<GrockLabSessionView> {
+  const { data } = await apiClient.post<GrockLabSessionView>(
     `/lia-lab/sessions/${sessionId}/message`,
     { text },
     { timeout: LAB_REQUEST_TIMEOUT_MS },
@@ -219,22 +106,79 @@ export async function sendLabMessage(
   return data;
 }
 
+export async function sendGrockLabPhoto(
+  sessionId: string,
+  file: File,
+  caption?: string,
+): Promise<GrockLabSessionView> {
+  const form = new FormData();
+  form.append('photo', file, file.name || 'photo.jpg');
+  if (caption?.trim()) form.append('caption', caption.trim());
+  const { data } = await apiClient.post<GrockLabSessionView>(
+    `/lia-lab/sessions/${sessionId}/photo`,
+    form,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: LAB_REQUEST_TIMEOUT_MS,
+    },
+  );
+  return data;
+}
+
+export async function discardGrockLabSession(sessionId: string): Promise<void> {
+  await apiClient.post(`/lia-lab/sessions/${sessionId}/discard`);
+}
+
+export async function fetchGrockVisualization(sessionId: string): Promise<GrockVisualization> {
+  const { data } = await apiClient.get<GrockVisualization>(
+    `/lia-lab/sessions/${sessionId}/visualization`,
+    { timeout: LAB_REQUEST_TIMEOUT_MS },
+  );
+  return data;
+}
+
 export async function transcribeLabAudio(blob: Blob): Promise<string> {
   const form = new FormData();
-  form.append('audio', blob, 'lia-lab.webm');
+  form.append('audio', blob, 'lab.webm');
   const { data } = await apiClient.post<{ text: string }>('/lia-lab/transcribe', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: LAB_REQUEST_TIMEOUT_MS,
   });
   return data.text ?? '';
 }
 
 export async function synthesizeLabSpeech(
   text: string,
-  language?: LabDialogueLanguage,
+  language: LabDialogueLanguage = 'fr',
 ): Promise<{ audioBase64: string; mimeType: string }> {
   const { data } = await apiClient.post<{ audioBase64: string; mimeType: string }>(
     '/lia-lab/tts',
     { text, language },
+    { timeout: LAB_REQUEST_TIMEOUT_MS },
+  );
+  return data;
+}
+
+export async function purgeLabLivingState(): Promise<{
+  ticketsPurged: number;
+  sessionsCleared: number;
+}> {
+  const { data } = await apiClient.post<{ ticketsPurged: number; sessionsCleared: number }>(
+    '/lia-lab/admin/purge-living-state',
+    undefined,
+    { timeout: LAB_REQUEST_TIMEOUT_MS },
+  );
+  return data;
+}
+
+export async function askGrockPathology(
+  question: string,
+  language: LabDialogueLanguage = 'fr',
+): Promise<GrockPathologyAnswerView> {
+  const { data } = await apiClient.post<GrockPathologyAnswerView>(
+    '/lia-lab/pathology/ask',
+    { question, language },
+    { timeout: LAB_REQUEST_TIMEOUT_MS },
   );
   return data;
 }

@@ -1,93 +1,32 @@
 /**
- * Cœur de raisonnement — INPUT → DÉLIBÉRATION → GARDIEN → OUTPUT.
+ * Production mobile — passthrough Groq : signalement + AFPOL + fil. Aucun script dialogue.
  */
 import { Injectable } from '@nestjs/common';
 import type { LiaIntakeState } from '../intake/lia-intake.service';
+import type { IntakePhase } from '../intake/lia-intake.service';
 import type { JarvisPilotTurn } from '../intake/lia-jarvis-pilot.service';
 import { normalizeCompanionLanguage } from '../../shared/lia-dialogue-languages';
-import type { CompanionLanguage } from '../conversation/lia-companion.types';
-import type { LiaTenantSocialContext } from '../../shared/lia-jarvis-identity';
-import { LivingDeliberationEngine } from './living-deliberation.engine';
-import { LivingGuardianService } from './living-guardian.service';
-import type { LivingDeliberationTurnResult } from './living-building-state.types';
 import {
-  LivingBuildingStateRepository,
-  readLivingStateFromIntake,
-  writeLivingStateToIntake,
-} from './living-building-state.repository';
-import { createLivingBuildingState } from './living-building-state.factory';
-import {
-  buildNewDossierRequestMessage,
-  detectDossierTopicBreach,
-  sealDossierIntegrity,
-} from './living-dossier-integrity';
-import { isConfirmedTopicChange } from '../intake/lia-jarvis-intake.engine';
-import {
-  nuclearFlushJarvisFacts,
-  nuclearFlushLivingState,
-} from './living-tabula-rasa';
-import { dossierTransmisStatus } from '../conversation/lia-message-ui-status';
+  GrockService,
+  readGrockConversationFil,
+  writeGrockConversationFil,
+  type GrockChatMessage,
+  type GrockConversationState,
+} from '../../../grock/grock.service';
+import { purgeJarvisCognitiveFacts } from './living-tabula-rasa';
+
+function resolveIntakePhase(
+  grockState: GrockConversationState | undefined,
+  intakeComplete: boolean,
+): IntakePhase {
+  if (intakeComplete) return 'DONE';
+  if (grockState === 'NEED_PHOTO') return 'AWAITING_PHOTO';
+  return 'INTAKE';
+}
 
 @Injectable()
 export class LivingReasoningService {
-  constructor(
-    private readonly deliberation: LivingDeliberationEngine,
-    private readonly guardian: LivingGuardianService,
-    private readonly repository: LivingBuildingStateRepository,
-  ) {}
-
-  /** Délibération + revue souveraine du Gardien (Phase B). */
-  private async runGuardedTurn(params: {
-    living: import('./living-building-state.types').LivingBuildingState;
-    message: string;
-    mode: 'opening' | 'tenant_turn';
-    social?: LiaTenantSocialContext | null;
-  }): Promise<LivingDeliberationTurnResult> {
-    let result = await this.deliberation.deliberate({
-      state: params.living,
-      tenantMessage: params.message,
-      mode: params.mode,
-      tenantSocial: params.social,
-    });
-
-    let review = this.guardian.review({
-      result,
-      tenantSocial: params.social,
-      pendingDoctrineLessons: result.pendingDoctrineLessons ?? [],
-    });
-
-    if (review.verdict === 'RE-DELIBERATE' && review.redeliberationBrief) {
-      result = await this.deliberation.deliberate({
-        state: review.livingState,
-        tenantMessage: params.message,
-        mode: params.mode,
-        tenantSocial: params.social,
-        guardianRedeliberationNote: review.redeliberationBrief,
-      });
-      review = this.guardian.review({
-        result,
-        tenantSocial: params.social,
-        pendingDoctrineLessons: result.pendingDoctrineLessons ?? [],
-      });
-    }
-
-    const tenantMessage =
-      review.verdict === 'OVERRIDE' ? review.finalParole : result.tenantMessage;
-
-    return {
-      ...result,
-      tenantMessage,
-      livingState: {
-        ...review.livingState,
-        guardianReview: {
-          ...review.livingState.guardianReview!,
-          verdict: review.verdict,
-          finalParole: tenantMessage,
-        },
-        doctrinePending: result.pendingDoctrineLessons ?? review.livingState.doctrinePending,
-      },
-    };
-  }
+  constructor(private readonly grock: GrockService) {}
 
   async runTurn(params: {
     mode: 'opening' | 'tenant_turn';
@@ -96,139 +35,121 @@ export class LivingReasoningService {
     description: string;
     message: string;
     tenantFirstName?: string;
-    tenantSocial?: LiaTenantSocialContext | null;
+    tenantSocial?: { displayName?: string } | null;
     ticketId?: number;
     wasAlreadyComplete?: boolean;
   }): Promise<JarvisPilotTurn> {
     const lang = normalizeCompanionLanguage(params.state.preferredLanguage);
-    const social = params.tenantSocial;
+    const displayName =
+      params.tenantFirstName?.trim() ||
+      params.tenantSocial?.displayName?.trim() ||
+      'Marie';
 
-    let living =
-      readLivingStateFromIntake(params.state.jarvisFacts) ??
-      (params.ticketId ? await this.repository.loadForTicket(params.ticketId) : null) ??
-      createLivingBuildingState({
-        title: params.title,
-        description: params.description,
-        language: lang,
-        tenantFirstName: params.tenantFirstName,
-        ageBand: social?.ageBand,
-        livesAlone: true,
-        creolePreferred: lang === 'gcf',
-      });
+    let state = params.state;
+    if (params.mode === 'opening') {
+      state = {
+        ...state,
+        jarvisFacts: purgeJarvisCognitiveFacts(state.jarvisFacts),
+        answers: { ...(state.answers ?? {}), jarvis_intake_complete: 'non' },
+      };
+    }
 
-    living = sealDossierIntegrity(living);
-    if (params.wasAlreadyComplete && !living.dossierIntegrity.sealed) {
-      living = sealDossierIntegrity({
-        ...living,
-        readiness: 'READY_FOR_TECHNICIAN',
-        intervention: {
-          ...living.intervention,
-          readyForDispatch: true,
+    const signalementText = this.formatSignalementText(
+      params.title,
+      params.description,
+    );
+    const tenantUtterance = params.message.trim() || signalementText;
+
+    let sessionFil: GrockChatMessage[] =
+      params.mode === 'opening' ? [] : readGrockConversationFil(state.jarvisFacts);
+
+    if (params.mode === 'opening' && tenantUtterance) {
+      sessionFil = [
+        {
+          id: `tenant-opening-${Date.now()}`,
+          role: 'user',
+          text: tenantUtterance,
+          createdAt: new Date(),
         },
-      });
+      ];
+    } else if (params.mode === 'tenant_turn' && params.message.trim()) {
+      sessionFil = [
+        ...sessionFil,
+        {
+          id: `tenant-${Date.now()}`,
+          role: 'user',
+          text: params.message.trim(),
+          createdAt: new Date(),
+        },
+      ];
     }
 
-    if (params.wasAlreadyComplete && params.message.trim()) {
-      const breach = detectDossierTopicBreach({
-        state: living,
-        message: params.message,
-        intakeCategory: params.state.category,
-      });
-      if (breach.isNewSubject) {
-        const parole = buildNewDossierRequestMessage(
-          living.humanBarrier.displayName,
-          breach.detectedLabel,
-          living.language === 'gcf' ? 'gcf' : 'fr',
-        );
-        return {
-          state: {
-            ...params.state,
-            phase: 'DONE',
-            answers: {
-              ...params.state.answers,
-              jarvis_intake_complete: 'oui',
-              jarvis_last_ack: parole.slice(0, 500),
-            },
-            jarvisFacts: writeLivingStateToIntake(params.state.jarvisFacts, living),
-          },
-          acknowledgment: parole,
-          nextQuestion: null,
-          fromLlm: false,
-          handoffTriggered: false,
-          buildingState: living,
-        };
-      }
-    }
-
-    const topicChangedDuringIntake =
-      params.mode === 'tenant_turn' &&
-      params.message.trim() &&
-      isConfirmedTopicChange(
-        params.message,
-        params.title,
-        params.description,
-        params.state.category ?? null,
-      );
-
-    if (topicChangedDuringIntake) {
-      living = createLivingBuildingState({
-        title: params.title,
-        description: params.description,
-        language: lang,
-        tenantFirstName: params.tenantFirstName ?? living.humanBarrier.displayName,
-        ageBand: social?.ageBand ?? living.humanBarrier.ageBand,
-        livesAlone: living.humanBarrier.livesAlone,
-        creolePreferred: living.humanBarrier.creolePreferred,
-      });
-    } else {
-      living = nuclearFlushLivingState(living);
-    }
-
-    params.state = {
-      ...params.state,
-      jarvisFacts: nuclearFlushJarvisFacts(params.state.jarvisFacts),
-    };
-
-    const result = await this.runGuardedTurn({
-      living,
-      message: params.message,
+    const grockTurn = await this.grock.runTurn({
+      tenantFirstName: displayName,
+      title: params.title,
+      description: params.description,
+      language: lang,
+      ticketHistory: [],
+      sessionMessages: sessionFil,
+      tenantMessage: tenantUtterance,
       mode: params.mode,
-      social,
     });
 
-    living = sealDossierIntegrity(result.livingState);
+    sessionFil = [
+      ...sessionFil,
+      {
+        id: `grock-${Date.now()}`,
+        role: 'assistant',
+        text: grockTurn.reply,
+        thinking: grockTurn.thinking ?? undefined,
+        state: grockTurn.state,
+        next_action: grockTurn.nextAction,
+        acknowledgment: grockTurn.acknowledgment,
+        note_interne: grockTurn.noteInterne ?? undefined,
+        createdAt: new Date(),
+      },
+    ];
 
-    if (params.ticketId) {
-      await this.repository.saveForTicket(params.ticketId, living);
-    }
-
-    const intakeComplete = result.intakeComplete || params.wasAlreadyComplete === true;
-    const newlyComplete = intakeComplete && !params.wasAlreadyComplete;
+    const intakeComplete = params.wasAlreadyComplete === true;
+    const phase = resolveIntakePhase(grockTurn.state, intakeComplete);
 
     return {
       state: {
-        ...params.state,
-        phase: intakeComplete ? 'DONE' : 'INTAKE',
+        ...state,
+        phase,
         stepIndex: 0,
-        preferredLanguage: living.language,
+        preferredLanguage: lang,
         intakeMode: 'jarvis',
         answers: {
-          ...params.state.answers,
+          ...state.answers,
           jarvis_intake_complete: intakeComplete ? 'oui' : 'non',
-          jarvis_summary: result.tenantMessage.slice(0, 500),
-          jarvis_last_ack: result.tenantMessage.slice(0, 500),
+          jarvis_summary: grockTurn.reply.slice(0, 500),
+          jarvis_last_ack: grockTurn.reply.slice(0, 500),
         },
-        jarvisFacts: writeLivingStateToIntake(params.state.jarvisFacts, living),
+        jarvisFacts: writeGrockConversationFil(state.jarvisFacts, sessionFil),
         skippedQuestionIds: [],
       },
-      acknowledgment: result.tenantMessage,
+      acknowledgment: grockTurn.reply,
       nextQuestion: null,
-      fromLlm: true,
-      handoffTriggered: result.handoffRequired,
-      buildingState: living as unknown as JarvisPilotTurn['buildingState'],
-      uiStatus: newlyComplete
-        ? dossierTransmisStatus(living.language as CompanionLanguage)
-        : undefined,
+      fromLlm: grockTurn.fromLlm,
+      handoffTriggered:
+        params.mode === 'tenant_turn' &&
+        (grockTurn.state === 'bailleur_responsable' ||
+          grockTurn.state === 'sinistre'),
+      grockState: grockTurn.state,
+      grockNextAction: grockTurn.nextAction,
+      grockNoteInterne: grockTurn.noteInterne,
     };
+  }
+
+  private formatSignalementText(title: string, description: string): string {
+    const t = title.trim();
+    const d = description.trim();
+    if (!d) return t;
+    if (!t || t === d) return d;
+    const tBase = t.replace(/…$/u, '').trim();
+    if (d.includes(tBase) && tBase.length > 10) return d;
+    if (t.includes(d)) return t;
+    return `${t}\n\n${d}`;
   }
 }

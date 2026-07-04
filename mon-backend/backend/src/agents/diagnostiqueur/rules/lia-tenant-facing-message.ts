@@ -39,6 +39,10 @@ export function buildTenantFacingMessage(
   const resp = String(input.responsibility);
 
   if (resp === 'BAILLEUR' || resp === 'ESCALADE_BAILLEUR') {
+    if (isWaterOrHumidityContext(input.category, contextText)) {
+      return buildBailleurWaterMessage(name, room, contextText);
+    }
+
     return (
       `${name}, votre demande${room} relève de la charge du bailleur. ` +
       'Nous avons transmis votre dossier à l’agence : le bailleur ou un technicien vous recontactera pour organiser l’intervention. ' +
@@ -95,4 +99,41 @@ export function stripArtisanCtaFromProse(text: string): string {
       '',
     )
     .trim();
+}
+
+function normalizeForTenantFacing(raw: string): string {
+  return raw
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+}
+
+function isWaterOrHumidityContext(category: string, contextText: string): boolean {
+  const categoryText = normalizeForTenantFacing(category);
+  const context = normalizeForTenantFacing(contextText);
+  return (
+    /humidity|roof|water|plumbing|humidite|toiture|eau|plomberie/.test(categoryText) ||
+    /infiltr|fuite|degat.*eau|eau|humid|moisiss|plafond|mur|buanderie|toiture|voisin/.test(
+      context,
+    )
+  );
+}
+
+function buildBailleurWaterMessage(
+  name: string,
+  room: string,
+  contextText: string,
+): string {
+  const context = normalizeForTenantFacing(contextText);
+  const possibleAboveOrigin =
+    /plafond|haut|dessus|voisin|etage|duplex|toiture|goutte|coule/.test(context);
+  const advice = possibleAboveOrigin
+    ? 'Si l’eau semble venir du plafond ou d’au-dessus, notez-le et prévenez aussi l’agence si un voisin ou un étage supérieur peut être concerné.'
+    : 'Protégez vos affaires et gardez une photo de la zone touchée pour situer précisément l’origine apparente.';
+
+  return (
+    `${name}, votre infiltration${room} relève de la charge du bailleur : le dossier est transmis à l’agence. ` +
+    `${advice} ` +
+    'Si des biens personnels sont abîmés, déclarez aussi le dégât des eaux à votre assurance habitation.'
+  );
 }

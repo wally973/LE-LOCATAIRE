@@ -30,6 +30,14 @@ describe('REF_EAU_SAVONNEUSE — capteurs et diagnostic', () => {
     expect(sensors.timing_pattern).toMatch(/19/);
     expect(sensors.building_floor).toBe('R+1');
     expect(sensors.weather_context).toBe('Saison sèche');
+    expect(sensors.symptom_anchor).toBe('sol');
+  });
+
+  it('extrait l’ancrage du symptôme sans photo', () => {
+    const sensors = extractDiagnosticSensors({
+      contextText: 'Infiltration dans la buanderie au plafond',
+    });
+    expect(sensors.symptom_anchor).toBe('plafond');
   });
 
   it('mène hyp_refoulement_eu en tête', () => {
@@ -41,7 +49,7 @@ describe('REF_EAU_SAVONNEUSE — capteurs et diagnostic', () => {
     expect(state.sensors?.water_aspect).toMatch(/savon|mousse/);
   });
 
-  it('détecte eau au sol et pose les questions organisateur', () => {
+  it('détecte eau au sol sans reposer les questions déjà résolues', () => {
     expect(isWaterOnFloorReport('Humidité', REF_TEXT)).toBe(true);
     const intake: LiaIntakeState = {
       phase: 'INTAKE',
@@ -53,7 +61,7 @@ describe('REF_EAU_SAVONNEUSE — capteurs et diagnostic', () => {
     };
     expect(usesWaterOnFloorPath(intake)).toBe(true);
     const qs = getIntakeQuestionsForState(intake);
-    expect(qs.map((q) => q.id)).toEqual(
+    expect(qs.map((q) => q.id)).not.toEqual(
       expect.arrayContaining(['water_aspect', 'timing_pattern']),
     );
   });

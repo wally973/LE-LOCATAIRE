@@ -6,6 +6,7 @@ describe('living-tabula-savoir', () => {
     const { bibliothequeSavoir, savoirConsulted } = prepareTabulaRasaSavoir();
     expect(bibliothequeSavoir.pathologies.length).toBeGreaterThan(0);
     expect(bibliothequeSavoir.loisEtDecrets.length).toBeGreaterThan(0);
+    expect(bibliothequeSavoir.reglementationTropicale?.length ?? 0).toBeGreaterThan(0);
     expect(savoirConsulted.length).toBeGreaterThan(0);
     expect(JSON.stringify(bibliothequeSavoir)).not.toMatch(/PERCEPTION MÉTIER/i);
     expect(JSON.stringify(bibliothequeSavoir)).not.toMatch(/TRIPLE FLUX/i);

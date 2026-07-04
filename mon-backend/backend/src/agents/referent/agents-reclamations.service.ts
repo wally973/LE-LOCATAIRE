@@ -115,6 +115,7 @@ export class AgentsReclamationsService {
         responsibility: t.responsibility,
         metier: this.formatMetier(t.aiCategory, t.aiSuggestedArtisanType),
         metierCode: t.aiCategory ?? t.aiSuggestedArtisanType,
+        aiSeverity: t.aiSeverity,
         ...retard,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
@@ -139,7 +140,7 @@ export class AgentsReclamationsService {
 
     return {
       agence,
-      scopeLabel: agence?.name ?? 'Tout le bailleur',
+      scopeLabel: agence?.name?.trim() || 'Tout le bailleur',
       items,
       total: items.length,
     };

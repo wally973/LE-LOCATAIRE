@@ -1,0 +1,404 @@
+.agent-intro {
+  color: #64748b;
+  max-width: 720px;
+  margin: 0;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.agent-alerts-page h1 {
+  margin: 0 0 6px;
+}
+
+.agent-alerts-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.agent-sector-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.agent-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.agent-kpi-grid--clickable .agent-kpi-btn {
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.agent-kpi-btn {
+  border: 2px solid transparent;
+}
+
+.agent-kpi-btn--active {
+  border-color: #059669 !important;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.agent-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.agent-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agent-tab:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.agent-tab--active {
+  background: #fff;
+  color: #059669;
+  box-shadow: inset 0 -2px 0 #059669;
+}
+
+.agent-tab__hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.agent-tab--active .agent-tab__hint {
+  color: #6ee7b7;
+}
+
+.agent-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.agent-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.agent-metier-select {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #fff;
+  min-width: 140px;
+}
+
+.agent-toolbar__right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.agent-toolbar__toggle {
+  margin-bottom: 0;
+}
+
+.agent-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.agent-alert-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.agent-alert-card:hover {
+  border-color: #6ee7b7;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.12);
+  transform: translateY(-1px);
+}
+
+.agent-alert-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-alert-card__delay {
+  font-size: 12px;
+  font-weight: 700;
+  color: #059669;
+}
+
+.agent-alert-card__delay--late {
+  color: #dc2626;
+}
+
+.agent-alert-card__title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.35;
+  color: #0f172a;
+}
+
+.agent-alert-card__meta {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-alert-card__tenant {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.agent-alert-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.agent-alert-card__ref {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+}
+
+.agent-alert-card__cta {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: #059669;
+}
+
+.agent-empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  color: #64748b;
+}
+
+.agent-load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.agent-result-count {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.agent-loading {
+  padding: 32px;
+  text-align: center;
+  color: #64748b;
+}
+
+.agent-compact-table td strong {
+  display: block;
+  max-width: 280px;
+}
+
+.agent-urgency {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.agent-urgency--normal {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.agent-urgency--priority {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.agent-urgency--urgent {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.agent-urgency--danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.agent-mission-banner {
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 16px 0 20px;
+  border: 1px solid #bae6fd;
+  background: linear-gradient(135deg, #f0f9ff 0%, #fff 100%);
+}
+
+.agent-mission-banner p {
+  margin: 0;
+  font-size: 14px;
+  color: #0c4a6e;
+  line-height: 1.45;
+}
+
+.agent-mission-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.agent-mission-header code {
+  font-size: 13px;
+}
+
+.agent-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-timeline__item {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 12px;
+}
+
+.agent-timeline__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.agent-timeline__actor {
+  font-weight: 700;
+  color: #334155;
+}
+
+.agent-timeline__content {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+body.theme-dark .agent-intro {
+  color: #94a3b8;
+}
+
+body.theme-dark .agent-mission-banner {
+  border-color: #0e7490;
+  background: linear-gradient(135deg, #082f49 0%, #0f172a 100%);
+}
+
+body.theme-dark .agent-mission-banner p {
+  color: #e0f2fe;
+}
+
+body.theme-dark .agent-timeline__item {
+  border-left-color: #475569;
+}
+
+body.theme-dark .agent-timeline__content {
+  color: #e2e8f0;
+}
+
+body.theme-dark .agent-urgency--normal {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+body.theme-dark .agent-sector-pill {
+  background: #064e3b;
+  border-color: #059669;
+  color: #d1fae5;
+}
+
+body.theme-dark .agent-alert-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.theme-dark .agent-alert-card__title {
+  color: #f1f5f9;
+}
+
+body.theme-dark .agent-tab--active {
+  background: #1e293b;
+}
+
+body.theme-dark .agent-search,
+body.theme-dark .agent-metier-select {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}

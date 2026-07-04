@@ -1,10 +1,11 @@
 import { buildLabTenantSocialContext } from './lia-tenant-social-context';
 
 describe('lia-tenant-social-context', () => {
-  it('Marie — profil senior par défaut en Lia-Lab', () => {
+  it('Marie — profil standard par défaut en Lia-Lab (pas d’inférence sénior)', () => {
     const social = buildLabTenantSocialContext({ tenantFirstName: 'Marie' });
-    expect(social.ageBand).toBe('senior');
-    expect(social.relationalLandscape).toMatch(/senior|protection|respecte/i);
+    expect(social.ageBand).toBe('unknown');
+    expect(social.relationalLandscape).toMatch(/interlocuteire locataire|respect/i);
+    expect(social.relationalLandscape).not.toMatch(/senior/i);
   });
 
   it('technicien test — ton direct', () => {

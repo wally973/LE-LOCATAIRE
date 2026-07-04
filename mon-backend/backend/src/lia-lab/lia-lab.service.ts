@@ -1,254 +1,329 @@
+/**
+ * Lia-Lab — sandbox Grock (mono-agent).
+ * Amnésie totale à chaque nouvelle session ; historique Marie = Supabase uniquement.
+ */
 import {
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
+  BadRequestException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { LiaJarvisPilotService } from '../agents/orchestrateur/intake/lia-jarvis-pilot.service';
-import type { LiaIntakeState } from '../agents/orchestrateur/intake/lia-intake.service';
-import { buildLabTenantSocialContext } from '../agents/shared/lia-tenant-social-context';
-import { buildLabVisualization, type LiaLabVisualization } from './lia-lab-visualization';
-import { isLivingIntelligenceEnabled } from '../agents/orchestrateur/living-intelligence/living-intelligence.config';
-import { readLivingStateFromIntake } from '../agents/orchestrateur/living-intelligence/living-building-state.repository';
-import { buildArchitectDoctrinePrompt } from '../agents/orchestrateur/living-intelligence/living-doctrine-stylo';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { LiaHostService } from '../agents/orchestrateur/conversation/lia-host.service';
+import { GROCK_MISTRAL_MODEL } from '../agents/orchestrateur/living-intelligence/living-intelligence.config';
+import { GROCK_PERCEPTION_LOG_TITLE } from '../grock/grock-vision.prompt';
+import {
+  GrockService,
+  type GrockChatMessage,
+  type GrockTicketHistoryRow,
+} from '../grock/grock.service';
 
-export interface LabChatMessage {
-  role: 'tenant' | 'lia' | 'architect';
-  text: string;
-  at: string;
-  uiStatusLabel?: string;
-  doctrineLessonId?: string;
-}
-
-export interface LabSessionView {
+export interface GrockLabSessionView {
   sessionId: string;
   title: string;
   description: string;
   tenantFirstName: string;
-  messages: LabChatMessage[];
-  visualization: LiaLabVisualization;
-  intake: LiaIntakeState;
-  bridgeStatus: {
-    livingIntelligenceEnabled: boolean;
-    reasoningSource: string | null;
-  };
+  language: string;
+  messages: GrockLabMessage[];
+  ticketHistory: GrockTicketHistoryRow[];
+  model: string | null;
+  groqConfigured: boolean;
+  /** Dernière perception Pixtral (faits bruts). */
+  visualPerception: string | null;
+  visionModel: string | null;
+  /** Dernier raisonnement interne Grock — visible seulement Lia-Lab. */
+  thinking: string | null;
+  /** Dernière note interne Grock — jamais visible locataire. */
+  noteInterne: string | null;
+  state: string | null;
+  nextAction: string | null;
 }
 
-interface LabSession {
+export interface GrockLabMessage {
+  role: 'tenant' | 'grock';
+  text: string;
+  at: string;
+  imagePreview?: string;
+  noteInterne?: string;
+}
+
+export interface GrockPathologyAnswerView {
+  answer: string;
+  model: string;
+  language: string;
+}
+
+interface GrockLabSession {
   id: string;
   title: string;
   description: string;
   tenantFirstName: string;
-  residenceUnitNumber?: string;
-  tenantAgeBand?: string;
-  interlocutorRole?: string;
-  lastClosedTicketSummary?: string;
-  lastClosedTicketTitle?: string;
-  state: LiaIntakeState;
-  messages: LabChatMessage[];
-  /** Leçons doctrine déjà proposées à l'Architecte (évite répétition). */
-  announcedDoctrineIds: Set<string>;
+  language: string;
+  ticketHistory: GrockTicketHistoryRow[];
+  messages: GrockChatMessage[];
+  lastModel: string | null;
+  lastVisualPerception: string | null;
+  visionModel: string | null;
+  lastThinking: string | null;
+  lastNoteInterne: string | null;
+  lastState: string | null;
+  lastNextAction: string | null;
+}
+
+function toLabMessages(messages: GrockChatMessage[]): GrockLabMessage[] {
+  return messages.map((m) => ({
+    role: m.role === 'assistant' ? 'grock' : 'tenant',
+    text: m.text,
+    at: m.createdAt.toISOString(),
+    imagePreview: m.imagePreview,
+    noteInterne: m.note_interne,
+  }));
 }
 
 @Injectable()
 export class LiaLabService {
   private readonly logger = new Logger(LiaLabService.name);
-  private readonly sessions = new Map<string, LabSession>();
+  private readonly sessions = new Map<string, GrockLabSession>();
 
-  constructor(private readonly jarvis: LiaJarvisPilotService) {}
-
-  /** Presets Lia-Lab — cas métier courants. */
-  listJuridiquePresets(): {
-    id: string;
-    label: string;
-    title: string;
-    description: string;
-    housingUnit: string;
-    legalThemeId: string;
-    perimetre: string;
-    tenantTurnHint: string | null;
-  }[] {
-    return [
-      {
-        id: 'electrical_outlet_crackle',
-        label: 'Prise qui grésille (arc électrique)',
-        title: 'Prise électrique dangereuse',
-        description:
-          'Une prise du salon est arrachée du mur, les fils sont visibles et ça grésille quand je m’approche.',
-        housingUnit: 'R+2 — Apt 204',
-        legalThemeId: 'electricite_securite',
-        perimetre: 'Charge bailleur — urgence sécurité',
-        tenantTurnHint: "J'ai coupé le disjoncteur",
-      },
-      {
-        id: 'humidity_mould_envelope',
-        label: 'Moisissures (enveloppe / étanchéité)',
-        title: 'Moisissures au plafond',
-        description:
-          'Taches noires et moisissures au plafond du salon, près de la fenêtre. Ça s’aggrave quand il pleut.',
-        housingUnit: 'R+4 — Apt 402',
-        legalThemeId: 'humidite_enveloppe',
-        perimetre: 'Enveloppe — charge bailleur probable',
-        tenantTurnHint: 'Oui ça apparaît surtout quand il pleut',
-      },
-      {
-        id: 'flooring_tiles_lifted',
-        label: 'Carrelage qui se soulève (chambre)',
-        title: 'Carrelage',
-        description:
-          'Les carreaux de la chambre de mon fils se sont levés d’un coup. Un carreau est cassé, rien d’autre d’anormal.',
-        housingUnit: 'R+3 — Apt 12',
-        legalThemeId: 'sols_carrelage',
-        perimetre: 'Sols durs — patrimoine / vétusté probable',
-        tenantTurnHint: 'Non rien, simplement que c’est levé et il y en a un cassé',
-      },
-      {
-        id: 'plumbing_sink',
-        label: 'Fuite sous évier',
-        title: 'Fuite d’eau',
-        description: 'Il y a une fuite sous l’évier de la cuisine depuis ce matin.',
-        housingUnit: 'R+1 — Apt 12',
-        legalThemeId: 'plomberie',
-        perimetre: 'Amont / aval',
-        tenantTurnHint: null,
-      },
-    ];
-  }
-
-  createSession(params: {
-    title: string;
-    description: string;
-    tenantFirstName?: string;
-    language?: string;
-    residenceUnitNumber?: string;
-    tenantAgeBand?: string;
-    interlocutorRole?: string;
-    lastClosedTicketSummary?: string;
-    lastClosedTicketTitle?: string;
-  }): LabSessionView {
-    const id = randomUUID();
-    const state = this.jarvis.bootstrapState(
-      params.title,
-      params.description,
-      params.language ?? 'fr',
-      params.residenceUnitNumber,
-    );
-    const session: LabSession = {
-      id,
-      title: params.title,
-      description: params.description,
-      tenantFirstName: params.tenantFirstName?.trim() || 'Marie',
-      residenceUnitNumber: params.residenceUnitNumber?.trim(),
-      tenantAgeBand: params.tenantAgeBand,
-      interlocutorRole: params.interlocutorRole,
-      lastClosedTicketSummary: params.lastClosedTicketSummary?.trim(),
-      lastClosedTicketTitle: params.lastClosedTicketTitle?.trim(),
-      state: {
-        ...state,
-        jarvisFacts: {
-          ...(state.jarvisFacts ?? {}),
-          ...(params.tenantAgeBand ? { tenant_age_band: params.tenantAgeBand } : {}),
-          ...(params.interlocutorRole
-            ? { tenant_interlocutor_role: params.interlocutorRole }
-            : {}),
-          ...(params.lastClosedTicketSummary
-            ? { tenant_last_closed_summary: params.lastClosedTicketSummary.trim() }
-            : {}),
-          ...(params.lastClosedTicketTitle
-            ? { tenant_last_closed_title: params.lastClosedTicketTitle.trim() }
-            : {}),
-        },
-      },
-      messages: [],
-      announcedDoctrineIds: new Set(),
-    };
-    this.sessions.set(id, session);
-    return this.toView(session);
-  }
+  constructor(
+    private readonly grock: GrockService,
+    private readonly host: LiaHostService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async startSession(params: {
     title: string;
     description: string;
     tenantFirstName?: string;
     language?: string;
-    residenceUnitNumber?: string;
-    tenantAgeBand?: string;
-    interlocutorRole?: string;
-    lastClosedTicketSummary?: string;
-    lastClosedTicketTitle?: string;
-  }): Promise<LabSessionView> {
-    const view = this.createSession(params);
-    return this.runOpening(view.sessionId);
-  }
+  }): Promise<GrockLabSessionView> {
+    const id = randomUUID();
+    // Pas de prénom inventé : si non fourni, Grock reste générique.
+    const tenantFirstName = params.tenantFirstName?.trim() ?? '';
+    const language = params.language?.trim() || 'fr';
+    const ticketHistory = await this.grock.loadTenantTicketHistory(tenantFirstName, 5);
 
-  async runOpening(sessionId: string): Promise<LabSessionView> {
-    const session = this.getSession(sessionId);
-    const turn = await this.jarvis.runOpening({
-      state: session.state,
+    const session: GrockLabSession = {
+      id,
+      title: params.title.trim(),
+      description: params.description.trim(),
+      tenantFirstName,
+      language,
+      ticketHistory,
+      messages: [],
+      lastModel: null,
+      lastVisualPerception: null,
+      visionModel: null,
+      lastThinking: null,
+      lastNoteInterne: null,
+      lastState: null,
+      lastNextAction: null,
+    };
+
+    const opening = await this.grock.runTurn({
+      tenantFirstName,
       title: session.title,
       description: session.description,
-      tenantFirstName: session.tenantFirstName,
-      residenceUnitNumber: session.residenceUnitNumber,
-      tenantSocial: buildLabTenantSocialContext({
-        tenantFirstName: session.tenantFirstName,
-        ageBand: session.tenantAgeBand as 'senior' | 'adult' | 'young' | 'unknown' | undefined,
-        interlocutorRole: session.interlocutorRole as 'tenant' | 'staff_tester' | undefined,
-        lastClosedTicketSummary: session.lastClosedTicketSummary,
-        lastClosedTicketTitle: session.lastClosedTicketTitle,
-        currentTitle: session.title,
-      }),
+      language,
+      ticketHistory,
+      sessionMessages: [],
+      tenantMessage: '',
+      mode: 'opening',
     });
-    session.state = turn.state;
+
+    session.lastModel = opening.model;
+    session.lastThinking = opening.thinking ?? null;
+    session.lastNoteInterne = opening.noteInterne ?? null;
+    session.lastState = opening.state ?? null;
+    session.lastNextAction = opening.nextAction ?? null;
+    session.lastVisualPerception = opening.visualPerception ?? null;
+    session.visionModel = opening.visionModel ?? null;
     session.messages.push({
-      role: 'lia',
-      text: turn.acknowledgment,
-      at: new Date().toISOString(),
-      uiStatusLabel: turn.uiStatus?.label,
+      id: `grock-${Date.now()}`,
+      role: 'assistant',
+      text: opening.reply,
+      thinking: opening.thinking ?? undefined,
+      state: opening.state,
+      next_action: opening.nextAction,
+      acknowledgment: opening.acknowledgment,
+      note_interne: opening.noteInterne ?? undefined,
+      createdAt: new Date(),
     });
+
+    this.sessions.set(id, session);
     return this.toView(session);
   }
 
-  async sendTenantMessage(
-    sessionId: string,
-    text: string,
-  ): Promise<LabSessionView> {
+  async sendTenantMessage(sessionId: string, text: string): Promise<GrockLabSessionView> {
     const session = this.getSession(sessionId);
     const trimmed = text.trim();
     if (!trimmed) return this.toView(session);
 
     session.messages.push({
-      role: 'tenant',
+      id: `tenant-${Date.now()}`,
+      role: 'user',
       text: trimmed,
-      at: new Date().toISOString(),
+      createdAt: new Date(),
     });
 
-    const turn = await this.jarvis.runTenantTurn({
-      state: session.state,
-      message: trimmed,
-      title: session.title,
-      description: session.description,
-      tenantFirstName: session.tenantFirstName,
-      residenceUnitNumber: session.residenceUnitNumber,
-      tenantSocial: buildLabTenantSocialContext({
+    let turn;
+    try {
+      turn = await this.grock.runTurn({
         tenantFirstName: session.tenantFirstName,
-        ageBand: session.tenantAgeBand as 'senior' | 'adult' | 'young' | 'unknown' | undefined,
-        interlocutorRole: session.interlocutorRole as 'tenant' | 'staff_tester' | undefined,
-        lastClosedTicketSummary: session.lastClosedTicketSummary,
-        lastClosedTicketTitle: session.lastClosedTicketTitle,
-        currentTitle: session.title,
-      }),
-    });
-    session.state = turn.state;
+        title: session.title,
+        description: session.description,
+        language: session.language,
+        ticketHistory: session.ticketHistory,
+        sessionMessages: session.messages,
+        tenantMessage: trimmed,
+        mode: 'tenant_turn',
+      });
+    } catch (e) {
+      session.messages.pop();
+      throw e;
+    }
+
+    session.lastModel = turn.model;
+    session.lastThinking = turn.thinking ?? session.lastThinking;
+    session.lastNoteInterne = turn.noteInterne ?? session.lastNoteInterne;
+    session.lastState = turn.state ?? session.lastState;
+    session.lastNextAction = turn.nextAction ?? session.lastNextAction;
+    session.lastVisualPerception = turn.visualPerception ?? session.lastVisualPerception;
+    session.visionModel = turn.visionModel ?? session.visionModel;
     session.messages.push({
-      role: 'lia',
-      text: turn.acknowledgment,
-      at: new Date().toISOString(),
-      uiStatusLabel: turn.uiStatus?.label,
+      id: `grock-${Date.now()}`,
+      role: 'assistant',
+      text: turn.reply,
+      thinking: turn.thinking ?? undefined,
+      state: turn.state,
+      next_action: turn.nextAction,
+      acknowledgment: turn.acknowledgment,
+      note_interne: turn.noteInterne ?? undefined,
+      createdAt: new Date(),
     });
-    this.appendArchitectDoctrinePrompts(session);
 
     return this.toView(session);
+  }
+
+  /** Photo locataire — perception Pixtral puis réponse Grock. */
+  async sendTenantPhoto(
+    sessionId: string,
+    buffer: Buffer,
+    mimeType: string,
+    caption?: string,
+  ): Promise<GrockLabSessionView> {
+    const session = this.getSession(sessionId);
+    if (!buffer.length) {
+      throw new BadRequestException('Photo vide.');
+    }
+    const mime = mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${base64}`;
+    const captionTrim = caption?.trim() ?? '';
+    const tenantLine = captionTrim || '📷 Photo envoyée';
+
+    session.messages.push({
+      id: `tenant-${Date.now()}`,
+      role: 'user',
+      text: tenantLine,
+      createdAt: new Date(),
+      imagePreview: dataUrl,
+    });
+
+    let turn;
+    try {
+      turn = await this.grock.runTurn({
+        tenantFirstName: session.tenantFirstName,
+        title: session.title,
+        description: session.description,
+        language: session.language,
+        ticketHistory: session.ticketHistory,
+        sessionMessages: session.messages,
+        tenantMessage: captionTrim || 'Photo envoyée par le locataire',
+        mode: 'tenant_turn',
+        images: [{ mimeType: mime, base64 }],
+      });
+    } catch (e) {
+      session.messages.pop();
+      throw e;
+    }
+
+    session.lastModel = turn.model;
+    session.lastThinking = turn.thinking ?? session.lastThinking;
+    session.lastNoteInterne = turn.noteInterne ?? session.lastNoteInterne;
+    session.lastState = turn.state ?? session.lastState;
+    session.lastNextAction = turn.nextAction ?? session.lastNextAction;
+    if (turn.visualPerception) {
+      session.lastVisualPerception = turn.visualPerception;
+      session.visionModel = turn.visionModel ?? session.visionModel;
+    }
+    session.messages.push({
+      id: `grock-${Date.now()}`,
+      role: 'assistant',
+      text: turn.reply,
+      thinking: turn.thinking ?? undefined,
+      state: turn.state,
+      next_action: turn.nextAction,
+      acknowledgment: turn.acknowledgment,
+      note_interne: turn.noteInterne ?? undefined,
+      createdAt: new Date(),
+    });
+
+    return this.toView(session);
+  }
+
+  /** Amnésie labo — destruction session mémoire (pas les tickets Supabase). */
+  discardSession(sessionId: string): void {
+    this.sessions.delete(sessionId);
+  }
+
+  getVisualization(sessionId: string) {
+    const session = this.getSession(sessionId);
+    return {
+      agent: 'Grock',
+      model: session.lastModel ?? GROCK_MISTRAL_MODEL,
+      visionModel: session.visionModel,
+      ticketHistoryCount: session.ticketHistory.length,
+      ticketHistory: session.ticketHistory,
+      messageCount: session.messages.length,
+      visualPerception: session.lastVisualPerception,
+      thinking: session.lastThinking,
+      noteInterne: session.lastNoteInterne,
+      state: session.lastState,
+      nextAction: session.lastNextAction,
+      perceptionTitle: GROCK_PERCEPTION_LOG_TITLE,
+      note: 'Architecture mono-agent — message + AFPOL + historique Marie (Supabase) + vision Pixtral.',
+    };
+  }
+
+  async getGroqStatus() {
+    const ping = await this.host.pingMistral();
+    return {
+      configured: this.host.isMistralConfigured(),
+      ok: ping.ok,
+      model: ping.model,
+      provider: 'mistral',
+      agent: 'Grock',
+      error: ping.error ?? this.host.getLastGroqError(),
+    };
+  }
+
+  async purgeAllLivingBuildingStates(): Promise<{
+    ticketsPurged: number;
+    sessionsCleared: number;
+  }> {
+    const result = await this.prisma.ticket.updateMany({
+      data: {
+        livingBuildingState: Prisma.JsonNull,
+        buildingState: Prisma.JsonNull,
+      },
+    });
+    const sessionsCleared = this.sessions.size;
+    this.sessions.clear();
+    return { ticketsPurged: result.count, sessionsCleared };
   }
 
   async transcribeAudio(buffer: Buffer, mimeType: string): Promise<string> {
@@ -262,15 +337,10 @@ export class LiaLabService {
       process.env.GROQ_AUDIO_BASE_URL ??
       process.env.LIA_HOST_BASE_URL ??
       'https://api.groq.com/openai/v1';
-
-    const ext = mimeType.includes('webm')
-      ? 'webm'
-      : mimeType.includes('mp4')
-        ? 'mp4'
-        : 'wav';
+    const ext = mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : 'wav';
     const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
     const form = new FormData();
-    form.append('file', blob, `lia-lab.${ext}`);
+    form.append('file', blob, `grock-lab.${ext}`);
     form.append('model', process.env.GROQ_WHISPER_MODEL ?? 'whisper-large-v3-turbo');
     form.append('language', 'fr');
     form.append('response_format', 'json');
@@ -280,19 +350,12 @@ export class LiaLabService {
       headers: { Authorization: `Bearer ${apiKey}` },
       body: form,
     });
-
     if (!res.ok) {
-      this.logger.warn(`Groq STT HTTP ${res.status}`);
-      throw new ServiceUnavailableException(
-        `Transcription échouée (HTTP ${res.status}).`,
-      );
+      throw new ServiceUnavailableException(`Transcription échouée (HTTP ${res.status}).`);
     }
-
     const data = (await res.json()) as { text?: string };
     const text = data.text?.trim();
-    if (!text) {
-      throw new ServiceUnavailableException('Transcription vide.');
-    }
+    if (!text) throw new ServiceUnavailableException('Transcription vide.');
     return text;
   }
 
@@ -301,143 +364,69 @@ export class LiaLabService {
     language = 'fr',
   ): Promise<{ audioBase64: string; mimeType: string }> {
     const apiKey = process.env.ELEVENLABS_API_KEY;
-    const voiceId =
-      process.env.ELEVENLABS_VOICE_ID ?? '21m00Tcm4TlvDq8ikWAM';
+    const voiceId = process.env.ELEVENLABS_VOICE_ID ?? '21m00Tcm4TlvDq8ikWAM';
     if (!apiKey) {
-      throw new ServiceUnavailableException(
-        'ELEVENLABS_API_KEY manquante — synthèse vocale indisponible.',
-      );
+      throw new ServiceUnavailableException('ELEVENLABS_API_KEY manquante.');
     }
-
-    const langHints: Record<string, string> = {
-      gcf: '[Créole guyanais, ton technicien bienveillant]',
-      hat: '[Kreyòl ayisyen, ton technicien bienveillant]',
-      en: '[English, calm housing technician]',
-      pt: '[Português brasileiro, técnico habitacional calmo]',
-      es: '[Español caribeño, técnico habitacional calmado]',
-    };
-    const hint = langHints[language] ?? '';
-    const prompt = hint ? `${hint} ${text}` : text;
-
-    const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-      {
-        method: 'POST',
-        headers: {
-          'xi-api-key': apiKey,
-          'Content-Type': 'application/json',
-          Accept: 'audio/mpeg',
-        },
-        body: JSON.stringify({
-          text: prompt,
-          model_id: process.env.ELEVENLABS_MODEL_ID ?? 'eleven_multilingual_v2',
-          voice_settings: {
-            stability: 0.45,
-            similarity_boost: 0.75,
-          },
-        }),
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'audio/mpeg',
       },
-    );
-
-    if (!res.ok) {
-      this.logger.warn(`ElevenLabs HTTP ${res.status}`);
-      throw new ServiceUnavailableException(
-        `Synthèse vocale échouée (HTTP ${res.status}).`,
-      );
-    }
-
-    const arrayBuffer = await res.arrayBuffer();
-    const audioBase64 = Buffer.from(arrayBuffer).toString('base64');
-    return { audioBase64, mimeType: 'audio/mpeg' };
-  }
-
-  discardSession(sessionId: string): void {
-    this.sessions.delete(sessionId);
-  }
-
-  getVisualization(sessionId: string): LiaLabVisualization {
-    const session = this.getSession(sessionId);
-    return buildLabVisualization({
-      state: session.state,
-      title: session.title,
-      description: session.description,
-      lastMessage: session.messages.filter((m) => m.role === 'tenant').at(-1)
-        ?.text,
+      body: JSON.stringify({
+        text,
+        model_id: process.env.ELEVENLABS_MODEL_ID ?? 'eleven_multilingual_v2',
+        voice_settings: { stability: 0.45, similarity_boost: 0.75 },
+      }),
     });
-  }
-
-  /** Aperçu délibération — modèles Groq des 3 agents. */
-  getDeliberationPreview(sessionId: string) {
-    const session = this.getSession(sessionId);
-    const living = readLivingStateFromIntake(session.state.jarvisFacts);
+    if (!res.ok) {
+      throw new ServiceUnavailableException(`Synthèse vocale échouée (HTTP ${res.status}).`);
+    }
+    const arrayBuffer = await res.arrayBuffer();
     return {
-      sessionId: session.id,
-      generatedAt: new Date().toISOString(),
-      livingIntelligenceEnabled: isLivingIntelligenceEnabled(),
-      models: {
-        majordome: process.env.GROQ_MAJORDOME_MODEL ?? 'llama-3.3-70b-versatile',
-        enqueteur: process.env.GROQ_ENQUETEUR_MODEL ?? 'llama-3.1-8b-instant',
-        archiviste: process.env.GROQ_ARCHIVISTE_MODEL ?? 'llama-3.1-8b-instant',
-      },
-      livingState: living,
-      deliberationEchoes: living?.deliberationEchoes ?? [],
+      audioBase64: Buffer.from(arrayBuffer).toString('base64'),
+      mimeType: 'audio/mpeg',
     };
   }
 
-  private getSession(id: string): LabSession {
+  /** Consultation pathologie — question directe, sans scénario. */
+  async askPathology(
+    question: string,
+    language = 'fr',
+  ): Promise<GrockPathologyAnswerView> {
+    const result = await this.grock.answerPathologyQuestion(question);
+    return {
+      answer: result.answer,
+      model: result.model,
+      language,
+    };
+  }
+
+  private getSession(id: string): GrockLabSession {
     const s = this.sessions.get(id);
-    if (!s) throw new NotFoundException('Session Lia-Lab introuvable');
+    if (!s) throw new NotFoundException('Session Grock introuvable');
     return s;
   }
 
-  /** Propose au Registre de Sagesse après délibération Gardien PASS. */
-  private appendArchitectDoctrinePrompts(session: LabSession): void {
-    const living = readLivingStateFromIntake(session.state.jarvisFacts);
-    if (!living?.guardianReview) return;
-    if (living.guardianReview.verdict !== 'PASS') return;
-
-    const pending =
-      living.guardianReview.pendingDoctrineLessons ??
-      living.doctrinePending ??
-      [];
-    if (!pending.length) return;
-
-    for (const lesson of pending) {
-      if (session.announcedDoctrineIds.has(lesson.id)) continue;
-      session.announcedDoctrineIds.add(lesson.id);
-      session.messages.push({
-        role: 'architect',
-        text: buildArchitectDoctrinePrompt(lesson.title),
-        at: new Date().toISOString(),
-        doctrineLessonId: lesson.id,
-      });
-    }
-  }
-
-  private toView(session: LabSession): LabSessionView {
-    const lastTenant = session.messages.filter((m) => m.role === 'tenant').at(-1)
-      ?.text;
+  private toView(session: GrockLabSession): GrockLabSessionView {
     return {
       sessionId: session.id,
       title: session.title,
       description: session.description,
       tenantFirstName: session.tenantFirstName,
-      messages: session.messages,
-      intake: session.state,
-      visualization: buildLabVisualization({
-        state: session.state,
-        title: session.title,
-        description: session.description,
-        lastMessage: lastTenant,
-      }),
-      bridgeStatus: {
-        livingIntelligenceEnabled: isLivingIntelligenceEnabled(),
-        reasoningSource:
-          session.state.jarvisFacts?.reasoning_source ??
-          (readLivingStateFromIntake(session.state.jarvisFacts)
-            ? 'living_intelligence'
-            : null),
-      },
+      language: session.language,
+      messages: toLabMessages(session.messages),
+      ticketHistory: session.ticketHistory,
+      model: session.lastModel,
+      groqConfigured: this.host.isMistralConfigured(),
+      visualPerception: session.lastVisualPerception,
+      visionModel: session.visionModel,
+      thinking: session.lastThinking,
+      noteInterne: session.lastNoteInterne,
+      state: session.lastState,
+      nextAction: session.lastNextAction,
     };
   }
 }

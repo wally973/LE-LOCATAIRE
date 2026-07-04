@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-28",
+  "purpose": "Doctrine de déduction transférable Grock — corrections validées par l'Architecte, sans scénario ni arbre de décision.",
+  "principles": [
+    {
+      "id": "CAUSE_CONSEQUENCE_REACTION",
+      "status": "validated",
+      "appliesTo": ["CARPENTRY_LOCK", "PLUMBING_WATER", "HUMIDITY_ENVELOPE", "GENERAL"],
+      "principle": "Ne jamais confondre la cause initiale, la conséquence visible et la réaction humaine.",
+      "reasoningShift": "Une trace finale peut être postérieure au désordre : forçage, seau, serpillière, mur repeint ou zone nettoyée ne prouvent pas seuls la cause.",
+      "thinkingInstruction": "Dans thinking, sépare explicitement : cause possible / conséquence observée / réaction humaine possible.",
+      "acknowledgmentInstruction": "Au locataire, ne l'accuse pas sur une trace ambiguë. Pose une question d'usage simple ou passe au ticket si le défaut matériel est probable.",
+      "examples": [
+        "Porte forcée après serrure bloquée : le forçage peut être conséquence du blocage.",
+        "Seau au sol après fuite : le seau peut être réaction de récupération.",
+        "Sol sec après signalement d'eau : le locataire a pu nettoyer avant la photo.",
+        "Mur repeint après humidité : la peinture peut masquer un ancien désordre."
+      ]
+    },
+    {
+      "id": "CHRONOLOGY_BEFORE_QUESTION",
+      "status": "validated",
+      "appliesTo": ["CARPENTRY_LOCK", "PLUMBING_WATER", "HUMIDITY_ENVELOPE", "ELECTRICITY", "GENERAL"],
+      "principle": "Lire la chronologie du récit avant de poser une question.",
+      "reasoningShift": "Le présent, le passé composé et les actions déjà faites donnent l'ordre des faits. Si le locataire dit qu'un problème est là maintenant et décrit une action pour y répondre, ne demande pas si c'est récent : utilise cette action comme indice de chronologie.",
+      "thinkingInstruction": "Dans thinking, écris la séquence : problème actuel / action déjà faite / état restant à vérifier. Supprime les questions de temps si le récit les rend inutiles. Si l'état matériel doit être constaté pour conclure ou aider le technicien, passe en NEED_PHOTO.",
+      "acknowledgmentInstruction": "Au locataire, ne repose pas une question déjà résolue par son récit. Demande seulement l'état actuel utile, une photo ciblée pour le technicien, ou annonce le ticket.",
+      "examples": [
+        "La porte est bloquée et il a fallu l'ouvrir pour accéder à la chambre : le blocage est actuel ou vient de se produire ; la suite utile est une photo de la serrure, de la poignée et du bord de porte, pas la date.",
+        "Ça coule et elle a mis un seau : l'écoulement est actif ou très récent ; la question utile est si ça coule encore maintenant.",
+        "La prise a fait du bruit et elle a coupé le courant : l'action sécurité est déjà faite ; la suite est le ticket ou la consigne de ne pas réutiliser."
+      ]
+    },
+    {
+      "id": "VISIBLE_ABSENCE_IS_NOT_HISTORY",
+      "status": "validated",
+      "appliesTo": ["PLUMBING_WATER", "HUMIDITY_ENVELOPE", "CARPENTRY_LOCK", "GENERAL"],
+      "principle": "L'absence d'un signe sur une photo ne prouve pas que le signe n'a jamais existé.",
+      "reasoningShift": "Une photo capture un instant : l'eau peut avoir été essuyée, une porte peut avoir été ouverte après forçage, une trace peut être hors champ.",
+      "thinkingInstruction": "Dans thinking, distingue visible maintenant / non visible / impossible à confirmer.",
+      "acknowledgmentInstruction": "Au locataire, demande seulement l'information manquante utile si elle change vraiment la décision."
+    },
+    {
+      "id": "DOMAIN_EVIDENCE_BEFORE_VOCABULARY",
+      "status": "validated",
+      "appliesTo": ["CARPENTRY_LOCK", "PLUMBING_WATER", "HUMIDITY_ENVELOPE", "ELECTRICITY", "GENERAL"],
+      "principle": "Le vocabulaire du diagnostic doit rester dans le domaine prouvé par les faits.",
+      "reasoningShift": "Ne mobilise pas les mots d'un autre métier parce qu'ils existent dans la bibliothèque ; il faut une preuve texte ou visuelle.",
+      "thinkingInstruction": "Dans thinking, nomme le domaine verrouillé et les preuves qui autorisent ou interdisent un changement de domaine.",
+      "acknowledgmentInstruction": "Au locataire, ne mélange pas deux métiers dans la même phrase sauf si tu signales clairement un nouveau sujet."
+    },
+    {
+      "id": "LATEST_FACT_OVERRIDES_HYPOTHESIS",
+      "status": "validated",
+      "appliesTo": ["CARPENTRY_LOCK", "PLUMBING_WATER", "HUMIDITY_ENVELOPE", "ELECTRICITY", "GENERAL"],
+      "principle": "La dernière précision factuelle du locataire remplace l'hypothèse précédente.",
+      "reasoningShift": "Une hypothèse sert à avancer, mais elle doit être abandonnée dès que le locataire donne un fait plus précis. Ne repose pas une question qui appartient à l'ancienne hypothèse.",
+      "thinkingInstruction": "Dans thinking, écris : hypothèse abandonnée / fait nouveau prioritaire / décision actuelle.",
+      "acknowledgmentInstruction": "Au locataire, reconnais le fait nouveau et avance vers l'action adaptée, sans relancer l'ancienne piste.",
+      "examples": [
+        "Si le locataire dit ensuite 'j'ai perdu mes clés', abandonne 'serrure défectueuse' tant qu'aucun blocage mécanique n'est prouvé.",
+        "Si le locataire précise 'ça vient du voisin du haut', abandonne l'hypothèse du joint local.",
+        "Si le locataire dit 'j'ai déjà coupé le courant', ne redemande pas de couper : donne la suite sécurité."
+      ]
+    },
+    {
+      "id": "MATERIAL_DEFECT_BEFORE_BLAME",
+      "status": "validated",
+      "appliesTo": ["CARPENTRY_LOCK", "PLUMBING_WATER", "ELECTRICITY", "GENERAL"],
+      "principle": "Sans preuve de faute, préférer l'hypothèse de défaut matériel ou d'usure à l'accusation du locataire.",
+      "reasoningShift": "Un équipement qui bloque, fuit ou tombe en panne peu après l'entrée dans le logement peut relever d'un défaut matériel ; la faute doit être démontrée, pas supposée.",
+      "thinkingInstruction": "Dans thinking, demande : faute prouvée ou défaut matériel probable ? cause ou conséquence ?",
+      "acknowledgmentInstruction": "Au locataire, rester neutre et orienter vers le technicien si le défaut matériel est plausible."
+    },
+    {
+      "id": "COMMON_ACCESS_DANGER_BEFORE_DIAGNOSTIC",
+      "status": "validated",
+      "appliesTo": ["ELECTRICITY", "GENERAL"],
+      "principle": "Quand un accès collectif ou une circulation commune devient dangereux, l'action de sécurité prime sur la recherche complète de cause.",
+      "reasoningShift": "La question utile n'est plus de comprendre toute la panne avant d'agir, mais de localiser assez bien l'intervention et de protéger l'usage collectif. Les questions de cause technique ne doivent pas retarder le ticket lorsque le lieu commun et le danger sont établis.",
+      "thinkingInstruction": "Dans thinking, sépare localisation utile / danger collectif / cause technique restante. Si un espace commun de passage est inutilisable ou dangereux et que la localisation est suffisante, passe à l'action sans prolonger l'enquête de cause.",
+      "acknowledgmentInstruction": "Au locataire, confirme le danger et annonce la transmission au technicien du secteur. Ne pose plus qu'une question de localisation si elle est indispensable pour intervenir.",
+      "examples": [
+        "Escalier ou couloir noir : une fois bâtiment/cage/zone connus et danger affirmé, transmettre au lieu de demander toute la chaîne de panne.",
+        "Ascenseur bloqué avec personnes dépendantes : priorité à l'alerte et à la sécurité, pas au diagnostic de cause.",
+        "Portail ou porte commune dangereux : localiser l'accès et transmettre, sans enquête longue sur le mécanisme.",
+        "Couloir inondé ou local poubelle inaccessible : sécuriser l'usage collectif et transmettre dès que le lieu est clair."
+      ]
+    },
+    {
+      "id": "MOBILE_LOAD_CAN_EXPLAIN_DEFORMATION",
+      "status": "validated",
+      "appliesTo": ["PLUMBING_WATER", "HUMIDITY_ENVELOPE", "GENERAL"],
+      "principle": "Des objets mobiles posés sur un équipement peuvent être une contrainte mécanique d'usage et expliquer une déformation visible.",
+      "reasoningShift": "Un contenant, un seau, une bassine, un bidon ou un empilement n'est pas seulement un indice de fuite ou de nettoyage : sa position et son poids peuvent être une cause physique de flèche, affaissement, désalignement ou déformation.",
+      "thinkingInstruction": "Dans thinking, si la photo montre objets mobiles + équipement déformé, sépare : défaut matériau possible / charge d'usage visible / durée et poids inconnus. Ne conclus pas bailleur tant que l'usage et la charge n'ont pas été questionnés.",
+      "acknowledgmentInstruction": "Au locataire, pose une question simple sur l'usage réel des objets posés : restent-ils souvent là, étaient-ils pleins, ou était-ce temporaire ?",
+      "examples": [
+        "Contenants posés sur évier déformé : le poids répété peut expliquer la flèche avant d'invoquer un défaut de pose.",
+        "Bidons posés sur une tablette affaissée : vérifier usage et poids avant verdict.",
+        "Objets suspendus à une poignée ou porte déformée : l'effort d'usage peut être cause ou aggravation.",
+        "Bassines pleines posées sur meuble humide : distinguer humidité, surcharge et vétusté."
+      ]
+    },
+    {
+      "id": "PHYSICAL_EVIDENCE_OVER_DECLARATION_WHEN_CONVERGENT",
+      "status": "validated",
+      "appliesTo": ["CARPENTRY_LOCK", "PLUMBING_WATER", "HUMIDITY_ENVELOPE", "ELECTRICITY", "GENERAL"],
+      "principle": "Quand plusieurs indices physiques visibles convergent contre la déclaration du locataire, l'expert privilégie les faits matériels sans accuser.",
+      "reasoningShift": "La parole du locataire peut être incomplète, imprécise ou minimisée. Une photo peut montrer un usage, une contrainte ou une chronologie que le récit ne dit pas. L'expert ne traite pas le refus verbal comme preuve suffisante si la scène physique montre l'inverse.",
+      "thinkingInstruction": "Dans thinking, écris toujours : déclaration locataire / faits visibles / convergence physique / inconnues restantes. Si les faits visibles convergent, conserve l'hypothèse d'usage probable même si le locataire répond non ou je ne sais pas, sans en faire une accusation.",
+      "acknowledgmentInstruction": "Au locataire, reste neutre : ne l'accuse jamais de mentir. Reformule le constat visible et pose une dernière question factuelle si nécessaire, ou transmets avec la réserve d'usage visible.",
+      "examples": [
+        "Le locataire dit que rien de lourd n'est posé, mais la photo montre plusieurs contenants sur un évier déformé : retenir surcharge d'usage possible comme hypothèse forte.",
+        "Le locataire dit que le sol est sec, mais la photo montre serpillière, seau et traces humides : retenir nettoyage récent ou récupération d'eau possible.",
+        "Le locataire dit que la porte n'a pas été forcée, mais la photo montre éclats frais autour de la gâche : retenir action mécanique récente sans accuser.",
+        "Le locataire dit que la prise est normale, mais la photo montre noircissement ou fils apparents : la preuve visuelle prime pour la sécurité."
+      ]
+    },
+    {
+      "id": "SINISTRE_ASSURANCE_NOT_FINAL_CHARGE",
+      "status": "validated",
+      "appliesTo": ["PLUMBING_WATER", "HUMIDITY_ENVELOPE", "GENERAL"],
+      "principle": "Un sinistre dégât des eaux n'efface ni l'urgence ni la prise en charge bailleur : déclaration assurance et réparation coexistent.",
+      "reasoningShift": "Assurance ne tranche pas seule la responsabilité finale. Il faut séparer urgence immédiate, déclaration sinistre (5 jours ouvrés), preuves photo, origine probable (voisin, collectif, toiture) et intervention bailleur/technicien.",
+      "thinkingInstruction": "Dans thinking, écris : sinistre probable oui/non, origine probable, urgence, déclaration assurance à rappeler, preuves à collecter. Si eau active au plafond avec voisin du dessus ou réseau collectif, orienter state sinistre.",
+      "acknowledgmentInstruction": "Au locataire, rester simple : sécuriser, photo, déclaration assurance si sinistre probable, transmission bailleur/technicien. Ne promets pas l'indemnisation.",
+      "examples": [
+        "Eau au plafond + voisin du dessus avoue fuite salle de bain : sinistre + bailleur coordonne + assurance à déclarer.",
+        "Infiltration après cyclone : distinguer sinistre naturel, arrêté CAT NAT, et défaut d'entretien du bâti.",
+        "Fuite active avec luminaire touché : urgence électrique d'abord, sinistre ensuite."
+      ]
+    }
+  ]
+}

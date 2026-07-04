@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { analyzingStatus } from '../conversation/lia-message-ui-status';
 import {
+  type IntakeCategory,
   type IntakeReactiveTurn,
   type LiaIntakeState,
   LiaIntakeService,
@@ -13,8 +14,8 @@ import {
 } from '../../shared/lia-tenant-greeting';
 import {
   buildTopicChangeConfirmationQuestion,
-  detectJarvisDialogueIntent,
   detectedTopicLabelForConfirmation,
+  isConfirmedTopicChange as checkConfirmedTopicChange,
   parseTopicChangeConfirmation,
 } from './lia-jarvis-intake.engine';
 import { buildJarvisReassurance } from './lia-jarvis-intake.engine';
@@ -126,15 +127,20 @@ export class LiaIntakeReactiveService {
       }
     }
 
-    const intent = detectJarvisDialogueIntent(
-      msg,
+    const detectedCategory = this.intake.detectCategory(
       params.title,
       params.description,
     );
+    const topicChanged = this.isConfirmedTopicChange(
+      msg,
+      params.title,
+      params.description,
+      state.category ?? detectedCategory,
+    );
 
-    if (intent === 'topic_change_candidate') {
+    if (topicChanged) {
       const label =
-        detectedTopicLabelForConfirmation(msg, state.category) ??
+        detectedTopicLabelForConfirmation(msg, state.category ?? detectedCategory) ??
         'un autre sujet';
       return {
         state: {
@@ -164,6 +170,20 @@ export class LiaIntakeReactiveService {
     return this.toReactiveTurn(turn);
   }
 
+  private isConfirmedTopicChange(
+    tenantMessage: string,
+    title: string,
+    description: string,
+    category: IntakeCategory | null,
+  ): boolean {
+    return checkConfirmedTopicChange(
+      tenantMessage,
+      title,
+      description,
+      category,
+    );
+  }
+
   private toReactiveTurn(
     turn: import('./lia-jarvis-pilot.service').JarvisPilotTurn,
   ): IntakeReactiveTurn {
@@ -172,6 +192,7 @@ export class LiaIntakeReactiveService {
       acknowledgment: turn.acknowledgment,
       nextQuestionText: turn.nextQuestion,
       uiStatus: turn.uiStatus,
+      hostMessageAlreadySent: turn.autoConclusionApplied === true,
     };
   }
 }

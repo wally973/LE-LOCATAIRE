@@ -18,10 +18,9 @@ async function main(): Promise<void> {
         "des goutes d'eau coule derrière les toilette, cela viens du plafond",
       tenantFirstName: 'Marie',
       language: 'fr',
-      residenceUnitNumber: '5F',
     });
     console.log('[ok] messages:', view.messages.length);
-    console.log('[ok] first:', view.messages[0]?.text?.slice(0, 120));
+    console.log('[ok] grock:', view.messages[0]?.text?.slice(0, 120));
   } catch (e) {
     const err = e as Error;
     console.error('[fail]', err.message);

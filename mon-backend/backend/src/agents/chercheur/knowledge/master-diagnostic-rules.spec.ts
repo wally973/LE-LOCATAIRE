@@ -1,9 +1,9 @@
 import { loadMasterDiagnosticRules } from './master-diagnostic-rules.loader';
 
 describe('master-diagnostic-rules.json', () => {
-  it('charge les 5 domaines Savoir-Voir', () => {
+  it('charge les 5 fiches passives Savoir-Voir', () => {
     const catalog = loadMasterDiagnosticRules();
-    const ids = catalog.domains.map((d) => d.id);
+    const ids = catalog.fiches.map((d) => d.id);
     expect(ids).toEqual(
       expect.arrayContaining([
         'ELECTRICITY',
@@ -13,6 +13,7 @@ describe('master-diagnostic-rules.json', () => {
         'COMMON_AREAS',
       ]),
     );
-    expect(catalog.domains).toHaveLength(5);
+    expect(catalog.fiches).toHaveLength(5);
+    expect(catalog.schema).toBe('PASSIVE_KNOWLEDGE_SHEET');
   });
 });

@@ -106,6 +106,17 @@ export class LiaAgentService {
       return null;
     }
 
+    // INV1 — conclusion sondée : la photo est un plus, pas un prérequis. Toute
+    // réponse (photo ou texte, y compris « pas de photo ») relance Grock qui
+    // conclut le dossier et alimente le ticket technicien.
+    if (
+      state.intake?.phase === 'AWAITING_PHOTO' &&
+      state.intake.jarvisFacts?.awaiting_conclusion_photo === 'oui' &&
+      (trigger === 'PHOTO_UPLOADED' || (trigger === 'TENANT_MESSAGE' && !!msg))
+    ) {
+      return 'RUN_DIAGNOSTIC';
+    }
+
     if (trigger === 'TENANT_MESSAGE' && msg) {
       if (state.intake?.answers.topic_change_confirmed === 'oui') {
         return 'ISOLATE_WRONG_TOPIC';
@@ -178,7 +189,8 @@ export class LiaAgentService {
     if (
       trigger === 'TENANT_MESSAGE' &&
       msg &&
-      state.responsibility !== 'PENDING'
+      state.responsibility !== 'PENDING' &&
+      !this.isJarvisGrockEnqueteEnCours(state)
     ) {
       return 'ACKNOWLEDGE_TENANT';
     }
@@ -263,7 +275,7 @@ export class LiaAgentService {
       if (turn.nextQuestionText) parts.push(turn.nextQuestionText);
       const locale =
         intake.preferredLanguage === 'gcf' ? 'gcf-GP' : 'fr-FR';
-      if (turn.acknowledgment) {
+      if (turn.acknowledgment && !turn.hostMessageAlreadySent) {
         await this.conversation.appendMessage(
           state.ticketId,
           'LIA_HOST',
@@ -398,6 +410,40 @@ export class LiaAgentService {
     trigger: AgentTrigger,
     photoUrl?: string,
   ): Promise<GoalExecutionResult> {
+    if (state.intake?.intakeMode === 'jarvis') {
+      // INV1 — conclusion sondée : preuve (photo) ou réponse revenue. On relance
+      // Grock, qui conclut lui-même (parole + état terminal) et transmet.
+      if (state.intake.jarvisFacts?.awaiting_conclusion_photo === 'oui') {
+        const message =
+          state.lastTenantMessage?.trim() ||
+          (photoUrl ? 'J’ai envoyé une photo.' : 'Je continue sans photo.');
+        const intake = await this.comprehension.resolveGateFollowup({
+          ticketId: state.ticketId,
+          intake: state.intake,
+          message,
+          title: state.title,
+          description: state.description,
+          tenantFirstName: state.tenantFirstName,
+          residenceUnitNumber: state.residenceUnitNumber,
+        });
+        return {
+          state: {
+            ...state,
+            intake,
+            agent: markGoalDone(state, 'RUN_DIAGNOSTIC'),
+          },
+          continueLoop: false,
+        };
+      }
+      return {
+        state: {
+          ...state,
+          agent: markGoalDone(state, 'RUN_DIAGNOSTIC'),
+        },
+        continueLoop: false,
+      };
+    }
+
     let intake = state.intake;
     const skippingPhoto =
       trigger === 'TENANT_MESSAGE' &&
@@ -668,6 +714,13 @@ export class LiaAgentService {
         ) as object,
       },
     });
+  }
+
+  private isJarvisGrockEnqueteEnCours(state: LiaSharedState): boolean {
+    return (
+      state.intake?.intakeMode === 'jarvis' &&
+      state.intake.answers.jarvis_intake_complete !== 'oui'
+    );
   }
 
   private scheduleCompanion(state: LiaSharedState, intake: LiaIntakeState): void {

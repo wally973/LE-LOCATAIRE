@@ -14,10 +14,10 @@ class DetectedClaim {
 
   factory DetectedClaim.fromJson(Map<String, dynamic> json) {
     return DetectedClaim(
-      id: json['id'] as String,
-      category: json['category'] as String,
-      label: json['label'] as String,
-      excerpt: json['excerpt'] as String,
+      id: (json['id'] as String?) ?? 'signalement-unique',
+      category: (json['category'] as String?) ?? 'GENERIC',
+      label: (json['label'] as String?) ?? '',
+      excerpt: (json['excerpt'] as String?) ?? '',
     );
   }
 }

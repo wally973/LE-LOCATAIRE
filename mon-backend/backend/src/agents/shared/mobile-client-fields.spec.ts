@@ -21,6 +21,7 @@ describe('mobile-client-fields (contrat JSON Flutter)', () => {
             building_floor: 'R+1',
             weather_context: 'Saison sèche',
             timing_pattern: '19h-21h',
+            symptom_anchor: 'plafond',
           },
         },
       },
@@ -32,6 +33,7 @@ describe('mobile-client-fields (contrat JSON Flutter)', () => {
     expect(fields.avatar_action).toBe('GESTURE:nod');
     expect(fields.legal_basis).toContain('1719');
     expect(fields.sensors?.building_floor).toBe('R+1');
+    expect(fields.sensors?.symptom_anchor).toBe('plafond');
     expect(() => assertMobileFieldTypes('test', fields, { requireAll: true })).not.toThrow();
   });
 

@@ -901,6 +901,45 @@ model TicketMessage {
   @@index([ticketId, createdAt])
 }
 
+model GrockMessage {
+  id             String   @id @default(uuid())
+  role           String
+  text           String
+  thinking       String?
+  state          String?
+  next_action    String?
+  acknowledgment String?
+  note_interne   String?
+  createdAt      DateTime @default(now())
+
+  @@map("grock_messages")
+}
+
+/// Journal de décision Grock — matière brute de la boucle d'apprentissage.
+/// Écrit HORS session (n'influence jamais le raisonnement d'un ticket) : il sert
+/// uniquement aux sondes de qualité offline et au banc de non-régression.
+/// NuclearFlush reste intact : aucune donnée d'ici n'est réinjectée automatiquement.
+model GrockDecisionLog {
+  id             String   @id @default(uuid())
+  ticketId       String?
+  photoHash      String?
+  title          String?
+  description    String?
+  tenantMessage  String?
+  perception     String?
+  state          String?
+  responsibility String?
+  acknowledgment String?
+  noteInterne    String?
+  model          String?
+  visionModel    String?
+  createdAt      DateTime @default(now())
+
+  @@index([photoHash])
+  @@index([createdAt])
+  @@map("grock_decision_journal")
+}
+
 /// Référence juridique structurée (sync mobile offline + recherche API).
 enum LegalReferenceKind {
   LOI

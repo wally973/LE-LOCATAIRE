@@ -1,12 +1,15 @@
+import { config as loadEnv } from 'dotenv';
+import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
 import { networkInterfaces } from 'os';
 
 async function bootstrap() {
+  // Charge mon-backend/backend/.env (indépendant du cwd npm)
+  loadEnv({ path: join(__dirname, '..', '.env') });
   // IMPORTANT : on utilise NestExpressApplication pour servir les fichiers statiques
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 

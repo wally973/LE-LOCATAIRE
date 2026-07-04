@@ -2,9 +2,13 @@
  * Tabula Rasa + NuclearFlush — Constitution N7.
  * Deux entrées agent : 3 phrases + bibliothèque brute. Armoire vidée à chaque session/tour.
  */
+import { randomUUID } from 'crypto';
+import type { CompanionLanguage } from '../conversation/lia-companion.types';
 import type { LivingBuildingState } from './living-building-state.types';
+import { createLivingBuildingState } from './living-building-state.factory';
 import { createInitialSymmetricDeliberation } from './living-symmetric.factory';
 import { createOpenDossierIntegrity } from './living-dossier-integrity';
+import { LIVING_STATE_JARVIS_KEY } from './living-building-state.repository';
 import { LIVING_TEAM_CHARTER_FR } from './living-team-roles';
 
 /** Clés jarvisFacts V1 à purger à chaque flush. */
@@ -18,6 +22,29 @@ const JARVIS_GHOST_KEYS = [
   'perception_juridique',
   'legacy_step',
   'script_ack',
+  'jarvis_summary',
+  'jarvis_last_ack',
+  'grock_conversation_fil',
+  'objet_ancre',
+  'zoneB_identifiee',
+  'zoneB_envers',
+  'zoneB_question_pour_lia',
+  'ancrage_spatial',
+  'element_focus',
+  'verdict_projete',
+] as const;
+
+/** Préfixes jarvisFacts cognitifs — aucun fantôme inter-dossiers. */
+const JARVIS_COGNITIVE_PREFIXES = [
+  'extracted_',
+  'perception_',
+  'zoneB_',
+  'ancrage_',
+  'element_',
+  'verdict_',
+  'organizer_',
+  'script_',
+  'legacy_',
 ] as const;
 
 /** Extrait les trois dernières phrases du texte locataire. */
@@ -47,8 +74,142 @@ export function resolveTabulaRasaPhrases(params: {
   return extractThreeSentences(opening);
 }
 
+/** Re-lie le signalement courant (titre + description du ticket / session). */
+export function rebindSignalement(
+  state: LivingBuildingState,
+  title: string,
+  description: string,
+): LivingBuildingState {
+  return {
+    ...state,
+    signalementTitle: title.trim(),
+    signalementDescription: description.trim(),
+  };
+}
+
+/** Purge physique des faits cognitifs sérialisés dans jarvisFacts. */
+export function purgeJarvisCognitiveFacts(
+  facts: Record<string, string> | undefined,
+): Record<string, string> {
+  if (!facts) return {};
+  const out = { ...facts };
+  delete out[LIVING_STATE_JARVIS_KEY];
+  for (const key of JARVIS_GHOST_KEYS) {
+    delete out[key];
+  }
+  for (const key of Object.keys(out)) {
+    if (JARVIS_COGNITIVE_PREFIXES.some((p) => key.startsWith(p))) {
+      delete out[key];
+    }
+  }
+  return out;
+}
+
+function normScope(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+}
+
+/**
+ * Détecte des fantômes mémoire après NuclearFlush — avant délibération Paul/Pierre.
+ */
+export function detectMemoryGhosts(params: {
+  state: LivingBuildingState;
+  title: string;
+  description: string;
+  jarvisFacts?: Record<string, string>;
+}): string[] {
+  const ghosts: string[] = [];
+  const scope = normScope(`${params.title} ${params.description}`);
+
+  if (params.jarvisFacts) {
+    for (const key of Object.keys(params.jarvisFacts)) {
+      if (key === LIVING_STATE_JARVIS_KEY || key === 'reasoning_source') continue;
+      if ((JARVIS_GHOST_KEYS as readonly string[]).includes(key)) {
+        ghosts.push(`jarvisFacts.${key}`);
+      }
+      if (JARVIS_COGNITIVE_PREFIXES.some((p) => key.startsWith(p))) {
+        ghosts.push(`jarvisFacts.${key}`);
+      }
+    }
+  }
+
+  const reports = params.state.symmetricDeliberation?.expertReports;
+  if (reports?.enqueteur || reports?.archiviste || reports?.liaScenographe) {
+    ghosts.push('expertReports résiduels');
+  }
+
+  if (params.state.deliberationEchoes.length > 0) {
+    ghosts.push('deliberationEchoes résiduels');
+  }
+
+  if (params.state.legalVerdict.summary?.trim()) {
+    ghosts.push(`legalVerdict.summary=${params.state.legalVerdict.summary.slice(0, 40)}`);
+  }
+
+  if (Object.keys(params.state.humanBarrier.extractedFacts).length > 0) {
+    ghosts.push('humanBarrier.extractedFacts non vide');
+  }
+
+  const element = params.state.vision3d.element?.trim().toLowerCase();
+  if (element) {
+    const moistureScope = /moi|humid|mur|plafond|salp|infiltr/.test(scope);
+    const tileScope = /carrel|carreau|sol/.test(scope);
+    const tileElement = /carrel|carreau/.test(element);
+    const moistureElement = /mur|plafond|moisi|humid/.test(element);
+    if (moistureScope && tileElement && !tileScope) {
+      ghosts.push(`vision3d.element=${element} (hors sujet moisissure/humidité)`);
+    }
+    if (tileScope && moistureElement && !moistureScope) {
+      ghosts.push(`vision3d.element=${element} (hors sujet carrelage/sol)`);
+    }
+  }
+
+  return ghosts;
+}
+
+/**
+ * Table vierge — nouvelle conversation / ouverture.
+ * Aucun héritage d’ancrage, élément ou verdict d’un dossier précédent.
+ */
+export function forgePristineLivingState(params: {
+  title: string;
+  description: string;
+  language: CompanionLanguage;
+  tenantFirstName?: string;
+  ageBand?: 'senior' | 'adult' | 'young' | 'unknown';
+  livesAlone?: boolean;
+  creolePreferred?: boolean;
+  interlocutorFace?: 'locataire' | 'technicien' | 'bailleur' | 'equipe_test';
+}): LivingBuildingState {
+  const face = params.interlocutorFace ?? 'locataire';
+  const draft = createLivingBuildingState({
+    title: params.title,
+    description: params.description,
+    language: params.language,
+    tenantFirstName: params.tenantFirstName,
+    ageBand: params.ageBand,
+    livesAlone: params.livesAlone,
+    creolePreferred: params.creolePreferred,
+  });
+  return rebindSignalement(
+    nuclearFlushLivingState({
+      ...draft,
+      stateInstanceId: randomUUID(),
+      guardianReview: null,
+      doctrinePending: [],
+      symmetricDeliberation: createInitialSymmetricDeliberation(face),
+    }),
+    params.title,
+    params.description,
+  );
+}
+
 /** Vide la mémoire cognitive — redécouverte du bâtiment. */
 export function wipeLivingCognitiveState(state: LivingBuildingState): LivingBuildingState {
+  const face = state.symmetricDeliberation?.interlocutorFace ?? 'locataire';
   return {
     ...state,
     updatedAt: new Date().toISOString(),
@@ -109,12 +270,11 @@ export function wipeLivingCognitiveState(state: LivingBuildingState): LivingBuil
       agents: [],
       updatedAt: new Date().toISOString(),
     },
-    symmetricDeliberation: createInitialSymmetricDeliberation(
-      state.symmetricDeliberation?.interlocutorFace ?? 'locataire',
-    ),
+    symmetricDeliberation: createInitialSymmetricDeliberation(face),
     guardianReview: null,
+    cyberGardienAudit: null,
     doctrinePending: [],
-    lastTenantMessage: state.lastTenantMessage,
+    lastTenantMessage: null,
   };
 }
 
@@ -139,16 +299,11 @@ export function nuclearFlushLivingState(state: LivingBuildingState): LivingBuild
 /** Alias canonique Constitution. */
 export const nuclearFlush = nuclearFlushLivingState;
 
-/** Purge les clés legacy dans jarvisFacts (intake). */
+/** Purge les clés legacy + état Living sérialisé dans jarvisFacts (intake). */
 export function nuclearFlushJarvisFacts(
   facts: Record<string, string> | undefined,
 ): Record<string, string> {
-  if (!facts) return {};
-  const out = { ...facts };
-  for (const key of JARVIS_GHOST_KEYS) {
-    delete out[key];
-  }
-  return out;
+  return purgeJarvisCognitiveFacts(facts);
 }
 
 export function buildTabulaRasaAgentPayload(params: {

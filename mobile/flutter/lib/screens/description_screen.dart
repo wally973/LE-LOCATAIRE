@@ -74,26 +74,15 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
         );
       }
 
-      final detected =
-          await TenantService.instance.detectClaims(description);
-      if (detected.length > 1) {
-        await _openMultiClaim(detected);
-        return;
-      }
-
       if (!mounted) return;
       setState(() => _loadingLabel = 'Ouverture du dossier…');
 
-      final excerpt = detected.length == 1 ? detected.first.excerpt : description;
-      final title = detected.length == 1
-          ? detected.first.label
-          : _titleFrom(excerpt);
+      final title = _titleFrom(description);
 
       final payload = await TicketService.instance.createTicket(
         title: title,
-        description: excerpt,
+        description: description,
         housingId: housingId,
-        claimCategory: detected.length == 1 ? detected.first.category : null,
       );
 
       final ticketId = (payload['id'] as num).toInt();
@@ -149,7 +138,7 @@ class _DescriptionScreenState extends State<DescriptionScreen> {
             const SizedBox(height: 8),
             const Text(
               'Pièce, depuis quand, ce que vous avez constaté ou essayé — pas besoin d’être technicien. '
-              'Un seul sujet par dossier (ex. électricité ou plomberie, pas les deux).',
+              'Décrivez tout d’un coup : Lia lit votre texte avant de décider s’il faut un ou plusieurs dossiers.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.deepOrange,

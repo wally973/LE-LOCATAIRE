@@ -28,6 +28,7 @@ import AdminAvatarsPage from '@pages/admin/AdminAvatarsPage';
 import AdminIaStatsPage from '@pages/admin/AdminIaStatsPage';
 import LiaLabPage from '@pages/admin/LiaLabPage';
 import DoctrineRegistryPage from '@pages/admin/DoctrineRegistryPage';
+import GrockLearningPage from '@pages/admin/GrockLearningPage';
 import LandlordDashboardPage from '@pages/bailleur/LandlordDashboardPage';
 import LandlordHousingsPage from '@pages/bailleur/LandlordHousingsPage';
 import LandlordHousingDetailPage from '@pages/bailleur/LandlordHousingDetailPage';
@@ -40,6 +41,7 @@ import LandlordProfilePage from '@pages/bailleur/LandlordProfilePage';
 import LandlordCaseSearchPage from '@pages/bailleur/LandlordCaseSearchPage';
 import AgentLayout from '@layouts/AgentLayout';
 import AgentReclamationsPage from '@pages/agent/AgentReclamationsPage';
+import AgentTicketDetailPage from '@pages/agent/AgentTicketDetailPage';
 import LocataireDashboardPage from '@pages/locataire/LocataireDashboardPage';
 import LocatairePaymentsPage from '@pages/locataire/LocatairePaymentsPage';
 import LocatairePaymentDetailPage from '@pages/locataire/LocatairePaymentDetailPage';
@@ -86,6 +88,7 @@ function App() {
             <Route path="ia-stats" element={<AdminIaStatsPage />} />
             <Route path="lia-lab" element={<LiaLabPage />} />
             <Route path="doctrine-registry" element={<DoctrineRegistryPage />} />
+            <Route path="grock-learning" element={<GrockLearningPage />} />
           </Route>
         </Route>
 
@@ -95,7 +98,7 @@ function App() {
             <Route path="reclamations" element={<AgentReclamationsPage />} />
             <Route
               path="tickets/:id"
-              element={<LandlordTicketDetailPage />}
+              element={<AgentTicketDetailPage />}
             />
           </Route>
         </Route>

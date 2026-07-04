@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "updatedAt": "2026-05-21",
+  "version": 2,
+  "updatedAt": "2026-07-02",
   "description": "Index bibliothécaire — cours AFPOLS / fiches AQC → signes cliniques → hypothèses différentielles",
   "corpora": {
     "AFPOLS": {
@@ -89,7 +89,8 @@
         "pattern": ["bandes ondulees depuis le sol", "monte depuis le plinthes", "horizontal puis vertical"],
         "location": ["plinthes", "mur bas", "facade", "rez-de-chaussee"]
       },
-      "keywords": ["salpetre", "remontee", "capillaire", "frange", "efflorescence"]
+      "keywords": ["salpetre", "remontee", "capillaire", "frange", "efflorescence"],
+      "lots": ["HUMIDITY"]
     },
     {
       "id": "hyp_infiltration_toiture",
@@ -118,7 +119,8 @@
         "pattern": ["tache qui grossit quand il pleut", "localise sous toiture", "proche fenetre toit"],
         "location": ["plafond", "comble", "facade", "angle fenetre"]
       },
-      "keywords": ["infiltration", "toiture", "pluie", "goutte", "fuite plafond"]
+      "keywords": ["infiltration", "toiture", "pluie", "goutte", "fuite plafond"],
+      "lots": ["ROOF", "HUMIDITY"]
     },
     {
       "id": "hyp_condensation_usage",
@@ -147,7 +149,8 @@
         "pattern": ["coin fenetre", "salle de bain sans VMC", "linge seché interieur"],
         "location": ["angle", "salle de bain", "cuisine", "chambre fermee"]
       },
-      "keywords": ["condensation", "buée", "ventilation", "vmc", "linge", "douche"]
+      "keywords": ["condensation", "buée", "ventilation", "vmc", "linge", "douche"],
+      "lots": ["HUMIDITY", "VMC"]
     },
     {
       "id": "hyp_humidite_sous_sol_drom",
@@ -170,7 +173,8 @@
         "pattern": ["apres fortes pluies", "cyclone", "ruissellement terrain"],
         "location": ["sous-sol", "rdc", "mur périphérique", "pente"]
       },
-      "keywords": ["sous-sol", "nappe", "drainage", "cuvelage", "cyclone", "pluie forte"]
+      "keywords": ["sous-sol", "nappe", "drainage", "cuvelage", "cyclone", "pluie forte"],
+      "lots": ["HUMIDITY"]
     },
     {
       "id": "hyp_refoulement_eu",
@@ -215,7 +219,8 @@
         "19h",
         "soir",
         "flaque"
-      ]
+      ],
+      "lots": ["PLUMBING", "HUMIDITY"]
     },
     {
       "id": "hyp_carrelage_desolidarisation",
@@ -254,7 +259,53 @@
         "plancher",
         "sol dur",
         "dalle"
-      ]
+      ],
+      "lots": ["STRUCTURE", "CARPENTRY"]
+    },
+    {
+      "id": "hyp_eclatement_beton_enrobage",
+      "label": "Éclatement du béton / enrobage (corrosion des aciers) — risque de chute de matériaux",
+      "category": "STRUCTURE",
+      "responsibilityHint": "BAILLEUR",
+      "danger": "HIGH",
+      "sources": [
+        {
+          "corpus": "AQC",
+          "ref": "FPB-BETON",
+          "title": "Éclatement du béton armé (corrosion des armatures / carbonatation)",
+          "url": "https://qualiteconstruction.com/agence-qualite-construction/consolider-bonnes-pratiques-construction-renovation/"
+        },
+        {
+          "corpus": "AFPOLS",
+          "ref": "C0233",
+          "title": "Ossature et façades — pathologies du béton armé",
+          "url": "https://www.afpols.fr/formations-inter-entreprises/nos-formations/patrimoine/pathologies-et-desordres-des-batiments/diagnostics-et-pathologies-du-batiment"
+        }
+      ],
+      "clinicalSigns": {
+        "color": ["traînée de rouille depuis le béton", "coulure ocre", "fer apparent rouillé"],
+        "texture": ["béton qui éclate", "enrobage soufflé ou décollé", "morceau creux qui sonne", "épaufrure", "écaillage profond du béton"],
+        "pattern": ["fissure suivant le tracé des aciers", "gonflement le long d'une armature", "éclats de béton tombés au sol", "sous-face de dalle ou de balcon"],
+        "location": ["balcon", "loggia", "sous-face de dalle", "auvent", "acrotère", "nez de balcon", "poutre", "linteau", "façade béton"],
+        "danger": ["RISQUE DE CHUTE de morceaux de béton", "zone de passage située dessous à sécuriser", "ne pas stationner ni laisser passer sous la zone", "périmètre de sécurité si éclats au-dessus d'un cheminement"]
+      },
+      "keywords": [
+        "béton éclaté",
+        "eclatement beton",
+        "enrobage",
+        "fer apparent",
+        "armature",
+        "acier corrodé",
+        "épaufrure",
+        "spalling",
+        "carbonatation",
+        "balcon",
+        "sous-face",
+        "dalle",
+        "chute de béton",
+        "morceau qui tombe"
+      ],
+      "lots": ["STRUCTURE"]
     }
   ]
 }

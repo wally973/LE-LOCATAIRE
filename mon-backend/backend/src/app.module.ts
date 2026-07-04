@@ -30,6 +30,7 @@ import { AgentsModule } from './agents/agents.module';
 import { LegalReferencesModule } from './legal-references/legal-references.module';
 import { LiaLabModule } from './lia-lab/lia-lab.module';
 import { DoctrineLedgerModule } from './doctrine-ledger/doctrine-ledger.module';
+import { GrockLearningModule } from './grock/learning/grock-learning.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { DoctrineLedgerModule } from './doctrine-ledger/doctrine-ledger.module';
     LegalReferencesModule,
     LiaLabModule,
     DoctrineLedgerModule,
+    GrockLearningModule,
   ],
 })
 export class AppModule {}

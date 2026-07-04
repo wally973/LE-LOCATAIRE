@@ -24,8 +24,30 @@ describe('critical-diagnostic-sensors', () => {
         water_aspect: 'savonneuse',
         timing_pattern: '19h-21h',
         building_floor: 'R+1',
+        symptom_anchor: 'sol',
       },
     });
+    expect(missing).toHaveLength(0);
+  });
+
+  it('demande l’ancrage du symptôme pour une infiltration vague sans photo', () => {
+    const missing = getMissingCriticalSensors({
+      title: 'Toiture / infiltration',
+      description: 'infiltration dans la buanderie',
+      sensors: {},
+    });
+
+    expect(missing).toEqual(['symptom_anchor']);
+    expect(buildMissingCriticalSensorsMessage(missing)).toMatch(/plafond, mur, sol/i);
+  });
+
+  it('ne bloque pas une infiltration déjà localisée', () => {
+    const missing = getMissingCriticalSensors({
+      title: 'Toiture / infiltration',
+      description: 'infiltration dans la buanderie au plafond',
+      sensors: { symptom_anchor: 'plafond' },
+    });
+
     expect(missing).toHaveLength(0);
   });
 });

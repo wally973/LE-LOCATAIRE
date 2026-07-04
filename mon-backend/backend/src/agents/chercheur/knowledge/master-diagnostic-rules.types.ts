@@ -1,48 +1,48 @@
 /**
- * Types — knowledge/master-diagnostic-rules.json (Savoir-Voir multi-domaines).
+ * Types — fiches passives Savoir-Voir (master-diagnostic-rules.json v2).
  */
 
-export interface MasterSensorDef {
+export interface PassiveSavoirFiche {
   id: string;
+  lot: string;
   label: string;
-  required: boolean;
-  intakeQuestionId?: string;
-}
-
-export interface MasterHypothesisDef {
-  id: string;
-  label: string;
-  defaultProbability: number;
-  responsibilityHint: 'LOCATAIRE' | 'BAILLEUR' | 'NUANCE';
-}
-
-export interface MasterEliminationRule {
-  id: string;
-  whenTextMatches: string;
-  eliminate: string[];
-  boost?: Record<string, number>;
-  eliminationReason: string;
-}
-
-export interface MasterDomainRules {
-  id: string;
-  label: string;
-  category: string;
   keywords: string[];
-  criticalSensors: MasterSensorDef[];
-  hypotheses: MasterHypothesisDef[];
-  eliminationRules: MasterEliminationRule[];
-  urgentDangerPatterns: string[];
-  urgentSafetyMessage?: string;
+  signesUtiles?: string[];
+  pistesConnues?: Array<{ label: string; chargeHint: string }>;
+  notesTerrain?: string[];
+  signesUrgence?: string[];
+  messageSecurite?: string | null;
+  /** Fiches panne-diagnostic */
+  scope?: string;
+  contexteGuyane?: string;
+  causesConnues?: Array<{
+    id: string;
+    label: string;
+    probabiliteTerrain?: number | null;
+    signesDiscriminants?: string;
+    danger: { level: string; description: string };
+    chargeHint: string;
+  }>;
 }
 
-export interface MasterDiagnosticCatalog {
-  version: number;
-  updatedAt: string;
-  method: string;
-  description?: string;
-  domains: MasterDomainRules[];
+export interface PrioriteTerritoriale {
+  dominant: string;
+  regle: string;
 }
+
+export interface PassiveSavoirCatalog {
+  schema: 'PASSIVE_KNOWLEDGE_SHEET';
+  version?: number;
+  schemaVersion?: number;
+  updatedAt: string;
+  description?: string;
+  method?: string;
+  prioriteTerritoriale: PrioriteTerritoriale;
+  fiches: PassiveSavoirFiche[];
+}
+
+/** @deprecated Alias compat moteur diagnostic — même shape que PassiveSavoirFiche */
+export type MasterDomainRules = PassiveSavoirFiche & { category: string };
 
 export interface MasterHypothesisResult {
   id: string;
@@ -62,4 +62,17 @@ export interface MasterDifferentialResult {
   observation: string;
   responsibilityHint: 'LOCATAIRE' | 'BAILLEUR' | 'NUANCE';
   missingCriticalSensors: string[];
+}
+
+export interface MasterDiagnosticCatalog extends PassiveSavoirCatalog {
+  /** Compat tests legacy */
+  domains?: MasterDomainRules[];
+}
+
+export function fichesFromCatalog(catalog: MasterDiagnosticCatalog): PassiveSavoirFiche[] {
+  if (catalog.fiches?.length) return catalog.fiches;
+  return (catalog.domains ?? []).map((d) => ({
+    ...d,
+    lot: d.category ?? d.lot,
+  }));
 }

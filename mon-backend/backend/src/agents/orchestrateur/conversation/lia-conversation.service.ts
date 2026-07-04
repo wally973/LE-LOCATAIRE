@@ -5,17 +5,34 @@ import {
 } from '@nestjs/common';
 import { Prisma, TicketMessageRole } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { BailleurScopeService } from '../../../auth/scope/bailleur-scope.service';
 import type { LiaMessageUiStatus } from './lia-message-ui-status';
 
 @Injectable()
 export class LiaConversationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scopeService: BailleurScopeService,
+  ) {}
 
   async listMessages(ticketId: number, userId: number, role: string) {
     await this.assertCanAccessTicket(ticketId, userId, role);
-    return this.prisma.ticketMessage.findMany({
+    const messages = await this.prisma.ticketMessage.findMany({
       where: { ticketId },
       orderBy: { createdAt: 'asc' },
+    });
+    return messages.map((message) => {
+      if (
+        (message.role as unknown) === 'assistant' &&
+        (message as unknown as { note_interne?: string }).note_interne
+      ) {
+        delete (message as unknown as { note_interne?: string }).note_interne;
+      }
+      if (!message.metadata || typeof message.metadata !== 'object') return message;
+      const metadata = JSON.parse(JSON.stringify(message.metadata)) as Record<string, unknown>;
+      delete metadata.note_interne;
+      delete metadata.noteInterne;
+      return { ...message, metadata };
     });
   }
 
@@ -55,12 +72,19 @@ export class LiaConversationService {
       return ticket;
     }
 
-    if (jwtRole === 'BAILLEUR') {
-      const lp = await this.prisma.landlordProfile.findUnique({
-        where: { userId },
-      });
-      if (!lp || ticket.housing.landlordId !== lp.id) {
+    if (jwtRole === 'BAILLEUR' || jwtRole === 'AGENT') {
+      const scope = await this.scopeService.resolve({ id: userId, role: jwtRole });
+      if (!scope.landlordProfileId) {
+        throw new ForbiddenException('Profil bailleur introuvable');
+      }
+      const landlordId = ticket.landlordProfileId ?? ticket.housing.landlordId;
+      if (landlordId !== scope.landlordProfileId) {
         throw new ForbiddenException('Accès refusé');
+      }
+      if (jwtRole === 'AGENT' && scope.agenceId != null) {
+        if (ticket.housing.agenceId !== scope.agenceId) {
+          throw new ForbiddenException('Ticket hors de votre secteur');
+        }
       }
       return ticket;
     }

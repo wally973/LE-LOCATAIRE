@@ -1,14 +1,35 @@
 /**
- * Bibliothèque de Savoir brute — AFPOL / AQC / Loi sans commentaire ni classement imposé.
+ * Bibliothèque de Savoir brute — doctrine → Guyane → pathologies → loi.
+ * Nourrit la délibération ; ne dicte pas le dialogue locataire.
  */
 import { loadLegalReferencesCatalogFromFile } from '../../../legal-references/legal-reference.loader';
+import { loadClimatTropicalCatalog } from '../../chercheur/knowledge/climat-tropical-catalog.loader';
 import { loadPathologyIndex } from '../../chercheur/research/knowledge-index.loader';
-import { loadSignedDoctrineForDeliberation } from './living-doctrine-stylo';
+import { listLedgerLessons } from './living-doctrine-ledger';
 import type { LivingSavoirConsultation } from './living-building-state.types';
 
 const MAX_LIBRARY_CHARS = 12_000;
 
 export interface RawSavoirBibliotheque {
+  prioriteTerritoriale: string;
+  doctrine: Array<{
+    id: string;
+    author: string;
+    title: string;
+    body: string;
+    createdAt: string;
+    signedAt?: string | null;
+  }>;
+  reglementationTropicale: Array<{
+    id: string;
+    corpus: string;
+    title: string;
+    summary: string;
+    keywords: string[];
+    territory: string[];
+    localPdf: string;
+    sourceUrl: string;
+  }>;
   pathologies: Array<{
     id: string;
     label: string;
@@ -22,32 +43,49 @@ export interface RawSavoirBibliotheque {
     summary: string;
     keywords: string[];
   }>;
-  doctrine: Array<{
-    id: string;
-    author: string;
-    title: string;
-    body: string;
-    createdAt: string;
-    signedAt?: string | null;
-  }>;
+}
+
+function loadDoctrineEntries(limit = 48): RawSavoirBibliotheque['doctrine'] {
+  return listLedgerLessons({ status: 'SIGNED', limit }).map((l) => ({
+    id: l.id,
+    author: l.author,
+    title: l.title,
+    body: l.body,
+    createdAt: l.createdAt,
+    signedAt: l.signedAt ?? null,
+  }));
 }
 
 /** Charge la bibliothèque complète (texte documentaire — l’agent décide seul). */
 export function loadRawSavoirBibliotheque(): RawSavoirBibliotheque {
-  const loisEtDecrets: RawSavoirBibliotheque['loisEtDecrets'] = [];
+  const prioriteTerritoriale =
+    'Guyane / RTAA-DOM : en cas de contradiction avec une règle métropolitaine, le savoir climat tropical prime.';
+
+  const doctrine = loadDoctrineEntries(48);
+
+  const reglementationTropicale: RawSavoirBibliotheque['reglementationTropicale'] = [];
   try {
-    const catalog = loadLegalReferencesCatalogFromFile();
-    for (const entry of catalog.entries) {
-      loisEtDecrets.push({
-        slug: entry.slug,
-        title: entry.title,
-        kind: entry.kind,
-        summary: entry.summary ?? '',
-        keywords: entry.keywords ?? [],
+    const tropical = loadClimatTropicalCatalog().sources;
+    tropical.sort((a, b) => {
+      const score = (s: typeof a) =>
+        (s.territory.some((t) => /guyane/i.test(t)) ? 4 : 0) +
+        (/RTAA/i.test(s.corpus) ? 3 : 0);
+      return score(b) - score(a);
+    });
+    for (const s of tropical) {
+      reglementationTropicale.push({
+        id: s.id,
+        corpus: s.corpus,
+        title: s.title,
+        summary: s.summary,
+        keywords: s.keywords,
+        territory: s.territory,
+        localPdf: s.localPdf,
+        sourceUrl: s.sourceUrl,
       });
     }
   } catch {
-    /* bibliothèque juridique absente */
+    /* catalogue climat tropical absent */
   }
 
   const pathologies: RawSavoirBibliotheque['pathologies'] = [];
@@ -70,10 +108,28 @@ export function loadRawSavoirBibliotheque(): RawSavoirBibliotheque {
     /* index pathologies absent */
   }
 
+  const loisEtDecrets: RawSavoirBibliotheque['loisEtDecrets'] = [];
+  try {
+    const catalog = loadLegalReferencesCatalogFromFile();
+    for (const entry of catalog.entries) {
+      loisEtDecrets.push({
+        slug: entry.slug,
+        title: entry.title,
+        kind: entry.kind,
+        summary: entry.summary ?? '',
+        keywords: entry.keywords ?? [],
+      });
+    }
+  } catch {
+    /* bibliothèque juridique absente */
+  }
+
   return trimBibliothequeSize({
+    prioriteTerritoriale,
+    doctrine,
+    reglementationTropicale,
     pathologies,
     loisEtDecrets,
-    doctrine: loadSignedDoctrineForDeliberation(48),
   });
 }
 
@@ -81,19 +137,34 @@ function trimBibliothequeSize(lib: RawSavoirBibliotheque): RawSavoirBibliotheque
   let serialized = JSON.stringify(lib);
   if (serialized.length <= MAX_LIBRARY_CHARS) return lib;
 
-  const lois = [...lib.loisEtDecrets];
-  const path = [...lib.pathologies];
   const doctrine = [...lib.doctrine];
+  const tropical = [...lib.reglementationTropicale];
+  const path = [...lib.pathologies];
+  const lois = [...lib.loisEtDecrets];
+
   while (
     serialized.length > MAX_LIBRARY_CHARS &&
-    (lois.length > 3 || path.length > 5 || doctrine.length > 2)
+    (path.length > 3 || lois.length > 3 || doctrine.length > 4 || tropical.length > 4)
   ) {
-    if (path.length > 5) path.pop();
-    else if (lois.length > 3) lois.pop();
-    else doctrine.pop();
-    serialized = JSON.stringify({ pathologies: path, loisEtDecrets: lois, doctrine });
+    if (lois.length > 3) lois.pop();
+    else if (path.length > 3) path.pop();
+    else if (doctrine.length > 4) doctrine.pop();
+    else tropical.pop();
+    serialized = JSON.stringify({
+      prioriteTerritoriale: lib.prioriteTerritoriale,
+      doctrine,
+      reglementationTropicale: tropical,
+      pathologies: path,
+      loisEtDecrets: lois,
+    });
   }
-  return { pathologies: path, loisEtDecrets: lois, doctrine };
+  return {
+    prioriteTerritoriale: lib.prioriteTerritoriale,
+    doctrine,
+    reglementationTropicale: tropical,
+    pathologies: path,
+    loisEtDecrets: lois,
+  };
 }
 
 /** Trace Lia-Lab uniquement — pas injectée comme brief interprété. */
@@ -102,7 +173,32 @@ export function traceSavoirConsultationsForLab(): LivingSavoirConsultation[] {
   const at = new Date().toISOString();
   const out: LivingSavoirConsultation[] = [];
 
-  for (const p of lib.pathologies.slice(0, 8)) {
+  for (const d of lib.doctrine.slice(0, 6)) {
+    out.push({
+      agent: 'archiviste',
+      corpus: 'AFPOLS',
+      ref: d.id,
+      title: d.title,
+      label: `Doctrine N7 — ${d.title}`,
+      relevance: 1,
+      consultedAt: at,
+    });
+  }
+
+  for (const r of lib.reglementationTropicale.slice(0, 8)) {
+    out.push({
+      agent: r.corpus === 'RTAA-DOM' ? 'archiviste' : 'enqueteur',
+      corpus: 'AQC',
+      ref: r.id,
+      title: r.title,
+      url: r.sourceUrl,
+      label: `${r.corpus} — ${r.title}`,
+      relevance: 1,
+      consultedAt: at,
+    });
+  }
+
+  for (const p of lib.pathologies.slice(0, 6)) {
     for (const s of p.sources.slice(0, 1)) {
       out.push({
         agent: 'enqueteur',
@@ -119,7 +215,7 @@ export function traceSavoirConsultationsForLab(): LivingSavoirConsultation[] {
     }
   }
 
-  for (const l of lib.loisEtDecrets.slice(0, 6)) {
+  for (const l of lib.loisEtDecrets.slice(0, 4)) {
     out.push({
       agent: 'archiviste',
       corpus: l.kind === 'LOI' ? 'LOI' : 'DECRET',

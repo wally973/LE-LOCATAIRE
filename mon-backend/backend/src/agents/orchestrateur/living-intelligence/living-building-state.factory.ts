@@ -48,7 +48,7 @@ export function createLivingBuildingState(params: {
     },
     humanBarrier: {
       displayName: params.tenantFirstName?.trim() || 'Marie',
-      ageBand: params.ageBand ?? 'senior',
+      ageBand: params.ageBand ?? 'unknown',
       livesAlone: params.livesAlone ?? true,
       preferredLanguage: params.language,
       creolePreferred: params.creolePreferred ?? params.language === 'gcf',

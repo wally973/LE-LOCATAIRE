@@ -35,7 +35,7 @@ const CHUNKS = [
   },
   {
     kind: 'FAQ_BAILLEUR' as const,
-    title: '2terHabitat — contexte',
+    title: 'Bailleur social — contexte Guyane',
     content:
       'Bailleur social en Guyane. En cas de difficulté de paiement, orienter vers le référent social.',
   },

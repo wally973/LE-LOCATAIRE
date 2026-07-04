@@ -97,7 +97,7 @@ class _MultiClaimScreenState extends State<MultiClaimScreen> {
             const SizedBox(height: 8),
             Text(
               '${widget.claims.length} sujets — commencez par celui que vous voulez traiter en premier.',
-              style: TextStyle(fontSize: 14, color: Colors.black54),
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
             ),
             const SizedBox(height: 20),
             if (_error != null)

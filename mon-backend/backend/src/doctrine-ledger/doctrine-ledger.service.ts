@@ -5,14 +5,12 @@ import {
   type DoctrineLedgerEntry,
   type JarvisDoctrineLedger,
 } from '../agents/orchestrateur/living-intelligence/living-doctrine-ledger';
-import {
-  listPendingDoctrineLessons,
-  rejectDoctrineLesson,
-  signDoctrineLesson,
-} from '../agents/orchestrateur/living-intelligence/living-doctrine-stylo';
+import { LivingCyberGardienService } from '../agents/orchestrateur/living-intelligence/living-cyber-gardien.service';
+import { listPendingDoctrineLessons } from '../agents/orchestrateur/living-intelligence/living-doctrine-stylo';
 
 @Injectable()
 export class DoctrineLedgerService {
+  constructor(private readonly cyberGardien: LivingCyberGardienService) {}
   getLedger(): JarvisDoctrineLedger {
     return readDoctrineLedger();
   }
@@ -37,8 +35,7 @@ export class DoctrineLedgerService {
   }
 
   signLesson(id: string, signedBy: string): DoctrineLedgerEntry {
-    const signed = signDoctrineLesson(id, signedBy);
-    if (!signed) throw new NotFoundException(`Leçon doctrine introuvable : ${id}`);
+    const signed = this.cyberGardien.signDoctrineAsAdmin(id, signedBy);
     return {
       id: signed.id,
       title: signed.title,
@@ -54,7 +51,7 @@ export class DoctrineLedgerService {
   }
 
   rejectLesson(id: string): { ok: true; id: string } {
-    const ok = rejectDoctrineLesson(id);
+    const ok = this.cyberGardien.rejectDoctrineAsAdmin(id);
     if (!ok) throw new NotFoundException(`Leçon doctrine introuvable : ${id}`);
     return { ok: true, id };
   }

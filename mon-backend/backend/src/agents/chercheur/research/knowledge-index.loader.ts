@@ -15,6 +15,8 @@ export interface PathologyIndexEntry {
   }>;
   clinicalSigns: Record<string, string[]>;
   keywords: string[];
+  /** Lots métier autorisés — étanchéité bibliothèque Grock. */
+  lots?: string[];
 }
 
 export interface PathologyIndex {

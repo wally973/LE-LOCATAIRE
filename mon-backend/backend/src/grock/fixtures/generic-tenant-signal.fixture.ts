@@ -23,6 +23,7 @@ export function buildGenericTenantSignal(
       textAmbiguityPenalty: 0,
       imageQuality: 0,
       hasImage: false,
+      perceptionAvailable: false,
     },
     meta: {
       role: 'tenant',
@@ -49,6 +50,7 @@ export function buildEauElectriciteSignal(
       textAmbiguityPenalty: 0,
       imageQuality: 6,
       hasImage: true,
+      perceptionAvailable: true,
     },
     meta: {
       role: 'tenant',

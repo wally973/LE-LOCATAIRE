@@ -1,10 +1,12 @@
 import type {
-  Head1AnalysisInput,
-  Head2VerificationInput,
   Head3DeductionInput,
   Head4DecisionInput,
   Head5ResolutionInput,
 } from './head-pack.contract';
+import type {
+  Head1AnalysisInput,
+  Head2VerificationInput,
+} from '../head-input/head-input.types';
 import type { PreprocessedSignal } from '../preprocessor/preprocessor.types';
 
 /**

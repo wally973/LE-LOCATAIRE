@@ -1,7 +1,7 @@
 # Architecture Grock — Noyau cognitif à 5 têtes, IA-agnostique
 
 > Document de référence. Toute évolution de Grock doit respecter ce plan.
-> Statut : validé par le porteur (3 juillet 2026).
+> Statut : validé par le porteur (3 juillet 2026) · pipeline pack T3–T5 livré (6 juillet 2026).
 
 ## Principe directeur
 
@@ -18,7 +18,7 @@ la structure. L'IA n'est plus le cerveau — **Grock est le cerveau**, l'IA n'es
 
 ---
 
-## Les 3 couches
+## Les 4 couches
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -30,8 +30,35 @@ la structure. L'IA n'est plus le cerveau — **Grock est le cerveau**, l'IA n'es
 ├─────────────────────────────────────────────┤
 │  COUCHE 1 — PORT IA (opérateur de langage)    │  ← Mistral aujourd'hui, GPT/Claude demain
 │  une seule interface, modèle interchangeable  │     multimodal (voit) ou texte
+├─────────────────────────────────────────────┤
+│  COUCHE 0 — PRÉPROCESSEUR                     │  ← prépare le signal avant raisonnement
+│  nettoie · normalise · perception invariante  │     contextualise selon le rôle
 └─────────────────────────────────────────────┘
 ```
+
+---
+
+## Couche 0 — Le PRÉPROCESSEUR
+
+**Rôle** : préparer le signal **avant** les 5 têtes. Il nettoie, normalise et contextualise
+l'image et le texte selon l'interlocuteur (locataire, technicien, bailleur, admin).
+
+- **Texte** : normalisation unicode / espaces — sans interprétation sémantique.
+- **Image** : perception visuelle **brute et invariante** (aveugle au titre, récit, hypothèse).
+  Élimine la variance de cadrage : la même photo doit produire la même description de pixels.
+- **Rôle** : bloc signalement contextualisé (mobile locataire, terrain technicien, patrimoine bailleur, gouvernance admin).
+- **Sortie** : `PreprocessedSignal` — base commune injectée au noyau (Couche 2) et au pack (Couche 3).
+
+**Invariant** : le préprocesseur **ne diagnostique pas**. Il stabilise la matière première ;
+l'interprétation vit dans les Têtes 1–5.
+
+**Code** : `src/grock/preprocessor/` · branché dans `GrockService.runTurn` avant le prompt maître.
+
+**Scores (0–10)** : `signalQuality` (Couche 0) + scores par tête (Couche 2) — internes, journalisés, sondes offline. Voir `kernel/grock-confidence-scores.ts`.
+
+---
+
+## Les 3 couches (noyau → port → pack)
 
 ---
 
@@ -66,9 +93,9 @@ Il ne connaît **rien** au logement — il sait seulement *comment penser*.
 |---|---|---|---|
 | 1 · Analyse | texte + image | faits bruts (rien de déduit) | ne conclut jamais ici ; décrit ce qui est vu |
 | 2 · Vérification de réalité | faits | faits validés, impossibles éliminés | **n'invente aucun fait non observé** (anti-hallucination) ; croise avec l'image réelle |
-| 3 · Déduction | faits validés + savoir métier | nature du problème | reste dans le domaine prouvé |
-| 4 · Décision | nature + règles métier | **état + responsabilité + actions** | responsabilité explicite (bailleur / locataire / tiers / sinistre) |
-| 5 · Résolution | décision | message final au locataire | **sécurité d'abord**, parole claire et auto-suffisante |
+| 3 · Déduction | faits validés + savoir métier | hypothèses pondérées (scores) | **pack métier** — le noyau orchestre, ne score pas |
+| 4 · Décision | hypothèses + règles métier | **états candidats + doctrine** | **pack métier** — IRSI, sinistre, responsabilité |
+| 5 · Résolution | décision | thèmes de parole attendus | **pack métier** — garde-fous parole via `applyParoleSupplements` |
 
 **Deux invariants de sécurité vivent DANS le noyau (jamais dans un JSON de règles) :**
 - La Tête 5 sort **toujours** la consigne de sécurité en premier s'il y a danger.
@@ -77,8 +104,97 @@ Il ne connaît **rien** au logement — il sait seulement *comment penser*.
 La discipline de « perception neutre avant conclusion » (héritée de l'ancien Pixtral séparé) est
 **préservée** : c'est le rôle des Têtes 1 et 2, pas un modèle à part.
 
-**Aujourd'hui → cible** : `GrockService.runTurn` devient l'orchestrateur des 5 têtes.
-Les « 5 rôles » déjà présents dans le prompt sont **promus** en structure centrale, propre et nommée.
+**Aujourd'hui → cible** : `GrockService.runTurn` orchestre Couche 0 → Têtes 1–2 (noyau) → Têtes 3–5 (pack) → Port IA.
+Les blocs prompt par tête sont injectés via `buildGrockHeadInputs(signal, domainPack)`.
+
+---
+
+## Pipeline head-input — T1/T2 noyau, T3–T5 pack (juillet 2026)
+
+> Validé et livré en 5 phases (6 juillet 2026). 89 tests Jest `src/grock`.
+
+### Principe
+
+Après la Couche 0 (`PreprocessedSignal`), le **noyau** ne calcule que les Têtes 1 et 2.
+Les Têtes 3 à 5 sont entièrement fournies par le **pack métier** via `DOMAIN_PACK` — aucune logique
+sinistre / infiltration / IRSI dans `preprocessor/` ni dans les modules T3–T5 du noyau.
+
+```
+PreprocessedSignal
+       │
+       ▼
+head-input/ (noyau)          domain/ (pack Couche 3)
+  T1 buildHead1AnalysisInput      enrichHead3(ctx)
+  T2 buildHead2VerificationInput  enrichHead4(ctx, head3)
+       │                          enrichHead5(ctx, head3, head4)
+       └──────── HeadEnrichmentContext ────────┘
+                       │
+                       ▼
+              GrockHeadInputs + promptBlocks[5]
+                       │
+                       ▼
+              GrockService → LLM_OPERATOR
+                       │
+                       ▼
+              domainPack.applyParoleSupplements(...)
+```
+
+### Contrat `GrockDomainPack` (`domain/domain-pack.port.ts`)
+
+| Méthode | Rôle |
+|---|---|
+| `intercomKnowledge` | Savoir injecté prompt (doctrine, AFPOL, opérations) |
+| `pathologyKnowledge` | Consultation pathologie experte |
+| `enrichHead3` | Hypothèses pondérées (scores 0–10, pas de verdict) |
+| `enrichHead4` | États candidats, doctrine assurance, IRSI/recours |
+| `enrichHead5` | Thèmes de parole attendus (checklist, pas de script) |
+| `serializeHeadInputsJournal` | Snapshot admin/debug T3–T5 |
+| `applyParoleSupplements` | Garde-fous parole locataire post-parse (Tête 5) |
+
+Implémentation pilote : `SocialHousingGuyanePack` → `domain/packs/social-housing/`.
+
+Pack neutre (tests, défaut sûr) : `empty-head-enrichment.ts`, `empty-parole-supplement.ts`.
+
+### Carte du code (pipeline 5 têtes)
+
+```
+src/grock/
+  preprocessor/                          Couche 0 — pur (pas de sinistre)
+  head-input/                            Noyau T1/T2 + pipeline
+    head1-analysis.input.ts
+    head2-verification.input.ts
+    head-input.pipeline.ts               buildGrockHeadInputs(signal, domainPack)
+    head-input.types.ts                  Head1, Head2, GrockHeadInputs
+  domain/
+    domain-pack.port.ts                  DOMAIN_PACK + GrockDomainPack
+    head-pack.contract.ts                Types T3–T5 (contrat pack, hors noyau)
+    head-enrichment.types.ts             HeadEnrichmentContext, Head*PackOutput
+    parole-supplement.port.ts            ParoleSupplementInput
+    packs/social-housing/                Métier logement (T3–T5 + parole)
+      head3-deduction.input.ts
+      head4-decision.input.ts
+      head5-resolution.input.ts
+      head5-parole-supplement.ts
+      head-enrichment.ts
+  fixtures/
+    generic-tenant-signal.fixture.ts     Tests isolation noyau (hors infiltration)
+    infiltration-plafond-mobile.fixture.ts   Cas REF mobile validé terrain
+```
+
+### Tests de référence
+
+- `domain/noyau-pack-split.spec.ts` — T1/T2 identiques entre packs ; signal générique sans sinistre
+- `domain/packs/social-housing/social-housing-head.pipeline.spec.ts` — métier infiltration
+- `infiltration-plafond-mobile.regression.spec.ts` — REF mobile (voisin du dessus obligatoire)
+- `docs/tests/REF_INFILTRATION_PLAFOND_MOBILE.md` — fiche cas de référence
+
+### Phases de migration (réalisées)
+
+1. **Contrat pack** — `enrichHead3/4/5` sur `GrockDomainPack`
+2. **Déplacement physique** — modules T3–T5 → `domain/packs/social-housing/`
+3. **Purge noyau** — types T3–T5 dans `head-pack.contract.ts` ; journal délégué au pack
+4. **Tests split** — fixtures génériques, isolation noyau ↔ pack
+5. **ParoleSupplementPort** — `applyParoleSupplements` ; `GrockService` ne importe plus le pack en dur
 
 ---
 
@@ -158,11 +274,117 @@ Chaque étape est **indépendante et testable** (build + suite Jest 214/214) ava
 
 ```
 src/grock/
-  grock.prompt.ts             Couche 2 — prompt maître générique (identité + contrat)
-  kernel/grock-five-heads.ts  Couche 2 — les 5 têtes (structure typée + rendu)
-  grock.service.ts            Couche 2 — orchestration (dépend de LLM_OPERATOR + DOMAIN_PACK)
-  port/                       Couche 1 — PORT IA (llm-operator.port.ts, mistral.operator.ts)
-  domain/                     Couche 3 — PACK MÉTIER (domain-pack.port.ts, social-housing-*.ts)
+  preprocessor/               Couche 0 — préprocesseur (signal normalisé + perception invariante)
+  head-input/                   Couche 2 — T1/T2 noyau + pipeline vers pack
+  grock.prompt.ts               Couche 2 — prompt maître générique (identité + contrat)
+  kernel/grock-five-heads.ts    Couche 2 — les 5 têtes (structure typée + rendu)
+  grock.service.ts              Couche 2 — orchestration (préprocesseur → pack → LLM_OPERATOR)
+  port/                         Couche 1 — PORT IA (llm-operator.port.ts, mistral.operator.ts)
+  domain/                       Couche 3 — PACK MÉTIER (DOMAIN_PACK, packs/social-housing/)
+```
+
+---
+
+## Finalité produit — un seul cerveau, trois surfaces
+
+> Validé par le porteur — 4 juillet 2026.
+
+Grock n'est **pas** trois robots (locataire / admin / technicien). C'est **le même moteur cognitif** (5 têtes + Port IA + pack métier) avec un **interlocuteur** différent :
+
+| Surface | Interlocuteur | Exemple |
+|---|---|---|
+| Mobile / intercom | `tenant` | « Il fait noir, j'allume la lumière » → réponse conversationnelle située |
+| Administration | `admin` | « Pourquoi n'as-tu pas signalé ce cas ? », stats journal, gouvernance |
+| Terrain | `technician` | Aide au diagnostic pathologique sur site (photo, preuves, priorités) |
+| Patrimoine | `landlord` | Synthèse charge, traçabilité, scores — `POST /landlords/me/grock/converse` |
+
+**Principe de parole** : Mistral porte la conversation visible. Les garde-fous code ne remplacent plus la réponse par des templates par état — seulement confidentialité (codes internes) et rejet des mots nus.
+
+**Voix** (à venir) : écoute → même fil → même `runTurn` → synthèse vocale. Pas un second moteur.
+
+**Apprentissage** : journal → sondes → arbitrage humain → doctrine **par principes** (caillou), jamais scénarios par pièce.
+
+### API admin (conversation)
+
+`POST /grock-learning/converse` — dialogue Architecte avec contexte journal/sondes injecté (`interlocutor: admin`).
+
+### Code
+
+```
+kernel/grock-interlocutor.ts   — bloc prompt selon interlocuteur
+kernel/grock-parole-guard.ts   — confiance Mistral (pas de templates par état)
+```
+
+---
+
+## Boucle d'apprentissage — 3 étages (journal → sondes → arbitrage)
+
+> **Grock n'apprend pas tout seul.** NuclearFlush / Tabula Rasa reste la loi : chaque ticket
+> repart d'une ardoise vierge, aucune mémoire fantôme entre sessions. Le seul apprentissage
+> autorisé est **la doctrine curée par l'humain** — jamais un auto-ajustement du modèle.
+> Cette boucle sert à **fabriquer de la doctrine à partir de l'observation**, sous contrôle.
+
+```
+Grock tourne ──► ÉTAGE 1 Journal ──► ÉTAGE 2 Sondes ──► ÉTAGE 3 Arbitrage ──► Doctrine
+ (production)     (écrit chaque       (détecte les       (l'humain tranche      (validated →
+                   décision)           incohérences)      draft → validated)     injectée)
+```
+
+### Étage 1 — Journal de décision (capture)
+
+- Table `grock_decision_journal` (Prisma `GrockDecisionLog`), écriture **best-effort / fire-and-forget** :
+  elle **ne modifie jamais** la réponse renvoyée au locataire ni le contrat d'API.
+- `GrockDecisionJournalService.record({...})` consigne chaque tour : perception, état, responsabilité,
+  parole, note interne, modèle, modèle vision, et un **`photoHash`** (SHA-256 du base64) qui permet
+  de regrouper les décisions prises sur **la même photo**.
+- Rôle : constituer la matière première d'analyse **hors ligne**, sans impacter le chemin locataire.
+
+### Étage 2 — Sondes de qualité (détection offline)
+
+- `grock-quality-probes.ts` — 4 sondes qui lisent le journal et remontent des `GrockLessonCandidate` :
+  - `variance_cadrage` : **même photo, décisions divergentes** selon le cadrage du récit (le signal le plus important : la responsabilité doit s'ancrer sur les faits, pas sur la formulation).
+  - `fuite` : identifiant / jargon interne détecté dans une parole locataire.
+  - `degenerescence` : parole dégénérée (mono-mot, vide, non auto-suffisante).
+  - `preuve_avant_conclusion` : conclusion posée sans preuve visuelle.
+- Exécution offline : `scripts/grock-quality-report.ts` (dump JSON des candidats), utilisable en CI/cron.
+
+### Étage 3 — Arbitrage humain (décision + écriture de doctrine)
+
+- **Aucune écriture automatique.** L'Architecte transforme un cas en **leçon** ; le gate de signature
+  est le passage **`draft → validated`** dans `GROCK_DEDUCTION_LEDGER.json`
+  (`loadGrockDeductionDoctrine` n'injecte **que** les `validated`).
+- Backend (ADMIN) : `GrockLearningController` / `GrockLearningService` + `grock-doctrine-writer.ts`
+  (`appendDraftLesson`, `signLesson`, `rejectLesson` — refus impossible sur une leçon déjà validée).
+  Endpoints : `GET /grock-learning/candidates`, `GET /grock-learning/lessons`,
+  `POST /grock-learning/lessons`, `POST /grock-learning/lessons/:id/sign`, `DELETE /grock-learning/lessons/:id`.
+- Dashboard : page **« Apprentissage Grock »** (`/admin/grock-learning`) — cas à arbitrer à gauche,
+  doctrine (draft + validated) à droite, formulaire de leçon pré-rempli selon le type de cas.
+- Invalidation de cache : une leçon signée est vue au **tour suivant** (`invalidateGrockLedgerCache`).
+
+#### Runbook d'arbitrage (Architecte)
+
+1. Ouvrir **`/admin/grock-learning`** → lire les **cas à arbitrer** (sévérité, résumé, preuves).
+2. Pour un cas pertinent, cliquer **« Rédiger une leçon »** : le formulaire propose un identifiant et un
+   gabarit selon le type de sonde. Vérifier / réécrire `principe`, `déplacement de raisonnement`,
+   `thinking`, `parole locataire`, ajouter des exemples transférables. **Rester en langage métier neutre**
+   (« le locataire », jamais de prénom ni d'identifiant interne).
+3. **Créer le draft** : la leçon est enregistrée en `draft` — **elle n'influence pas encore Grock**.
+4. Relire, puis **« Signer (valider) »** → la leçon passe `validated`, signataire + date tracés ;
+   elle sera injectée au prochain raisonnement du (des) domaine(s) ciblé(s).
+5. Un cas non pertinent : **« Rejeter »** (uniquement possible sur un draft — la doctrine active est protégée).
+
+#### Carte du code (boucle d'apprentissage)
+
+```
+src/grock/learning/
+  grock-decision-journal.service.ts  Étage 1 — capture (record, hashImage, loadForAnalysis)
+  grock-quality-probes.ts            Étage 2 — 4 sondes → GrockLessonCandidate
+  grock-doctrine-writer.ts           Étage 3 — append draft / sign / reject (écrit le ledger)
+  grock-learning.service.ts          Étage 3 — orchestration (candidats + cycle de doctrine)
+  grock-learning.controller.ts       Étage 3 — endpoints ADMIN
+  grock-learning.module.ts           câblage (importé dans app.module.ts)
+scripts/grock-quality-report.ts      Étage 2 — rapport offline des candidats
+knowledge/doctrine/GROCK_DEDUCTION_LEDGER.json   la doctrine (draft/validated)
 ```
 
 ---

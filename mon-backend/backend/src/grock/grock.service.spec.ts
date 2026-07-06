@@ -1,4 +1,7 @@
-import { parseGrockStructuredReply } from './grock.service';
+import {
+  parseGrockStructuredReply,
+  shouldRepairGrockStructuredReply,
+} from './grock.service';
 
 describe('parseGrockStructuredReply', () => {
   it('accepte et conserve note_interne en JSON strict', () => {
@@ -47,5 +50,33 @@ describe('parseGrockStructuredReply', () => {
       'La trace est au plafond ou sur le mur ? Depuis quand ?',
     );
     expect(parsed.note_interne).toBe('Le validateur ne coupe plus la parole.');
+  });
+});
+
+describe('shouldRepairGrockStructuredReply', () => {
+  it('ne répare pas si acknowledgment riche mais champs internes vides', () => {
+    const structured = parseGrockStructuredReply(
+      JSON.stringify({
+        thinking: 'Sinistre actif, origine voisine.',
+        state: 'sinistre',
+        next_action: '',
+        acknowledgment:
+          'Déclarez le sinistre à votre assurance sous 5 jours. Nous transmettons au technicien.',
+        note_interne: '',
+      }),
+    );
+
+    expect(
+      shouldRepairGrockStructuredReply(
+        structured,
+        'Déclarez le sinistre à votre assurance sous 5 jours. Nous transmettons au technicien.',
+      ),
+    ).toBe(false);
+  });
+
+  it('répare si JSON non conforme ou acknowledgment dégénéré', () => {
+    const malformed = parseGrockStructuredReply('pas du json du tout');
+    expect(shouldRepairGrockStructuredReply(malformed, '')).toBe(true);
+    expect(shouldRepairGrockStructuredReply(malformed, 'technicien')).toBe(true);
   });
 });

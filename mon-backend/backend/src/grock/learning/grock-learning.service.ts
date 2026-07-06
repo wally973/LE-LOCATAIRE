@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { GrockService, type GrockChatMessage, type GrockTurnResult } from '../grock.service';
 import { GrockDecisionJournalService } from './grock-decision-journal.service';
 import {
   runQualityProbes,
@@ -24,7 +25,63 @@ import {
  */
 @Injectable()
 export class GrockLearningService {
-  constructor(private readonly journal: GrockDecisionJournalService) {}
+  constructor(
+    private readonly journal: GrockDecisionJournalService,
+    private readonly grock: GrockService,
+  ) {}
+
+  /** Contexte journal + sondes + derniers PreprocessedSignal pour dialogue admin. */
+  private async buildAdminContext(): Promise<string> {
+    const rows = await this.journal.loadForAnalysis(200);
+    const { analyzed, byKind, candidates } = await this.listCandidates(200);
+    const ledger = readGrockLedgerFresh();
+    const validated = ledger.principles.filter((p) => p.status === 'validated').length;
+    const drafts = ledger.principles.filter((p) => p.status === 'draft').length;
+    const lowSignal = rows.filter((r) => r.signalQuality != null && r.signalQuality < 4).length;
+    const lines = [
+      `Journal de décision : ${rows.length} tours chargés (fenêtre analyse : ${analyzed}).`,
+      `Tours signalQuality < 4 : ${lowSignal}.`,
+      `Leçons doctrine : ${validated} validées, ${drafts} brouillon.`,
+      `Sondes actives : ${Object.entries(byKind)
+        .map(([k, n]) => `${k}=${n}`)
+        .join(', ') || 'aucun cas'}.`,
+    ];
+    if (candidates.length) {
+      lines.push('Cas récents à arbitrer (résumé) :');
+      for (const c of candidates.slice(0, 5)) {
+        lines.push(`- [${c.kind}] ${c.summary}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  /**
+   * Conversation Architecte ↔ Grock — même moteur (5 têtes), interlocuteur admin.
+   * Permet questions gouvernance, stats, « pourquoi n’as-tu pas signalé… ».
+   */
+  async converseAsAdmin(params: {
+    message: string;
+    title?: string;
+    description?: string;
+    sessionMessages?: GrockChatMessage[];
+  }): Promise<GrockTurnResult> {
+    const msg = params.message?.trim();
+    if (!msg) throw new BadRequestException('Message requis.');
+    const adminContext = await this.buildAdminContext();
+    return this.grock.runTurn({
+      tenantFirstName: '',
+      title: params.title?.trim() || 'Dialogue administration Grock',
+      description:
+        params.description?.trim() ||
+        'Échange Architecte : gouvernance, qualité, statistiques, explication des décisions.',
+      ticketHistory: [],
+      sessionMessages: params.sessionMessages ?? [],
+      tenantMessage: msg,
+      mode: 'tenant_turn',
+      interlocutor: 'admin',
+      adminContext,
+    });
+  }
 
   /** File des cas à arbitrer, produite par les sondes de qualité. */
   async listCandidates(limit = 500): Promise<{

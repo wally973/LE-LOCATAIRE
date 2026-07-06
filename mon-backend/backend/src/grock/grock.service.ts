@@ -16,11 +16,46 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import { LLM_OPERATOR, type LlmOperatorPort } from './port/llm-operator.port';
 import { DOMAIN_PACK, type GrockDomainPack } from './domain/domain-pack.port';
+import {
+  isDegenerateAcknowledgment,
+  resolveVisibleSpeech,
+  stripInternalJargon,
+} from './kernel/grock-parole-guard';
+import {
+  renderInterlocutorBlock,
+  type GrockInterlocutor,
+} from './kernel/grock-interlocutor';
+
+export { stripInternalJargon, isDegenerateAcknowledgment } from './kernel/grock-parole-guard';
+export type { GrockInterlocutor } from './kernel/grock-interlocutor';
+export type { GrockConfidenceScores } from './kernel/grock-confidence-scores';
+export type { PreprocessedSignalJournalSnapshot } from './preprocessor/preprocessed-signal.serializer';
+import {
+  serializePreprocessedSignalForJournal,
+  type PreprocessedSignalJournalSnapshot,
+} from './preprocessor/preprocessed-signal.serializer';
+import {
+  mergeConfidenceScores,
+  parseScoresFromGrockRaw,
+  renderSignalQualityModulation,
+  type GrockConfidenceScores,
+} from './kernel/grock-confidence-scores';
+import {
+  applyScoreModulation,
+  buildScoreModulationPromptBlock,
+  filterPreprocessedSignalForSurface,
+  filterScoresForSurface,
+} from './kernel/grock-score-modulation';
 import { GrockDecisionJournalService } from './learning/grock-decision-journal.service';
+import {
+  buildGrockHeadInputs,
+  serializeHeadInputsForJournal,
+} from './head-input/head-input.pipeline';
+import type { HeadInputsJournalSnapshot } from './domain/head-pack.contract';
+import { GrockPreprocessorService } from './preprocessor/grock-preprocessor.service';
 import { GROCK_SYSTEM_PROMPT } from './grock.prompt';
 import {
   GROCK_PERCEPTION_LOG_TITLE,
-  GROCK_VISION_PERCEPTION_PROMPT,
 } from './grock-vision.prompt';
 import { GROCK_PATHOLOGY_ASSISTANT_PROMPT } from './grock-pathology.prompt';
 
@@ -109,6 +144,18 @@ export interface GrockTurnInput {
 
   mode: 'opening' | 'tenant_turn';
 
+  /** Même moteur — locataire (défaut), admin (Architecte), technicien (terrain), bailleur (patrimoine). */
+  interlocutor?: GrockInterlocutor;
+
+  /** Données administration injectées quand interlocutor = admin (journal, sondes…). */
+  adminContext?: string | null;
+
+  /** Contexte dossier injecté quand interlocutor = landlord (ticket, parc). */
+  landlordContext?: string | null;
+
+  /** Identifiant ticket pour journalisation (stringifié en base). */
+  ticketId?: number;
+
   /** Photos du tour courant (perception Pixtral puis dialogue). */
   images?: GrockImageAttachment[];
 
@@ -130,6 +177,15 @@ export interface GrockTurnResult {
 
   /** Réflexion interne libre du modèle — non visible locataire. */
   noteInterne: string | null;
+
+  /** Scores internes (Couche 0 + 5 têtes) — non exposés au locataire. */
+  scores?: GrockConfidenceScores | null;
+
+  /** Snapshot Couche 0 — journal + surfaces bailleur/admin/technicien. */
+  preprocessedSignal?: PreprocessedSignalJournalSnapshot | null;
+
+  /** Capteurs par tête (T1→T5) — admin / debug. */
+  headInputs?: HeadInputsJournalSnapshot | null;
 
   fromLlm: boolean;
 
@@ -270,6 +326,9 @@ function buildConversationSteerHint(
   const msg = tenantMessage.trim();
   if (!msg) return null;
 
+  const hints: string[] = [];
+  const msgNorm = msg.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+
   const shortAck =
     /^(d'?accord|ok|oui|c'?est fait|coup[eé])\s*\.?$/iu.test(msg) ||
     (msg.length <= 24 && /^(oui|ok|d'?accord)/iu.test(msg));
@@ -277,29 +336,74 @@ function buildConversationSteerHint(
   const lastAssistant = [...sessionMessages]
     .reverse()
     .find((m) => m.role === 'assistant');
+  const lastAck = lastAssistant?.text?.trim() ?? '';
   const lastState = lastAssistant?.state ?? '';
   const safetyTurn = ['SAFETY', 'ACTION_LOCATAIRE', 'WAITING_TENANT'].includes(
     lastState,
   );
 
+  if (lastAck) {
+    hints.push(
+      'Écran mobile : acknowledgment court (4–6 phrases), ne répète pas le message précédent mot pour mot.',
+    );
+    if (/transm|technicien|plombier/i.test(lastAck) && /plombier|technicien|envoy/i.test(msgNorm)) {
+      hints.push(
+        'Le locataire redemande un plombier/technicien alors que tu as déjà transmis : confirme brièvement sans refaire tout le discours.',
+      );
+    }
+  }
+
+  const answeredOrigin =
+    /ballon|toitur|panneau|collecteur|partie commune|sur le toit|sur la toiture|terrasse|comble|dehors|ext[eé]rieur|(?:interieur|int[eé]rieur|logement|cuisine|sdb).*(?:fuite|ballon|chauffe|eau)|(?:fuite|eau).*(?:ballon|toitur|panneau|collecteur|interieur|int[eé]rieur)/i.test(
+      msgNorm,
+    );
+  const repeatsClaim =
+    /plombier|technicien|envoy|interven|fuite|r[eé]clam|urgent|depann|d[eé]pann/.test(msgNorm);
+  const enqueteEnCours =
+    lastState === 'ASK_ONE_QUESTION' ||
+    lastState === 'NEED_PHOTO' ||
+    (lastAck.includes('?') && !/transm|technicien|plombier/i.test(lastAck));
+  const reclamationSansReponse =
+    enqueteEnCours && repeatsClaim && !answeredOrigin;
+
+  if (reclamationSansReponse) {
+    hints.push(
+      'PRIORITÉ — réclamation sans réponse à ton enquête : interdiction de reprendre la même question ou de redemander la photo. state bailleur_responsable — transmets le ticket au technicien bailleur (visite diagnostic + trace dossier). note_interne = origine floue, question sans réponse, hypothèses. acknowledgment = confirmation courte (transmission, diagnostic sur place, accès).',
+    );
+  }
+
+  if (/chauffe[\s-]?eau|solaire|ecs|eau chaude/.test(msgNorm)) {
+    if (reclamationSansReponse) {
+      hints.push(
+        'Chauffe-eau solaire : ECS bailleur — transmission diagnostic sur place (origine ballon vs toiture à trancher au passage).',
+        'Pas de protocole électrique ni 112 sans symptôme électrique.',
+      );
+    } else {
+      hints.push(
+        'Chauffe-eau solaire : si origine floue au premier contact, pose UNE question (fuite au ballon/raccords intérieurs ou sur toiture/collecteurs ?).',
+        'Pas de protocole électrique ni 112 sans symptôme électrique ; vanne fermée = valider, pas dramatiser.',
+      );
+    }
+  }
+
   if (shortAck && safetyTurn) {
-    return [
-      '--- Consigne tour suivant ---',
+    hints.push(
       'Le locataire a acquiescé aux consignes de sécurité : ne répète pas couper l’électricité ni les mêmes phrases.',
-      'Enchaîne avec state sinistre si dégât des eaux actif au plafond / luminaires,',
-      'ou NEED_PHOTO, ou UNE question (depuis quand, étage, voisin au-dessus, courant coupé oui/non).',
-    ].join('\n');
-  }
-
-  if (!shortAck && safetyTurn) {
-    return [
-      '--- Consigne tour suivant ---',
+      'Enchaîne avec sinistre si dégât des eaux actif, NEED_PHOTO, ou UNE question (origine, étage, voisin).',
+    );
+  } else if (!shortAck && safetyTurn) {
+    hints.push(
       'Le locataire apporte un complément : intègre-le, ne répète pas le bloc sécurité déjà donné.',
-      'Avance vers sinistre, NEED_PHOTO ou READY_TICKET selon les faits.',
-    ].join('\n');
+      'Avance vers sinistre, NEED_PHOTO, ASK_ONE_QUESTION ou READY_TICKET selon les faits.',
+    );
+  } else if (lastAck && !shortAck && !reclamationSansReponse) {
+    hints.push(
+      'Tour suivant : avance la conversation (UNE question d’enquête ou confirmation courte), ne reformule pas tout le signalement.',
+    );
   }
 
-  return null;
+  if (!hints.length) return null;
+  return ['--- Consigne tour suivant ---', ...hints].join('\n');
 }
 
 function toChatTurns(messages: GrockChatMessage[]): Array<{ role: 'user' | 'assistant'; content: string }> {
@@ -333,6 +437,7 @@ interface GrockStructuredReply {
   next_action: string;
   acknowledgment: string;
   note_interne: string;
+  scores?: GrockConfidenceScores;
 }
 
 export interface GrockReply {
@@ -499,100 +604,19 @@ function firstQuestionOnly(text: string): string {
 }
 
 /**
- * Garde-fou INV2 : un vrai message au locataire est une PHRASE, pas un mot nu.
- * Certains tours Mistral renvoient un `acknowledgment` réduit à un jeton
- * (« sécurité », « urgence », « photo »…) : ce n'est jamais une parole affichable.
- * On considère l'accusé de réception comme dégénéré s'il ne contient pas de
- * question et fait moins de trois mots.
+ * Déclenche la réparation JSON seulement si la parole locataire est absente,
+ * illisible ou dégénérée — pas si next_action / note_interne sont vides
+ * (champs internes optionnels).
  */
-function isDegenerateAcknowledgment(ack: string): boolean {
-  const t = ack.trim();
-  if (!t) return true;
-  if (t.includes('?')) return false;
-  const words = t.split(/\s+/).filter(Boolean);
-  return words.length < 3;
-}
-
-/**
- * Filet anti-fuite (confidentialité) : retire de la parole visible les
- * identifiants internes que le modèle aurait pu recopier depuis une capture
- * d'écran (codes de suivi type « QV0373 », références alphanumériques).
- * C'est un garde de confidentialité, PAS un moteur de raisonnement : il ne
- * réécrit pas le sens, il masque seulement des jetons techniques porteurs de
- * chiffres. Les acronymes pures (sans chiffre) sont gérés par le prompt.
- */
-export function stripInternalJargon(text: string): string {
-  if (!text) return text;
-  return text
-    .replace(/\b[A-Z]{2,}\d[A-Z0-9]*\b/g, '')
-    .replace(/\b[A-Z]\d{2,}[A-Z0-9]*\b/g, '')
-    .replace(/\(\s*\)/g, '')
-    .replace(/\s{2,}/g, ' ')
-    // Uniquement « . » et « , » : le français garde l'espace avant ? ! : ;
-    .replace(/\s+([.,])/g, '$1')
-    .trim();
-}
-
-/** Phrase de repli garantie non dégénérée quand aucun état spécifique ne convient. */
-const SAFE_GENERIC_ACK =
-  'Dites-moi ce que vous voyez maintenant : où se situe le problème et depuis quand ?';
-
-function fallbackAcknowledgment(
-  state: GrockConversationState,
-  nextAction: string,
-): string {
-  if (state === 'READY_TICKET') {
-    return "OK, j’ai assez d’éléments. J’envoie un ticket au technicien du secteur, il vous contactera.";
-  }
-  if (state === 'SAFETY') {
-    return "Si quelqu’un est bloqué ou en danger, appelez les secours maintenant. J’envoie aussi un ticket au technicien du secteur.";
-  }
-  if (state === 'NEED_PHOTO') {
-    return 'Pouvez-vous envoyer une photo de la zone concernée ?';
-  }
-  if (state === 'bailleur_responsable') {
-    return "C’est à la charge du bailleur : je transmets un ticket au technicien du secteur, il vous contactera.";
-  }
-  if (state === 'locataire_responsable') {
-    return "D’après ce que je vois, cet entretien est à votre charge. Dites-moi si vous voulez que je vous explique la marche à suivre.";
-  }
-  if (state === 'sinistre') {
-    return "Cela ressemble à un sinistre : ne touchez à rien, prenez une photo si c’est sans danger, et je fais remonter le dossier au bailleur.";
-  }
-  const trimmed = nextAction.trim();
-  // Un état ouvert (question / action) : on réutilise next_action SEULEMENT s'il
-  // constitue une vraie phrase — jamais un mot nu (« technicien »), sinon on
-  // retomberait dans une réponse dégénérée.
-  const usableNextAction = trimmed && !isDegenerateAcknowledgment(trimmed) ? trimmed : '';
-  if (state === 'ASK_ONE_QUESTION') {
-    return usableNextAction.endsWith('?')
-      ? usableNextAction
-      : 'Pouvez-vous me confirmer en un mot : oui ou non ?';
-  }
-  if (state === 'ACTION_LOCATAIRE') {
-    return (
-      usableNextAction ||
-      'Faites l’action la plus sûre maintenant, puis dites-moi si le problème continue.'
-    );
-  }
-  return usableNextAction || SAFE_GENERIC_ACK;
-}
-
-function validateAcknowledgment(params: {
-  acknowledgment: string;
-  state: GrockConversationState;
-  nextAction: string;
-}): string {
-  const ack = params.acknowledgment.trim();
-
-  // Vide OU mot nu (« sécurité », « urgence »…) : jamais affichable au locataire.
-  if (!ack || isDegenerateAcknowledgment(ack)) {
-    const fallback = fallbackAcknowledgment(params.state, params.nextAction);
-    // Ceinture + bretelles : même le repli ne doit jamais être dégénéré.
-    return isDegenerateAcknowledgment(fallback) ? SAFE_GENERIC_ACK : fallback;
-  }
-
-  return ack;
+export function shouldRepairGrockStructuredReply(
+  structured: GrockStructuredReply,
+  rawAcknowledgment: string,
+): boolean {
+  if (structured.thinking.startsWith('Réponse Mistral non conforme')) return true;
+  if (structured.note_interne.startsWith('Sortie brute conservée')) return true;
+  const ack = (rawAcknowledgment || structured.acknowledgment).trim();
+  if (!ack) return true;
+  return isDegenerateAcknowledgment(ack);
 }
 
 /**
@@ -615,7 +639,7 @@ function parseGrockStructuredReplyRaw(raw: string): GrockStructuredReply {
       state,
       next_action: nextAction,
       note_interne: parsed.note_interne.trim(),
-      acknowledgment: validateAcknowledgment({
+      acknowledgment: resolveVisibleSpeech({
         acknowledgment,
         state,
         nextAction,
@@ -638,7 +662,7 @@ function parseGrockStructuredReplyRaw(raw: string): GrockStructuredReply {
       state: looseState,
       next_action: looseNextAction.trim(),
       note_interne: looseNoteInterne.trim(),
-      acknowledgment: validateAcknowledgment({
+      acknowledgment: resolveVisibleSpeech({
         acknowledgment: looseAcknowledgment,
         state: looseState,
         nextAction: looseNextAction,
@@ -683,6 +707,8 @@ export class GrockService {
 
     @Inject(DOMAIN_PACK)
     private readonly domainPack: GrockDomainPack,
+
+    private readonly preprocessor: GrockPreprocessorService,
 
     private readonly prisma: PrismaService,
 
@@ -842,46 +868,26 @@ export class GrockService {
     return { answer: result.text.trim(), model: result.model };
   }
 
-  /** Perception visuelle brute — Pixtral, sans diagnostic. */
+  /** Perception visuelle brute — déléguée au Préprocesseur (Couche 0). */
   async runVisualPerception(input: {
     title: string;
     description: string;
     tenantMessage?: string;
     image: GrockImageAttachment;
   }): Promise<{ perception: string; model: string } | null> {
-    // Perception AVEUGLE AU CADRAGE : on ne transmet PAS le titre/description/
-    // message du locataire au modèle de vision. Sinon un récit orienté (« fuite
-    // d'eau », « problème électrique ») teinte la lecture des pixels et la même
-    // photo est décrite différemment selon la suggestion. La perception doit être
-    // invariante ; c'est la tête de raisonnement (qui voit l'image ET le récit)
-    // qui confronte ensuite les deux.
-    const result = await this.operator.see({
-      systemPrompt: GROCK_VISION_PERCEPTION_PROMPT,
-      userText:
-        'Décris uniquement ce qui est objectivement visible sur la photo. ' +
-        'Ne tiens compte d’aucun titre, récit ou hypothèse : décris les faits ' +
-        'visuels (objets, matériaux, désordres, mesures apparentes), sans orientation.',
-      image: input.image,
-      maxTokens: 500,
-      timeoutMs: 90_000,
-    });
-
-    if (!result?.text?.trim()) {
-      this.logger.warn('[Grock] Perception visuelle vide ou indisponible');
-      return null;
-    }
-
-    return { perception: result.text.trim(), model: result.model };
+    return this.preprocessor.runInvariantVisualPerception(input.image);
   }
 
   private async repairStructuredReply(raw: string): Promise<GrockStructuredReply | null> {
     const repairPrompt = [
-      'Tu répares une sortie Grock mal formée.',
+      'Tu répares une sortie Grock mal formée (JSON illisible ou acknowledgment absent).',
       'Ne change pas le fond du raisonnement. Ne rajoute pas de diagnostic.',
       'Retourne uniquement un JSON strict valide avec ce schéma :',
-      '{"thinking":"...","state":"ASK_ONE_QUESTION|NEED_PHOTO|READY_TICKET|bailleur_responsable|locataire_responsable|sinistre|SAFETY|ACTION_LOCATAIRE|WAITING_TENANT|DOMAIN_SHIFT","next_action":"...","acknowledgment":"...","note_interne":"..."}',
-      'acknowledgment doit être la parole visible pour le locataire, courte et naturelle.',
-      'note_interne doit conserver toute réflexion interne utile non affichable au locataire.',
+      '{"thinking":"...","scores":{"factExtractionConfidence":0,"dangerLevel":0,"realityCheckConfidence":0,"inferenceConfidence":0,"decisionConfidence":0,"communicationIntensity":0},"state":"ASK_ONE_QUESTION|NEED_PHOTO|READY_TICKET|bailleur_responsable|locataire_responsable|sinistre|SAFETY|ACTION_LOCATAIRE|WAITING_TENANT|DOMAIN_SHIFT","next_action":"...","acknowledgment":"...","note_interne":"..."}',
+      'acknowledgment = message COMPLET au locataire (écran mobile, 4–6 phrases courtes) : sécurité proportionnée, marche à suivre, photo si utile, suite bailleur — pas une version raccourcie qui vide le sens, mais pas de pavé alarmiste.',
+      'Ne remplace jamais un acknowledgment riche par « nous envoyons un technicien » seul.',
+      'note_interne = raisonnement technique interne (pathologie, origine, responsabilité) ; ne déplace pas dans note_interne ce que le locataire doit faire ou savoir.',
+      'Si l’acknowledgment original est déjà correct, conserve-le tel quel.',
     ].join('\n');
 
     try {
@@ -922,73 +928,70 @@ export class GrockService {
 
 
 
-    // Aucun prénom inventé : si le locataire ne l'a pas donné, on ne fabrique
-    // pas d'identité. Grock est instruit de rester générique (« Bonjour »).
-    const name = input.tenantFirstName.trim();
-
-    let visualPerception: string | null = null;
-
-    let visionModel: string | null = null;
-
-    const image = input.images?.[input.images.length - 1];
-
-    if (image) {
-
-      const perc = await this.runVisualPerception({
-
-        title: input.title,
-
-        description: input.description,
-
-        tenantMessage: input.tenantMessage || undefined,
-
-        image,
-
-      });
-
-      if (perc) {
-
-        visualPerception = perc.perception;
-
-        visionModel = perc.model;
-
-      }
-
-    }
-
-    // Savoir métier fourni par le PACK (Couche 3) : le noyau ne connaît ni les
-    // pathologies, ni le logement social, ni la doctrine — il les reçoit ici.
-    const knowledge = this.domainPack.intercomKnowledge({
+    const signal = await this.preprocessor.preprocess({
+      tenantFirstName: input.tenantFirstName,
       title: input.title,
       description: input.description,
       tenantMessage: input.tenantMessage,
       sessionMessages: input.sessionMessages,
+      interlocutor: input.interlocutor,
+      adminContext: input.adminContext,
+      images: input.images,
+    });
+
+    const visualPerception = signal.visualPerceptionRaw;
+    const visionModel = signal.visionModel;
+
+    const headInputs = buildGrockHeadInputs(signal, this.domainPack);
+    const headInputsSnapshot = serializeHeadInputsForJournal(headInputs, this.domainPack);
+
+    // Savoir métier fourni par le PACK (Couche 3) : le noyau ne connaît ni les
+    // pathologies, ni le logement social, ni la doctrine — il les reçoit ici.
+    const knowledge = this.domainPack.intercomKnowledge({
+      title: signal.title,
+      description: signal.description,
+      tenantMessage: signal.tenantMessage,
+      sessionMessages: signal.sessionMessages,
       visualPerception,
     });
 
     const steerHint = buildConversationSteerHint(
       input.mode,
-      input.sessionMessages,
-      input.tenantMessage,
+      signal.sessionMessages,
+      signal.tenantMessage,
     );
+
+    const interlocutor = signal.interlocutor;
+
+    const surfaceContext =
+      interlocutor === 'admin'
+        ? input.adminContext
+        : interlocutor === 'landlord'
+          ? input.landlordContext
+          : null;
 
     const systemPrompt = [
 
       GROCK_SYSTEM_PROMPT,
 
+      '',
+
+      renderInterlocutorBlock(interlocutor, surfaceContext),
+
       ...knowledge.head.flatMap((block) => ['', block]),
 
       '',
 
-      '--- Signalement ---',
+      signal.signalementBlock,
 
-      name
-        ? `Locataire : ${name}`
-        : 'Locataire : prénom non communiqué — ne fabrique aucun prénom, dis simplement « Bonjour ».',
+      ...headInputs.promptBlocks.flatMap((block) => ['', block]),
 
-      `Titre : ${input.title}`,
+      '',
+      '--- Couche 0 · signalQuality ---',
+      renderSignalQualityModulation(signal.signalQuality),
 
-      `Description : ${input.description}`,
+      '',
+      buildScoreModulationPromptBlock(interlocutor, signal.signalQuality),
 
       ...(visualPerception
 
@@ -1006,11 +1009,11 @@ export class GrockService {
 
 
 
-    const turns = toChatTurns(input.sessionMessages);
+    const turns = toChatTurns(signal.sessionMessages);
 
     if (!turns.length) {
 
-      const opening = [input.title, input.description].filter(Boolean).join('\n').trim();
+      const opening = [signal.title, signal.description].filter(Boolean).join('\n').trim();
 
       turns.push({ role: 'user', content: opening || 'Signalement locataire' });
 
@@ -1047,21 +1050,41 @@ export class GrockService {
     // d'abord Grock reformuler un vrai message via la réparation (priorité IA).
     const rawAcknowledgment =
       extractLooseStringField(result.text, 'acknowledgment') ?? '';
-    if (
-      structured.thinking.startsWith('Réponse Mistral non conforme') ||
-      !structured.next_action.trim() ||
-      !structured.note_interne.trim() ||
-      structured.note_interne.startsWith('Sortie brute conservée') ||
-      isDegenerateAcknowledgment(rawAcknowledgment)
-    ) {
+    if (shouldRepairGrockStructuredReply(structured, rawAcknowledgment)) {
       structured = (await this.repairStructuredReply(result.text)) ?? structured;
     }
+
+    let scores = mergeConfidenceScores(
+      signal.signalQuality,
+      parseScoresFromGrockRaw(result.text),
+    );
+    const modulated = applyScoreModulation({
+      scores,
+      state: structured.state,
+      acknowledgment: structured.acknowledgment,
+      thinking: structured.thinking,
+    });
+    scores = modulated.scores;
+    structured = {
+      ...structured,
+      scores,
+      state: modulated.state,
+      acknowledgment: modulated.acknowledgment,
+      thinking: modulated.thinking,
+    };
+
     // Confidentialité : on masque tout identifiant interne dans la parole visible,
     // puis on re-valide (le masquage ne doit pas produire un message dégénéré).
-    structured.acknowledgment = validateAcknowledgment({
-      acknowledgment: stripInternalJargon(structured.acknowledgment),
+    structured.acknowledgment = resolveVisibleSpeech({
+      acknowledgment: structured.acknowledgment,
       state: structured.state,
       nextAction: structured.next_action,
+    });
+    structured.acknowledgment = this.domainPack.applyParoleSupplements({
+      acknowledgment: structured.acknowledgment,
+      headInputs,
+      interlocutor,
+      state: structured.state,
     });
     if (structured.note_interne.trim()) {
       // eslint-disable-next-line no-console
@@ -1078,19 +1101,32 @@ export class GrockService {
       note_interne: structured.note_interne ?? null,
     });
 
+    const image = input.images?.[input.images.length - 1];
+
+    const preprocessedSnapshot = serializePreprocessedSignalForJournal(signal);
+    const journalPreprocessorBundle = JSON.stringify({
+      signal: preprocessedSnapshot,
+      headInputs: headInputsSnapshot,
+    });
+
     // Journal de décision (hors session) : matière brute des sondes de qualité.
     // La clé photoHash corrèle les tours portant la même image (sonde variance).
     await this.decisionJournal.record({
+      ticketId: input.ticketId != null ? String(input.ticketId) : null,
       photoHash: GrockDecisionJournalService.hashImage(image?.base64),
-      title: input.title || null,
-      description: input.description || null,
-      tenantMessage: input.tenantMessage || null,
+      title: signal.title || null,
+      description: signal.description || null,
+      tenantMessage: signal.tenantMessage || null,
       perception: visualPerception,
       state: structured.state ?? null,
       acknowledgment: structured.acknowledgment ?? null,
       noteInterne: structured.note_interne || null,
       model: result.model ?? null,
       visionModel,
+      signalQuality: signal.signalQuality,
+      scores: JSON.stringify(scores),
+      interlocutor,
+      preprocessedSignal: journalPreprocessorBundle,
     });
 
     return {
@@ -1106,6 +1142,18 @@ export class GrockService {
       nextAction: structured.next_action,
 
       noteInterne: structured.note_interne || null,
+
+      scores: filterScoresForSurface(scores, interlocutor),
+
+      preprocessedSignal: filterPreprocessedSignalForSurface(
+        preprocessedSnapshot,
+        interlocutor,
+      ),
+
+      headInputs:
+        interlocutor === 'admin' || interlocutor === 'landlord'
+          ? headInputsSnapshot
+          : null,
 
       fromLlm: true,
 

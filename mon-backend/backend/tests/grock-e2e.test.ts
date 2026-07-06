@@ -4,6 +4,7 @@ import { LiaHostService } from '../src/agents/orchestrateur/conversation/lia-hos
 import { GrockService, parseGrockJson } from '../src/grock/grock.service';
 import { MistralOperator } from '../src/grock/port/mistral.operator';
 import { SocialHousingGuyanePack } from '../src/grock/domain/social-housing-guyane.pack';
+import { GrockPreprocessorService } from '../src/grock/preprocessor/grock-preprocessor.service';
 import { GROCK_SYSTEM_PROMPT } from '../src/grock/grock.prompt';
 
 async function main() {
@@ -88,9 +89,11 @@ async function main() {
   // Le noyau Grock parle au PORT IA ; on branche l'opérateur Mistral réel
   // (qui délègue au host instrumenté ci-dessus pour la capture du prompt).
   const operator = new MistralOperator(host);
+  const preprocessor = new GrockPreprocessorService(operator);
   const grock = new GrockService(
     operator,
     new SocialHousingGuyanePack(),
+    preprocessor,
     prisma as never,
   );
   const routing = new AiRoutingService(

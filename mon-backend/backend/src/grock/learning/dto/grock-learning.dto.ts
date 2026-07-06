@@ -56,3 +56,20 @@ export class ProposeLessonDto {
   @MaxLength(64)
   sourcePhotoHash?: string;
 }
+
+/** Dialogue Architecte ↔ Grock (même moteur cognitif). */
+export class ConverseGrockDto {
+  @IsString()
+  @MaxLength(4000)
+  message!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+}

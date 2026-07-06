@@ -3,6 +3,8 @@ import {
   probeDegenerescence,
   probeFuite,
   probePreuveAvantConclusion,
+  probeScoreIncoherence,
+  probeSignalQualityFaible,
   probeVarianceCadrage,
   runQualityProbes,
 } from './grock-quality-probes';
@@ -21,6 +23,10 @@ function row(partial: Partial<GrockJournalRow>): GrockJournalRow {
     noteInterne: partial.noteInterne ?? null,
     model: partial.model ?? null,
     visionModel: partial.visionModel ?? null,
+    signalQuality: partial.signalQuality ?? null,
+    scores: partial.scores ?? null,
+    interlocutor: partial.interlocutor ?? null,
+    preprocessedSignal: partial.preprocessedSignal ?? null,
     createdAt: partial.createdAt ?? new Date(),
   };
 }
@@ -82,6 +88,37 @@ describe('Sondes de qualité Grock (étage 2)', () => {
     const found = probePreuveAvantConclusion(rows);
     expect(found).toHaveLength(1);
     expect(found[0].summary).toContain('bailleur_responsable');
+  });
+
+  it('score_incoherence : danger faible + communication intense → candidat', () => {
+    const rows = [
+      row({
+        scores: JSON.stringify({ dangerLevel: 2, communicationIntensity: 7 }),
+        acknowledgment: 'Quittez immédiatement le logement.',
+      }),
+    ];
+    expect(probeScoreIncoherence(rows)).toHaveLength(1);
+  });
+
+  it('score_incoherence : inference faible + décision ferme → candidat high', () => {
+    const rows = [
+      row({
+        scores: JSON.stringify({ inferenceConfidence: 2, dangerLevel: 3, communicationIntensity: 2 }),
+        state: 'bailleur_responsable',
+        acknowledgment: 'Transmission au bailleur.',
+      }),
+    ];
+    const found = probeScoreIncoherence(rows);
+    expect(found).toHaveLength(1);
+    expect(found[0].severity).toBe('high');
+  });
+
+  it('signal_quality_faible : score bas sans photo → candidat', () => {
+    const rows = [
+      row({ signalQuality: 2, state: 'bailleur_responsable', acknowledgment: 'Transmission.' }),
+      row({ signalQuality: 2, state: 'NEED_PHOTO', acknowledgment: 'Envoyez une photo.' }),
+    ];
+    expect(probeSignalQualityFaible(rows)).toHaveLength(1);
   });
 
   it('runQualityProbes : agrège et trie par sévérité (high avant warn)', () => {

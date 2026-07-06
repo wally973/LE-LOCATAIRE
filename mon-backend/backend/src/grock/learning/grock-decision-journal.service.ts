@@ -28,6 +28,10 @@ export interface GrockDecisionRecord {
   noteInterne?: string | null;
   model?: string | null;
   visionModel?: string | null;
+  signalQuality?: number | null;
+  scores?: string | null;
+  interlocutor?: string | null;
+  preprocessedSignal?: string | null;
 }
 
 @Injectable()
@@ -64,7 +68,11 @@ export class GrockDecisionJournalService {
           "acknowledgment",
           "noteInterne",
           "model",
-          "visionModel"
+          "visionModel",
+          "signalQuality",
+          "scores",
+          "interlocutor",
+          "preprocessedSignal"
         )
         VALUES (
           ${entry.ticketId ?? null},
@@ -78,7 +86,11 @@ export class GrockDecisionJournalService {
           ${entry.acknowledgment ?? null},
           ${entry.noteInterne ?? null},
           ${entry.model ?? null},
-          ${entry.visionModel ?? null}
+          ${entry.visionModel ?? null},
+          ${entry.signalQuality ?? null},
+          ${entry.scores ?? null},
+          ${entry.interlocutor ?? null},
+          ${entry.preprocessedSignal ?? null}
         )
       `;
     } catch (e) {
@@ -97,7 +109,8 @@ export class GrockDecisionJournalService {
         SELECT
           "id", "photoHash", "title", "description", "tenantMessage",
           "perception", "state", "responsibility", "acknowledgment",
-          "noteInterne", "model", "visionModel", "createdAt"
+          "noteInterne", "model", "visionModel", "signalQuality", "scores",
+          "interlocutor", "preprocessedSignal", "createdAt"
         FROM "grock_decision_journal"
         ORDER BY "createdAt" DESC
         LIMIT ${limit}

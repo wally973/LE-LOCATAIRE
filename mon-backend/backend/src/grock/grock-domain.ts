@@ -40,6 +40,10 @@ export function inferGrockDomain(input: {
     domains.push('PLUMBING_WATER');
   }
 
+  if (/chauffe[\s-]?eau|ballon|solaire|ecs|eau chaude/.test(text)) {
+    if (!domains.includes('PLUMBING_WATER')) domains.push('PLUMBING_WATER');
+  }
+
   if (domains.length === 0) {
     domains.push('GENERAL');
   }
@@ -75,9 +79,11 @@ export function buildGrockDomainPrompt(domain: GrockDomain | GrockDomain[]): str
     return [
       ...common,
       'Corps d’état principal : plomberie / eau / évacuation.',
+      'Chauffe-eau solaire : distinguer fuite circuit intérieur vs toiture/collecteurs — poser UNE question si flou.',
       'Ouverture métier : si plafond, façade ou toiture sont cités, mobiliser enveloppe.',
-      'Ouverture métier : si eau touche un point lumineux, mobiliser électricité.',
-      'Thinking : flux, exutoire, propagation, usage du locataire.',
+      'Électricité : seulement si eau touche prise/ampoule ou symptôme électrique explicite — pas par défaut sur une fuite ECS.',
+      'Sécurité proportionnée : vanne fermée = suffisant ; pas de 112 ni « quitter le logement » pour fuite maîtrisée.',
+      'Thinking : flux, exutoire, propagation, origine (logement / toiture / collectif).',
     ].join('\n');
   }
 

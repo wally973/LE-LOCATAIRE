@@ -1,7 +1,7 @@
 import { GrockService } from './grock.service';
 import { SocialHousingGuyanePack } from './domain/social-housing-guyane.pack';
+import { GrockPreprocessorService } from './preprocessor/grock-preprocessor.service';
 import { GROCK_PATHOLOGY_ASSISTANT_PROMPT } from './grock-pathology.prompt';
-
 describe('GrockService intégration prompt/domain/vision/note_interne', () => {
   it('valide un cas réel infiltration avec domaine non verrouillé, vision croisée et note_interne', async () => {
     const captured: {
@@ -41,6 +41,14 @@ describe('GrockService intégration prompt/domain/vision/note_interne', () => {
           text: JSON.stringify({
             thinking:
               'Observation infiltration buanderie ; domaine dominant humidité non verrouillé ; croisement récit/photo ; usage locataire et recours assurance considérés.',
+            scores: {
+              factExtractionConfidence: 7,
+              dangerLevel: 2,
+              realityCheckConfidence: 6,
+              inferenceConfidence: 5,
+              decisionConfidence: 5,
+              communicationIntensity: 2,
+            },
             state: 'ASK_ONE_QUESTION',
             next_action: 'Demander où la trace apparaît exactement.',
             acknowledgment:
@@ -56,9 +64,11 @@ describe('GrockService intégration prompt/domain/vision/note_interne', () => {
     const prisma = {
       $executeRaw: jest.fn().mockResolvedValue(1),
     };
+    const preprocessor = new GrockPreprocessorService(operator as never);
     const service = new GrockService(
       operator as never,
       new SocialHousingGuyanePack(),
+      preprocessor,
       prisma as never,
     );
     const result = await service.runTurn({
@@ -75,9 +85,10 @@ describe('GrockService intégration prompt/domain/vision/note_interne', () => {
     const systemPrompt = captured.systemPrompt ?? '';
 
     expect(systemPrompt).toContain('--- Domaine dominant (non verrouillé) ---');
-    expect(systemPrompt).toContain('5 TÊTES INTERNES');
+    expect(systemPrompt).toContain('version industrielle');
+    expect(systemPrompt).toContain('COUCHE 2');
     expect(systemPrompt).toContain('ANALYSE');
-    expect(systemPrompt).toContain('VÉRIFICATION DE RÉALITÉ');
+    expect(systemPrompt).toContain('VÉRIFICATION');
     expect(systemPrompt).toMatch(/D[EÉ]DUCTION/);
     expect(systemPrompt).toContain('DÉCISION');
     expect(systemPrompt).toContain('RÉSOLUTION');
@@ -90,9 +101,17 @@ describe('GrockService intégration prompt/domain/vision/note_interne', () => {
     expect(systemPrompt).toContain('"state"');
     expect(systemPrompt).toContain('"next_action"');
     expect(systemPrompt).toContain('"acknowledgment"');
-    expect(systemPrompt).toContain('"note_interne"');
+    expect(systemPrompt).toContain('signalQuality');
+    expect(systemPrompt).toContain('"scores"');
+    expect(systemPrompt).toContain('Couche 0 · signal textuel préparé');
+    expect(systemPrompt).toContain('Tête 3 · DÉDUCTION');
+    expect(systemPrompt).toContain('infiltration_score');
+    expect(systemPrompt).toContain('sinistre_probable');
+    expect(systemPrompt).toContain('Tête 5 · RÉSOLUTION');
+    expect(systemPrompt).not.toContain('Couche 0 · piste procédure sinistre');
     expect(systemPrompt).toContain('Savoir métier logement social');
-    expect(captured.visionPrompt).toContain('croisée avec le récit du locataire');
+    expect(captured.visionPrompt).toContain('Préprocesseur visuel');
+    expect(captured.visionPrompt).toContain('Invariant cadrage');
     // Perception AVEUGLE AU CADRAGE : le récit orienté du locataire ne doit PAS
     // être transmis au modèle de vision (sinon il teinte la lecture des pixels).
     expect(captured.visionContext).not.toContain(

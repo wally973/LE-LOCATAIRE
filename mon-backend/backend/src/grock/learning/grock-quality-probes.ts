@@ -1,3 +1,9 @@
+import {
+  isDangerCommunicationIncoherent,
+  isInferenceDecisionIncoherent,
+} from '../kernel/grock-score-modulation';
+import type { GrockConfidenceScores } from '../kernel/grock-confidence-scores';
+
 /**
  * Étage 2 de la boucle d'apprentissage — SONDES DE QUALITÉ (offline).
  *
@@ -22,6 +28,10 @@ export interface GrockJournalRow {
   noteInterne: string | null;
   model: string | null;
   visionModel: string | null;
+  signalQuality: number | null;
+  scores: string | null;
+  interlocutor: string | null;
+  preprocessedSignal: string | null;
   createdAt: Date;
 }
 
@@ -29,7 +39,9 @@ export type ProbeKind =
   | 'variance_cadrage'
   | 'fuite'
   | 'degenerescence'
-  | 'preuve_avant_conclusion';
+  | 'preuve_avant_conclusion'
+  | 'score_incoherence'
+  | 'signal_quality_faible';
 
 export type ProbeSeverity = 'info' | 'warn' | 'high';
 
@@ -211,6 +223,79 @@ export function probePreuveAvantConclusion(
   return candidates;
 }
 
+function parseJournalScores(raw: string | null): GrockConfidenceScores {
+  if (!raw?.trim()) return {};
+  try {
+    return JSON.parse(raw) as GrockConfidenceScores;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Sonde E — INCOHÉRENCE SCORES (danger ↔ parole, inference ↔ décision).
+ */
+export function probeScoreIncoherence(
+  rows: GrockJournalRow[],
+): GrockLessonCandidate[] {
+  const candidates: GrockLessonCandidate[] = [];
+  for (const r of rows) {
+    const scores = parseJournalScores(r.scores);
+    const dangerSpeech = isDangerCommunicationIncoherent(scores);
+    const inferenceDecision = isInferenceDecisionIncoherent(scores, r.state);
+    if (!dangerSpeech && !inferenceDecision) continue;
+
+    const parts: string[] = [];
+    if (dangerSpeech) {
+      parts.push(
+        `dangerLevel=${scores.dangerLevel} vs communicationIntensity=${scores.communicationIntensity}`,
+      );
+    }
+    if (inferenceDecision) {
+      parts.push(
+        `inferenceConfidence=${scores.inferenceConfidence} + state=${r.state}`,
+      );
+    }
+
+    candidates.push({
+      kind: 'score_incoherence',
+      severity: inferenceDecision ? 'high' : 'warn',
+      photoHash: r.photoHash,
+      rowIds: [r.id],
+      summary: `Incohérence scores : ${parts.join(' ; ')}.`,
+      evidence: [short(r.acknowledgment, 200)],
+    });
+  }
+  return candidates;
+}
+
+/**
+ * Sonde F — SIGNAL QUALITY FAIBLE → cas doctrine / demander photo.
+ */
+export function probeSignalQualityFaible(
+  rows: GrockJournalRow[],
+): GrockLessonCandidate[] {
+  const candidates: GrockLessonCandidate[] = [];
+  for (const r of rows) {
+    const sq = r.signalQuality;
+    if (sq == null || sq >= 4) continue;
+    if (r.state === 'NEED_PHOTO' || r.acknowledgment?.toLowerCase().includes('photo')) {
+      continue;
+    }
+    candidates.push({
+      kind: 'signal_quality_faible',
+      severity: 'warn',
+      photoHash: r.photoHash,
+      rowIds: [r.id],
+      summary: `signalQuality=${sq} — cas doctrine : demander photo / preuve avant conclusion.`,
+      evidence: [
+        `state=${r.state} · inference=${parseJournalScores(r.scores).inferenceConfidence ?? '?'} · cadrage « ${short(r.title, 40)} / ${short(r.tenantMessage, 60)} »`,
+      ],
+    });
+  }
+  return candidates;
+}
+
 /** Lance toutes les sondes et agrège les candidats (tri par sévérité). */
 export function runQualityProbes(
   rows: GrockJournalRow[],
@@ -220,6 +305,8 @@ export function runQualityProbes(
     ...probeFuite(rows),
     ...probeDegenerescence(rows),
     ...probePreuveAvantConclusion(rows),
+    ...probeScoreIncoherence(rows),
+    ...probeSignalQualityFaible(rows),
   ];
   const rank: Record<ProbeSeverity, number> = { high: 0, warn: 1, info: 2 };
   return all.sort((a, b) => rank[a.severity] - rank[b.severity]);

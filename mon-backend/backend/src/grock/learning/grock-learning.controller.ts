@@ -14,7 +14,7 @@ import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guard/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { GrockLearningService } from './grock-learning.service';
-import { ProposeLessonDto } from './dto/grock-learning.dto';
+import { ProposeLessonDto, ConverseGrockDto } from './dto/grock-learning.dto';
 
 /**
  * Boucle d'apprentissage Grock — arbitrage humain (étage 3, ADMIN).
@@ -38,6 +38,15 @@ export class GrockLearningController {
   @Get('lessons')
   lessons(@Query('status') status?: 'draft' | 'validated') {
     return this.learning.listLessons(status);
+  }
+
+  @Post('converse')
+  converse(@Body() dto: ConverseGrockDto) {
+    return this.learning.converseAsAdmin({
+      message: dto.message,
+      title: dto.title,
+      description: dto.description,
+    });
   }
 
   @Post('lessons')

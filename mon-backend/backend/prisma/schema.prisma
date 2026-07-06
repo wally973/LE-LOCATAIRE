@@ -933,6 +933,10 @@ model GrockDecisionLog {
   noteInterne    String?
   model          String?
   visionModel    String?
+  signalQuality  Int?
+  scores         String?
+  interlocutor   String?
+  preprocessedSignal String? @db.Text
   createdAt      DateTime @default(now())
 
   @@index([photoHash])

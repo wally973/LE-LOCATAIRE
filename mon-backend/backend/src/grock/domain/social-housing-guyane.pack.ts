@@ -13,6 +13,13 @@ import type {
   GrockDomainKnowledge,
   GrockDomainPack,
 } from './domain-pack.port';
+import {
+  enrichHead3SocialHousing,
+  enrichHead4SocialHousing,
+  enrichHead5SocialHousing,
+} from './packs/social-housing/head-enrichment';
+import { serializeSocialHousingHeadInputsJournal } from './packs/social-housing/serialize-head-journal';
+import { applySocialHousingParoleSupplements } from './packs/social-housing/apply-parole-supplements';
 
 const AFPOL_DOCS_TITLE = '--- Documentation AFPOL / pathologies ---';
 
@@ -52,6 +59,26 @@ export class SocialHousingGuyanePack implements GrockDomainPack {
 
   pathologyKnowledge(): string {
     return [AFPOL_DOCS_TITLE, this.afpolDocs()].join('\n');
+  }
+
+  enrichHead3(ctx) {
+    return enrichHead3SocialHousing(ctx);
+  }
+
+  enrichHead4(ctx, head3) {
+    return enrichHead4SocialHousing(ctx, head3);
+  }
+
+  enrichHead5(ctx, head3, head4) {
+    return enrichHead5SocialHousing(ctx, head3, head4);
+  }
+
+  serializeHeadInputsJournal(inputs) {
+    return serializeSocialHousingHeadInputsJournal(inputs);
+  }
+
+  applyParoleSupplements(input) {
+    return applySocialHousingParoleSupplements(input);
   }
 
   /** Documentation AFPOL/AQC — mise en cache par domaine (chargement lourd). */
